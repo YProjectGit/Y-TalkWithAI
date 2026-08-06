@@ -1,13 +1,14 @@
 # デモシリーズ全体構成（概要）
 
-音声インタラクション・ワークショップの学習順と、各デモのパイプライン位置づけです。  
-**いま実装済みなのは `1. TextChat` のみ**です。2〜4 はフォルダと概要 README だけの段階です。
+音声・画像インタラクション・ワークショップの学習順と、各デモのパイプライン位置づけです。  
+**いま実装済みなのは `1. TextChat` のみ**です。2〜7 はフォルダと概要 README だけの段階です。
 
 ---
 
 ## 学習の進め方
 
-入力と出力を一段ずつ足していきます。前のデモで覚えた「LLM への送受信」を土台にします。
+入力と出力を一段ずつ足していきます。前のデモで覚えた「LLM への送受信」を土台にします。  
+前半（1〜5）は主に **理解して声で返す**、後半（6〜7）は **画像を生成・変換する** 系統です。
 
 | # | フォルダ | 入力 | 処理の骨格 | 出力 |
 |---|----------|------|------------|------|
@@ -15,12 +16,18 @@
 | 2 | [`Assets/2. TextToSpeech/`](../Assets/2.%20TextToSpeech/) | テキスト | LLM → TTS | 音声 |
 | 3 | [`Assets/3. SpeechToSpeech/`](../Assets/3.%20SpeechToSpeech/) | マイク音声 | STT → LLM → TTS | 音声 |
 | 4 | [`Assets/4. VisionToSpeech/`](../Assets/4.%20VisionToSpeech/) | カメラ画像 | Vision LLM → TTS | 音声 |
+| 5 | [`Assets/5. ScreenToSpeech/`](../Assets/5.%20ScreenToSpeech/) | 画面キャプチャ | Vision LLM → TTS | 音声 |
+| 6 | [`Assets/6. TextToImage/`](../Assets/6.%20TextToImage/) | テキスト | 画像生成 | 画像 |
+| 7 | [`Assets/7. ImageToImage/`](../Assets/7.%20ImageToImage/) | 画像＋指示 | 画像変換 | 画像 |
 
 ```text
 [1]  Text ──────────────► LLM ──────────────────────► Text
 [2]  Text ──────────────► LLM ──► TTS ──────────────► Audio
 [3]  Mic ──► STT ─────► LLM ──► TTS ──────────────► Audio
 [4]  Camera ──────────► Vision LLM ──► TTS ───────► Audio
+[5]  Screen ──────────► Vision LLM ──► TTS ───────► Audio
+[6]  Text ──────────────► Image Gen ────────────────► Image
+[7]  Image ＋ Text ─────► Image Edit ───────────────► Image
 ```
 
 共通の前提（キー取得など）は [gemini-ai-studio-setup.md](gemini-ai-studio-setup.md) を参照します。
@@ -35,7 +42,7 @@
 - **パイプラインを隠さない** — 右ペインなどで Status / 中間結果（テキスト・JSON）を見える化する（TextChat と同じ考え方）
 - **API キーは `Assets/Common/APIKey.txt`**（リポジトリにはコミットしない）
 - **共通基盤への寄せすぎはしない** — コピーして改変しやすい短い流れを優先
-- 具体的なエンドポイント名・モデル名・音声フォーマットは、各デモ実装時に決める（概要 README ではパイプラインだけ固定）
+- 具体的なエンドポイント名・モデル名・音声／画像フォーマットは、各デモ実装時に決める（概要 README ではパイプラインだけ固定）
 
 ---
 
@@ -46,12 +53,15 @@
 | 2. TextToSpeech | LLM の返答テキストを音声にする（TTS）、再生 |
 | 3. SpeechToSpeech | マイク録音、音声→テキスト（STT）、その後は 2 と同様 |
 | 4. VisionToSpeech | WebCam などからの画像取得、画像付きで LLM へ、返答を TTS |
+| 5. ScreenToSpeech | 画面／RenderTexture のキャプチャ（入力源がカメラではなく画面） |
+| 6. TextToImage | 画像生成リクエスト、テクスチャ表示（出力が音声ではなく画像） |
+| 7. ImageToImage | 入力画像＋指示での変換、Before / After 表示 |
 
 ---
 
 ## いまの完了条件（この段階）
 
-- [x] 2〜4 の番号フォルダがある
+- [x] 2〜7 の番号フォルダがある
 - [x] 各フォルダに概要 README がある
 - [x] 本ドキュメントでシリーズ全体の位置づけが読める
 - [ ] 各デモのシーン・スクリプト（実装は別タスク）
