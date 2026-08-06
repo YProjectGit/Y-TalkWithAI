@@ -3,9 +3,11 @@
 // 左ペインに会話、右ペインに HTTP/JSON の生データを出し、通信の流れを追えるようにする。
 //
 // 上からの流れ:
-//   Start → APIキー読込・UI初期化
-//   送信ボタン → 履歴に user 追加 → リクエストJSON組み立て → POST
+//   Start → APIキー読込・systemInstruction 読込・UI初期化
+//   送信ボタン → 履歴に user 追加 → リクエストJSON組み立て（指示があれば systemInstruction 付き）→ POST
 //   応答受信 → 生JSON表示 → テキスト抽出 → 履歴に model 追加
+//
+// systemInstruction は UI と Assets/Common/SystemInstruction.txt を同期する。
 
 using System;
 using System.Collections;
@@ -26,9 +28,11 @@ public class TextChat : MonoBehaviour
 
     public string modelName = "gemini-3.6-flash"; // 使う Gemini モデル名（URL の一部になる）
     public string apiKeyRelativePath = "Common/APIKey.txt"; // Assets/ からの相対パス
+    public string systemInstructionRelativePath = "Common/SystemInstruction.txt"; // Assets/ からの相対パス（事前指示）
 
     // ===== インスペクタ: 左ペイン（チャット UI） =====
 
+    public TMP_InputField systemInstructionField; // systemInstruction（事前指示）。空ならリクエストに載せない
     public TMP_InputField inputField; // ユーザー入力欄
     public Button sendButton; // 送信ボタン
     public Transform messageContent; // バブルを並べる ScrollView の Content
@@ -46,6 +50,11 @@ public class TextChat : MonoBehaviour
     string apiKey; // Assets/Common/APIKey.txt から読んだキー（画面には出さない）
     readonly List<ChatTurn> turns = new List<ChatTurn>(); // 複数ターン用の会話履歴
     bool isSending; // 二重送信防止
+    DateTime systemInstructionFileWriteTimeUtc; // 最後に同期した SystemInstruction.txt の更新時刻
+    float systemInstructionPollTimer; // ファイル変更ポーリング用（秒）
+    const float SystemInstructionPollInterval = 0.5f; // テキスト編集の反映を見る間隔
+    bool statusBlink; // 応答待ちのとき Status を点滅させる
+    const float StatusBlinkSpeed = 6f; // 点滅の速さ（大きいほど速い）
 
     // Gemini contents の1要素（role + text）
     class ChatTurn
@@ -56,16 +65,23 @@ public class TextChat : MonoBehaviour
 
     // ----- エントリポイント -----
 
-    // 起動時: キーを読み、ボタンと初期表示を用意する
+    // 起動時: キーと事前指示を読み、ボタンと初期表示を用意する
     void Start()
     {
         LoadApiKey();
+        LoadSystemInstructionFromFile();
+        if (systemInstructionField != null)
+        {
+            // UI で編集が終わったらファイルへ書き戻す（その場入力 ↔ txt の同期）
+            systemInstructionField.onEndEdit.AddListener(OnSystemInstructionEndEdit);
+        }
+
         if (sendButton != null)
         {
             sendButton.onClick.AddListener(OnSendClicked);
         }
 
-        SetStatus("Idle");
+        SetStatus("待機中", false);
         if (requestText != null)
         {
             requestText.text = "（まだ送信していません）";
@@ -79,6 +95,26 @@ public class TextChat : MonoBehaviour
         SetSending(false);
     }
 
+    // 応答待ちの点滅と、SystemInstruction.txt の外部編集取り込み
+    void Update()
+    {
+        UpdateStatusBlink();
+
+        systemInstructionPollTimer += Time.unscaledDeltaTime;
+        if (systemInstructionPollTimer < SystemInstructionPollInterval)
+        {
+            return;
+        }
+
+        systemInstructionPollTimer = 0f;
+        if (systemInstructionField != null && systemInstructionField.isFocused)
+        {
+            return;
+        }
+
+        ReloadSystemInstructionFromFileIfChanged();
+    }
+
     // 送信ボタン押下 → コルーチンで API 呼び出し
     void OnSendClicked()
     {
@@ -86,6 +122,9 @@ public class TextChat : MonoBehaviour
         {
             return;
         }
+
+        // 送信直前: ファイルの新しい編集を取り込み、UI の内容をファイルへも残す
+        SyncSystemInstructionBeforeSend();
 
         string userText = inputField != null ? inputField.text.Trim() : string.Empty;
         if (string.IsNullOrEmpty(userText))
@@ -119,7 +158,7 @@ public class TextChat : MonoBehaviour
         AddBubble("You", userText, true);
 
         // 2) リクエスト組み立て（右ペインに生データを出す）
-        SetStatus("Building");
+        SetStatus("リクエスト作成中", false);
         string url = "https://generativelanguage.googleapis.com/v1beta/models/"
                      + modelName
                      + ":generateContent";
@@ -127,7 +166,7 @@ public class TextChat : MonoBehaviour
         ShowRequest(url, requestJson);
 
         // 3) POST 送信（ヘッダに APIキー、ボディに JSON）
-        SetStatus("Sending");
+        SetStatus("送信中", false);
         byte[] bodyRaw = Encoding.UTF8.GetBytes(requestJson);
         using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
         {
@@ -137,7 +176,8 @@ public class TextChat : MonoBehaviour
             // Docs と同じ認証ヘッダ。キー自体は右ペインではマスク表示する
             request.SetRequestHeader("x-goog-api-key", apiKey);
 
-            SetStatus("Waiting");
+            // サーバ応答待ち。このあいだ Status を点滅させる
+            SetStatus("応答待ち", true);
             yield return request.SendWebRequest();
 
             long statusCode = request.responseCode;
@@ -146,7 +186,7 @@ public class TextChat : MonoBehaviour
                 : string.Empty;
 
             // 4) 生レスポンスを右ペインへ
-            SetStatus("Parsing");
+            SetStatus("応答解析中", false);
             ShowResponse(statusCode, responseBody);
 
             if (request.result != UnityWebRequest.Result.Success)
@@ -171,7 +211,7 @@ public class TextChat : MonoBehaviour
 
             turns.Add(new ChatTurn { role = "model", text = assistantText });
             AddBubble("Gemini", assistantText, false);
-            SetStatus("Done");
+            SetStatus("完了", false);
         }
 
         SetSending(false);
@@ -179,12 +219,23 @@ public class TextChat : MonoBehaviour
 
     // ----- リクエスト JSON -----
 
-    // 会話履歴すべてを Gemini の contents 形式にまとめる
-    // 形: {"contents":[{"role":"user","parts":[{"text":"..."}]}, ...]}
+    // 会話履歴を contents にまとめ、事前指示があれば systemInstruction を付ける
+    // 形: {"systemInstruction":{"parts":[{"text":"..."}]},"contents":[...]}
+    // 指示が空なら従来どおり {"contents":[...]} のみ
     string BuildRequestJson()
     {
         StringBuilder sb = new StringBuilder();
-        sb.Append("{\"contents\":[");
+        sb.Append('{');
+
+        string instruction = GetSystemInstructionText();
+        if (!string.IsNullOrEmpty(instruction))
+        {
+            sb.Append("\"systemInstruction\":{\"parts\":[{\"text\":\"");
+            sb.Append(EscapeJson(instruction));
+            sb.Append("\"}]},");
+        }
+
+        sb.Append("\"contents\":[");
         for (int i = 0; i < turns.Count; i++)
         {
             if (i > 0)
@@ -202,6 +253,119 @@ public class TextChat : MonoBehaviour
 
         sb.Append("]}");
         return sb.ToString();
+    }
+
+    // UI 欄の現在テキスト（トリム済み）。空ならリクエストに載せない
+    string GetSystemInstructionText()
+    {
+        if (systemInstructionField == null)
+        {
+            return string.Empty;
+        }
+
+        return systemInstructionField.text != null
+            ? systemInstructionField.text.Trim()
+            : string.Empty;
+    }
+
+    // ----- systemInstruction ファイル同期 -----
+
+    // Assets/.../SystemInstruction.txt の絶対パス
+    string GetSystemInstructionFilePath()
+    {
+        return Path.Combine(Application.dataPath, systemInstructionRelativePath);
+    }
+
+    // 起動時など: ファイル → UI
+    void LoadSystemInstructionFromFile()
+    {
+        if (systemInstructionField == null)
+        {
+            return;
+        }
+
+        string path = GetSystemInstructionFilePath();
+        if (!File.Exists(path))
+        {
+            Debug.LogWarning("[TextChat] SystemInstruction.txt がありません: " + path);
+            systemInstructionField.text = string.Empty;
+            systemInstructionFileWriteTimeUtc = DateTime.MinValue;
+            return;
+        }
+
+        string text = File.ReadAllText(path);
+        systemInstructionField.text = text != null ? text : string.Empty;
+        systemInstructionFileWriteTimeUtc = File.GetLastWriteTimeUtc(path);
+        Debug.Log("[TextChat] SystemInstruction.txt を読み込みました（長さ "
+                  + systemInstructionField.text.Length + "）。");
+    }
+
+    // ファイルが更新されていれば UI へ取り込む（入力中は呼ばない想定）
+    void ReloadSystemInstructionFromFileIfChanged()
+    {
+        if (systemInstructionField == null)
+        {
+            return;
+        }
+
+        string path = GetSystemInstructionFilePath();
+        if (!File.Exists(path))
+        {
+            return;
+        }
+
+        DateTime writeTimeUtc = File.GetLastWriteTimeUtc(path);
+        if (writeTimeUtc <= systemInstructionFileWriteTimeUtc)
+        {
+            return;
+        }
+
+        string text = File.ReadAllText(path);
+        systemInstructionField.text = text != null ? text : string.Empty;
+        systemInstructionFileWriteTimeUtc = writeTimeUtc;
+        Debug.Log("[TextChat] SystemInstruction.txt の変更を UI に反映しました。");
+    }
+
+    // UI → ファイルへ保存（onEndEdit / 送信直前）
+    void SaveSystemInstructionFromField()
+    {
+        if (systemInstructionField == null)
+        {
+            return;
+        }
+
+        string path = GetSystemInstructionFilePath();
+        string directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        string text = systemInstructionField.text != null ? systemInstructionField.text : string.Empty;
+        File.WriteAllText(path, text, new UTF8Encoding(false));
+        systemInstructionFileWriteTimeUtc = File.GetLastWriteTimeUtc(path);
+    }
+
+    // InputField の編集確定時
+    void OnSystemInstructionEndEdit(string _)
+    {
+        SaveSystemInstructionFromField();
+    }
+
+    // 送信直前の同期: 外部編集の取り込み → UI を正としてファイルへ書き戻し
+    void SyncSystemInstructionBeforeSend()
+    {
+        if (systemInstructionField == null)
+        {
+            return;
+        }
+
+        if (!systemInstructionField.isFocused)
+        {
+            ReloadSystemInstructionFromFileIfChanged();
+        }
+
+        SaveSystemInstructionFromField();
     }
 
     // JSON 文字列用の最低限のエスケープ
@@ -314,7 +478,7 @@ public class TextChat : MonoBehaviour
         {
             Debug.LogError("[TextChat] APIキーファイルがありません: " + path);
             apiKey = null;
-            SetStatus("Error");
+            SetStatus("エラー", false);
             if (responseText != null)
             {
                 responseText.text = "APIキーファイルが見つかりません:\n" + path;
@@ -328,7 +492,7 @@ public class TextChat : MonoBehaviour
         {
             Debug.LogError("[TextChat] APIキーが空です: " + path);
             apiKey = null;
-            SetStatus("Error");
+            SetStatus("エラー", false);
             if (responseText != null)
             {
                 responseText.text = "APIキーが空です。Docs/gemini-ai-studio-setup.md を参照してください。";
@@ -358,12 +522,34 @@ public class TextChat : MonoBehaviour
 
     // ----- UI 更新 -----
 
-    void SetStatus(string status)
+    // Status 欄の Value を日本語で更新する（タイトルはシーン側の固定文言）
+    // blink=true のとき点滅（応答待ち用）
+    void SetStatus(string statusJapanese, bool blink)
     {
-        if (statusText != null)
+        statusBlink = blink;
+        if (statusText == null)
         {
-            statusText.text = "Status: " + status;
+            return;
         }
+
+        statusText.text = statusJapanese;
+        Color color = statusText.color;
+        color.a = 1f;
+        statusText.color = color;
+    }
+
+    // 応答待ち中だけアルファを上下させて点滅させる
+    void UpdateStatusBlink()
+    {
+        if (!statusBlink || statusText == null)
+        {
+            return;
+        }
+
+        float wave = (Mathf.Sin(Time.unscaledTime * StatusBlinkSpeed) + 1f) * 0.5f;
+        Color color = statusText.color;
+        color.a = Mathf.Lerp(0.25f, 1f, wave);
+        statusText.color = color;
     }
 
     // 右ペイン Request: URL / マスク済みヘッダ / JSON 本文
@@ -402,7 +588,7 @@ public class TextChat : MonoBehaviour
     void ShowError(string message)
     {
         Debug.LogError("[TextChat] " + message);
-        SetStatus("Error");
+        SetStatus("エラー", false);
         AddBubble("Error", message, false);
         if (responseText != null && !responseText.text.Contains(message))
         {
@@ -449,6 +635,11 @@ public class TextChat : MonoBehaviour
         if (inputField != null)
         {
             inputField.interactable = !sending;
+        }
+
+        if (systemInstructionField != null)
+        {
+            systemInstructionField.interactable = !sending;
         }
     }
 
