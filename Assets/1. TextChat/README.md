@@ -1,103 +1,115 @@
-# 1. TextChat — Gemini テキストチャット（可視化付き）
+# 1.TextChat
 
-シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)  
-次のデモ（予定）: [`2. StructuredOutput`](../2.%20StructuredOutput/) — 決まった形（JSON）で返して Unity を動かす
+シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
+
+---
 
 ## このデモで学べること
 
-- Gemini Developer API（`generateContent`）へテキストを送り、返答を受け取る流れ
-- 通信は **コルーチン**（`StartCoroutine` + `UnityWebRequest` + `yield`）で待ち、そのあいだ Status が点滅すること
-- チャット／Request／Response の 3 ペインで、会話と生 JSON を同時に見る見方
-- 複数ターンの会話が `contents` 配列として積み上がっていくこと（＝コンテキスト）
-- **「コンテキストを送る」** を OFF にすると履歴が載らず、以前の発言を覚えていないように見えること
-- **`systemInstruction`（事前指示）** を付けると、同じ質問でも返答の口調・形式が変わること
+- メッセージを送ると、裏側では何が起きているのか？
+- AI が会話を覚えているように見えるのは何故か？
+- 同じ質問でも、答え方を変えるにはどうしたらよいか？
+
+---
 
 ## 事前準備
 
-1. APIキーの取得と `Assets/Common/APIKey.txt` への保管  
-   → [Docs/gemini-ai-studio-setup.md](../../Docs/gemini-ai-studio-setup.md)
-2. （任意）事前指示の編集 — [`Assets/Common/SystemInstruction.txt`](../Common/SystemInstruction.txt)  
-   Play 開始時に左ペイン上部の入力欄へ読み込まれます。UI で編集して確定すると、このファイルへ書き戻されます
-3. Unity でこのプロジェクトを開いていること
-4. シーン内の UI（Canvas / EventSystem）がそろっていること（同梱済み）
+Google AI Studio から Gemini の API にアクセスするための APIキーを取得し、`Assets/Common/APIKey.txt` に保管してください。  
+手順 → [Docs/gemini-ai-studio-setup.md](../../Docs/gemini-ai-studio-setup.md)
 
-## シーンの開き方と動かし方
+---
 
-1. Project ウィンドウで `Assets/1. TextChat/TextChat.unity` を開く
-2. Play を押す
-3. 左ペイン上部の **System Instruction** を確認する（空にすると `systemInstruction` は送られない）
-4. Message と Status のあいだの **Option** で、**コンテキストを送る** が ON であることを確認する
-5. 左ペイン下部にメッセージを入力し、**送信** を押す（Enter でも送信。Shift+Enter で改行）
-6. 左に会話、中央に Request、右に Response が出ることを確認する（Status は左下。応答待ち中は点滅）  
-   → Request の JSON に `"systemInstruction"` があるか見ると、事前指示の有無が一目でわかります  
-   → もう一度送ると `contents` が増えること、Option を OFF にすると毎回 user 1件だけになることを見比べる
+## 動かし方
 
-うまくいかないとき:
+Project ウィンドウで `Assets/1. TextChat/TextChat.unity` を開き、Play を押してください。
 
-- Request / Response に APIキー関連のエラー → Docs のキー手順を見直す
-- HTTP 401 / 403 → キーの空白・種類（Auth）を確認
-- HTTP 404 → モデル名が `gemini-3.6-flash` か確認（Inspector の `modelName`）
+### 1. チャットをしてみる
 
-## systemInstruction（事前指示）とは
+1. 左ペイン下部にメッセージを入力し、**送信** を押してください（Enter でも送信できます。Shift+Enter で改行です）。
+2. 左に会話、中央に Request、右に Response が出ることを確認してください。
+3. もう一度メッセージを送り、中央 Request の会話の履歴が増えることを見てください。
 
-モデルへの「口調・形式の前提」です。会話のやりとり（`contents`）とは **別枠** で送られます。
+### 2. System Instruction になにかを入れてみる
 
-| 状態 | リクエストに何が載るか | 中央 Request での見え方 |
-|------|------------------------|-------------------------|
-| 欄が空 | `systemInstruction` キー自体を出さない | JSON に `"systemInstruction"` がない |
-| 文字がある | `systemInstruction.parts[0].text` にその文言 | `"systemInstruction": { "parts": [ { "text": "..." } ] }` がある |
+1. 左ペイン上部の **System Instruction** に、たとえば「必ず一行で、やさしい言葉で答えてください」と入れてください。
+2. さきほどと同じような質問をもう一度送ってください。
+3. 答え方が変わったか、中央 Request に `"systemInstruction"` が入ったかを見てください。
 
-同期のタイミング:
+### 3. コンテキストのオプションを外してみる
 
-- **起動時** … `Assets/Common/SystemInstruction.txt` → UI 欄
-- **欄の編集を確定したとき** … UI → ファイルへ書き戻し
-- **送信直前** … ファイル側に新しい変更があれば取り込み、そのあと UI を正として保存
+1. Message と Status のあいだの **Option** で、**コンテキストを送る** を OFF にしてください。
+2. 「私の名前は太郎です」と送り、続けて「私の名前は？」と聞いてください。
+3. 覚えていないように見えること、中央 Request にはいまの一文だけが載っていることを見てください。
+4. 比較のため、Option を ON に戻して同じことを試し、差を見てください。
 
-試し方: 指示を「必ず一行で答えてください」などに変え、同じ質問を送る。返答の形と、中央 Request の `"systemInstruction"` の有無／内容を見比べる。
+---
 
-## 「コンテキストを送る」ON / OFF
+## Request と Response とは？
 
-ここでいうコンテキストは、これまでのやりとりを `contents` に載せて API に送ることです。
+Web の API 呼び出しは、ざっくり「手紙のやりとり」に似ています。本文はどちらも **JSON というデータ形式** でやりとりされます。
 
-| Option | API に載る `contents` | 左の吹き出し | 内部の履歴 `turns` |
-|--------|----------------------|--------------|-------------------|
-| **ON** | これまでの user / model 全部 | そのまま増える | 送信のたびに増える |
-| **OFF** | **今回の user 1件だけ** | そのまま残る（見た目のログ） | 成功後にクリア（次も単発） |
+- **Request（リクエスト）** … こちらから送る手紙。宛先の URL、認証（APIキー）、本文（いま何を言ったか）が入る
+- **Response（レスポンス）** … 向こうからの返事。うまくいったか（HTTP の番号）と、AI の返答本文が入る
 
-ポイント:
+このデモのポイントは、その手紙を隠さず中央・右に出していることです。左の吹き出しだけ見ると「魔法のチャット」に見えますが、中央・右を見ると「こういう JSON で送っている／返ってきている」が追えます。
 
-- 吹き出しが残っていても、OFF のときは **次の API 呼び出しには履歴が乗らない**
-- 差は左ペインだけでなく、**中央 Request の `contents` の件数**で確認する
+---
+
+## System Instruction（事前指示）とは？
+
+会話のメッセージとは別に、「答えるときの前提」をあらかじめ渡す欄です。
+
+たとえ話で言うと、チャット本文が「今日の質問」なら、事前指示は「この人は丁寧語で、短く答えてください」のような **役割やルールのメモ** です。Gemini はこのメモを踏まえて、あとの質問に答えます。欄が空のときは Request に `"systemInstruction"` 自体が出ず、文字があるときだけ載ります。
+
+試し方: 指示を「必ず一行で、やさしい言葉で答えてください」などに変え、同じ質問を送る。左の答え方と、中央 Request に事前指示が入っているかを見比べる。
+
+---
+
+## コンテキストとは？
+
+一般にコンテキストとは、AI が「いまこの答えを出すために見ている範囲」のことです。会話の履歴、直前の指示、コードを書くときの開いているファイルやエラーメッセージなど、判断材料になる情報すべてがここに入ります。
+
+モデルが一度に扱える量には上限があり、よく **コンテキストウィンドウ**（何トークンまで見られるか）として表されます。最近のコーディング向けモデルでは、数十万〜100万トークン前後を扱えるものも多く、大きなプロジェクトのコードや長い会話を一度に渡せる方向に進んでいます。ただし上限を超えたぶんは切れたり要約されたりするので、「全部覚えてくれている」わけではありません。
+
+チャットで「さっきの名前、覚えてる？」が通じるのも、AI が勝手に記憶しているからではなく、**こちらがこれまでのやりとりを毎回一緒に送り直している**からです。このデモでは、その「一緒に送る履歴」をコンテキストと呼び、Option の **コンテキストを送る** で載せ方を切り替えられます。
+
+| Option | 意味（体験） | API に載るもの | 左の吹き出し |
+|--------|--------------|----------------|--------------|
+| **ON** | いつものチャット。前の発言を踏まえて答える | これまでのやりとり全部 | そのまま増える |
+| **OFF** | 毎回「初めまして」に近い状態 | **いま打った一文だけ** | 見た目のログとしては残る |
 
 試し方:
 
 1. Option を **ON** のまま「私の名前は太郎です」→「私の名前は？」と送る（覚えて答えるはず）
 2. Option を **OFF** にして、同じように名前を伝えたあと「私の名前は？」と聞く（覚えていないように見えることが多い）
-3. 毎回、中央 Request の `contents` 配列の長さを見比べる
+3. 毎回、中央 Request の `contents` が何件あるかを見比べる
 
-## 主要スクリプトの読み方
+---
 
-入口は [`Script/TextChat.cs`](Script/TextChat.cs) です。上から次の順で読むと流れが追えます。
+## 主要クラス
 
-1. `Start` — APIキー読込、`SystemInstruction.txt` → UI、送信ボタン／Enter の購読
-2. `OnSendClicked` → `StartCoroutine(SendChatCoroutine)` — 送信の入口（直前に指示テキストを同期）
-3. `SendChatCoroutine` — 通信の本体（コルーチン）  
+### TextChat（[`TextChat.cs`](Script/TextChat.cs)）
+
+デモの本体です。上から、送信後の流れを追うとわかりやすいです。
+
+通信は **UnityWebRequest**（HTTP の送受信）と **コルーチン**（`IEnumerator` + `yield`）による **非同期処理** です。コルーチンは `Update` などのメインスレッドの処理とは独立した時間軸で進むので、応答待ちのあいだも画面が固まりません。
+
+1. **起動時の準備をする**  
+   `Start` — APIキー読込、`SystemInstruction.txt` → UI、送信ボタン／Enter の購読
+2. **送信を始める**  
+   `OnSendClicked` → `StartCoroutine(SendChatCoroutine)` — 送信の入口（直前に systemInstruction を同期）
+3. **API と通信する**  
+   `SendChatCoroutine` — 通信本体  
    - 履歴に user 追加 → `BuildRequestJson` → `UnityWebRequest` で POST  
-   - `yield return request.SendWebRequest()` で応答待ち（Status 点滅）  
+   - `yield return request.SendWebRequest()` で応答待ち  
    - Response 表示 → テキスト抽出 → 履歴に model 追加
-4. `BuildRequestJson` — 指示があれば `systemInstruction`、会話履歴を `contents` に組み立てる（Toggle OFF なら今回の user のみ）
-5. `TryExtractAssistantText` — レスポンス JSON から返答テキストを取り出す
-6. `ShowRequest` / `ShowResponse` — 中央・右ペインへの可視化
+4. **リクエスト JSON を組み立てる**  
+   `BuildRequestJson` — `systemInstruction`（空ならキーごと省略）と `contents` を組み立てる（Toggle OFF なら今回の user のみ）
+5. **返答テキストを取り出す**  
+   `TryExtractAssistantText` — レスポンス JSON から返答テキストを取り出す
+6. **送受信を画面に出す**  
+   `ShowRequest` / `ShowResponse` — 中央・右ペインへの可視化
 
-吹き出し1件の見た目は [`Script/ChatBubble.cs`](Script/ChatBubble.cs)（Prefab: [`Prefab/MessageBubble.prefab`](Prefab/MessageBubble.prefab)）です。
+### ChatBubble（[`ChatBubble.cs`](Script/ChatBubble.cs)）
 
-フォルダの見方: 直下はシーンと README のみ。実装は `Script/`、Prefab は `Prefab/`（その他リソース用の `Resource/` は中身があるときだけ）。
-
-## 改変のヒント
-
-触ってみるとわかりやすい箇所だけ挙げます。
-
-1. **事前指示を変える** — UI か `SystemInstruction.txt` を編集し、同じ質問で返答と中央 Request の差分を見る
-2. **コンテキスト ON/OFF** — 名前を伝えたあと「私の名前は？」と聞き、Toggle で差を見る（Request の `contents` も確認）
-3. **モデル名** — Inspector の `modelName` を変える（Docs で疎通確認済みの名前にする）
-4. **バブルの色** — `Prefab/MessageBubble` の `ChatBubble` にある `userColor` / `assistantColor`
+左ペインの吹き出し1件分です（Prefab: [`Prefab/MessageBubble.prefab`](Prefab/MessageBubble.prefab)）。`TextChat` が Prefab を `Instantiate` し、`SetMessage` で話者名・本文・背景色（user / assistant）を書き込みます。見た目の色分けだけを持つ小さなクラスで、通信ロジックは持ちません。
