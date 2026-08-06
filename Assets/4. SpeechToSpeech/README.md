@@ -1,4 +1,4 @@
-# 3. SpeechToSpeech — マイク音声 → 音声で返答（概要）
+# 4. SpeechToSpeech — マイク音声 → 音声で返答（概要）
 
 > **現状**: フォルダと概要のみ。シーン・スクリプトは未実装です。  
 > シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
@@ -19,7 +19,7 @@
   → スピーカー再生
 ```
 
-`2. TextToSpeech` の前段に **録音と STT** が付いた形です。LLM〜TTS〜再生は 2 と同じ発想で追えます。
+`3. TextToSpeech` の前段に **録音と STT** が付いた形です。LLM〜TTS〜再生は 3 と同じ発想で追えます。
 
 ## 事前準備（実装後に使う想定）
 
@@ -57,5 +57,5 @@
 
 ## まだやらないこと
 
-- カメラ画像の解釈（→ `4. VisionToSpeech`）
-- テキストだけの送受信の復習は `1. TextChat` / `2. TextToSpeech` を参照
+- カメラ画像の解釈（→ `5. VisionToSpeech`）
+- テキストだけの送受信の復習は `1. TextChat` / `3. TextToSpeech` を参照

@@ -1,4 +1,4 @@
-# 7. ImageToImage — 画像＋指示 → 画像変換（概要）
+# 8. ImageToImage — 画像＋指示 → 画像変換（概要）
 
 > **現状**: フォルダと概要のみ。シーン・スクリプトは未実装です。  
 > シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
@@ -7,7 +7,7 @@
 
 - 入力画像と短いテキスト指示をセットで送る流れ
 - 画像生成／編集 API から変換後の画像を受け取り、表示する流れ
-- `6. TextToImage`（テキストだけ）との違い＝**参照画像がある**こと
+- `7. TextToImage`（テキストだけ）との違い＝**参照画像がある**こと
 
 ## 処理の骨格
 
@@ -20,8 +20,8 @@
 入力画像の取り方は、教材では次のいずれか（実装時に1つに絞る想定）です。
 
 - ファイル／用意済みテクスチャ
-- WebCam の1フレーム（`4. VisionToSpeech` と同型）
-- 画面キャプチャ（`5. ScreenToSpeech` と同型）
+- WebCam の1フレーム（`5. VisionToSpeech` と同型）
+- 画面キャプチャ（`6. ScreenToSpeech` と同型）
 
 ## 事前準備（実装後に使う想定）
 
@@ -58,5 +58,5 @@
 
 ## まだやらないこと
 
-- テキストだけから新規生成（→ `6. TextToImage`）
-- 画像を解釈して声で返す（→ `4. VisionToSpeech` / `5. ScreenToSpeech`）
+- テキストだけから新規生成（→ `7. TextToImage`）
+- 画像を解釈して声で返す（→ `5. VisionToSpeech` / `6. ScreenToSpeech`）

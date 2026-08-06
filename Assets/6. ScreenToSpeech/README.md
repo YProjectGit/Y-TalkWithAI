@@ -1,4 +1,4 @@
-# 5. ScreenToSpeech — 画面キャプチャ → 音声で返答（概要）
+# 6. ScreenToSpeech — 画面キャプチャ → 音声で返答（概要）
 
 > **現状**: フォルダと概要のみ。シーン・スクリプトは未実装です。  
 > シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
@@ -18,7 +18,7 @@
   → スピーカー再生
 ```
 
-`4. VisionToSpeech` が **外の世界（WebCam）** を見るのに対し、ここでは **いま画面に出ているもの** を見るのがポイントです。TTS〜再生は 2 / 4 と同型です。
+`5. VisionToSpeech` が **外の世界（WebCam）** を見るのに対し、ここでは **いま画面に出ているもの** を見るのがポイントです。TTS〜再生は 3 / 5 と同型です。
 
 ## 事前準備（実装後に使う想定）
 
@@ -55,5 +55,5 @@
 
 ## まだやらないこと
 
-- WebCam 入力（→ `4. VisionToSpeech`）
-- 画像を生成して返す（→ `6. TextToImage` / `7. ImageToImage`）
+- WebCam 入力（→ `5. VisionToSpeech`）
+- 画像を生成して返す（→ `7. TextToImage` / `8. ImageToImage`）

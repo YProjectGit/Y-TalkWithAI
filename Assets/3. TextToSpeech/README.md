@@ -1,4 +1,4 @@
-# 2. TextToSpeech — テキスト送信 → 音声で返答（概要）
+# 3. TextToSpeech — テキスト送信 → 音声で返答（概要）
 
 > **現状**: フォルダと概要のみ。シーン・スクリプトは未実装です。  
 > シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
@@ -55,5 +55,6 @@ TextChat が「テキストで返す」ところまでだったのに対し、�
 
 ## まだやらないこと
 
-- マイク入力（→ `3. SpeechToSpeech`）
-- カメラ画像（→ `4. VisionToSpeech`）
+- マイク入力（→ `4. SpeechToSpeech`）
+- カメラ画像（→ `5. VisionToSpeech`）
+- 構造化出力で UI を動かす（→ `2. StructuredOutput`）

@@ -1,5 +1,8 @@
 # 1. TextChat — Gemini テキストチャット（可視化付き）
 
+シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)  
+次のデモ（予定）: [`2. StructuredOutput`](../2.%20StructuredOutput/) — 決まった形（JSON）で返して Unity を動かす
+
 ## このデモで学べること
 
 - Gemini Developer API（`generateContent`）へテキストを送り、返答を受け取る流れ
