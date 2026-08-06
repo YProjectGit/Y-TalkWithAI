@@ -1,5 +1,5 @@
 // ChatBubble.cs
-// チャット1件分の吹き出し。TextChat が Instantiate して中身を書き込む。
+// チャット1件分の吹き出し。TextChat が Instantiate して SetMessage で中身を書き込む。
 
 using TMPro;
 using UnityEngine;

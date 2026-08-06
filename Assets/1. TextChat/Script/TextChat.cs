@@ -1,13 +1,19 @@
 // TextChat.cs
 // Gemini とテキストチャットするデモの本体。
-// 左ペインに会話、右ペインに HTTP/JSON の生データを出し、通信の流れを追えるようにする。
+// 左ペインに会話、中央に Request、右に Response の生データを出し、通信の流れを追えるようにする。
 //
 // 上からの流れ:
 //   Start → APIキー読込・systemInstruction 読込・UI初期化
-//   送信ボタン → 履歴に user 追加 → リクエストJSON組み立て（指示があれば systemInstruction 付き）→ POST
-//   応答受信 → 生JSON表示 → テキスト抽出 → 履歴に model 追加
+//   送信ボタン / Enter → StartCoroutine(SendChatCoroutine)
+//     → 履歴に user 追加 → リクエストJSON組み立て → UnityWebRequest で POST
+//     → yield で応答待ち（このあいだ Status 点滅）→ 生JSON表示 → テキスト抽出 → 履歴に model 追加
 //
-// systemInstruction は UI と Assets/Common/SystemInstruction.txt を同期する。
+// 「コンテキストを送る」OFF のとき:
+//   contents には今回の user だけ載せる。成功後は turns をクリア（左の吹き出しは残る）。
+//
+// systemInstruction（事前指示）:
+//   UI 欄が空ならリクエストに載せない。値があれば contents とは別枠で送る。
+//   UI と Assets/Common/SystemInstruction.txt を、起動時読込・編集確定・送信直前で同期する。
 
 using System;
 using System.Collections;
@@ -35,24 +41,23 @@ public class TextChat : MonoBehaviour
     public TMP_InputField systemInstructionField; // systemInstruction（事前指示）。空ならリクエストに載せない
     public TMP_InputField inputField; // ユーザー入力欄
     public Button sendButton; // 送信ボタン
+    public Toggle sendContextToggle; // ON=会話履歴を contents に載せる / OFF=今回の発言だけ（学習用）
     public Transform messageContent; // バブルを並べる ScrollView の Content
     public ChatBubble messageBubblePrefab; // 1メッセージ分の Prefab
     public ScrollRect chatScrollRect; // 新着時に下端へスクロールするため
 
-    // ===== インスペクタ: 右ペイン（通信可視化） =====
+    // ===== インスペクタ: 通信可視化（中央 Request / 右 Response、Status は左下） =====
 
-    public TMP_Text statusText; // Idle / Building / Sending などの状態
-    public TMP_Text requestText; // URL・ヘッダ（キーはマスク）・リクエスト JSON
-    public TMP_Text responseText; // HTTP ステータス + 生レスポンス JSON
+    public TMP_Text statusText; // 待機中 / 送信中 / 応答待ち などの状態
+    public TMP_Text requestText; // URL・ヘッダ（キーはマスク）・リクエスト JSON（中央ペイン）
+    public TMP_Text responseText; // HTTP ステータス + 生レスポンス JSON（右ペイン）
 
     // ===== 内部状態 =====
 
     string apiKey; // Assets/Common/APIKey.txt から読んだキー（画面には出さない）
-    readonly List<ChatTurn> turns = new List<ChatTurn>(); // 複数ターン用の会話履歴
+    readonly List<ChatTurn> turns = new List<ChatTurn>(); // API に送る会話履歴（吹き出し表示とは別）
     bool isSending; // 二重送信防止
     DateTime systemInstructionFileWriteTimeUtc; // 最後に同期した SystemInstruction.txt の更新時刻
-    float systemInstructionPollTimer; // ファイル変更ポーリング用（秒）
-    const float SystemInstructionPollInterval = 0.5f; // テキスト編集の反映を見る間隔
     bool statusBlink; // 応答待ちのとき Status を点滅させる
     const float StatusBlinkSpeed = 6f; // 点滅の速さ（大きいほど速い）
 
@@ -72,13 +77,19 @@ public class TextChat : MonoBehaviour
         LoadSystemInstructionFromFile();
         if (systemInstructionField != null)
         {
-            // UI で編集が終わったらファイルへ書き戻す（その場入力 ↔ txt の同期）
+            // UI で編集が終わったらファイルへ書き戻す
             systemInstructionField.onEndEdit.AddListener(OnSystemInstructionEndEdit);
         }
 
         if (sendButton != null)
         {
             sendButton.onClick.AddListener(OnSendClicked);
+        }
+
+        if (inputField != null)
+        {
+            // Enter で送信（Shift+Enter で改行）。LineType はシーン側で MultiLineSubmit
+            inputField.onSubmit.AddListener(OnMessageSubmit);
         }
 
         SetStatus("待機中", false);
@@ -95,27 +106,19 @@ public class TextChat : MonoBehaviour
         SetSending(false);
     }
 
-    // 応答待ちの点滅と、SystemInstruction.txt の外部編集取り込み
+    // 応答待ち中だけ Status を点滅させる
     void Update()
     {
         UpdateStatusBlink();
-
-        systemInstructionPollTimer += Time.unscaledDeltaTime;
-        if (systemInstructionPollTimer < SystemInstructionPollInterval)
-        {
-            return;
-        }
-
-        systemInstructionPollTimer = 0f;
-        if (systemInstructionField != null && systemInstructionField.isFocused)
-        {
-            return;
-        }
-
-        ReloadSystemInstructionFromFileIfChanged();
     }
 
-    // 送信ボタン押下 → コルーチンで API 呼び出し
+    // Message 欄で Enter（送信）されたとき
+    void OnMessageSubmit(string _)
+    {
+        OnSendClicked();
+    }
+
+    // 送信ボタン押下 / Enter → コルーチンで API 呼び出しを始める
     void OnSendClicked()
     {
         if (isSending)
@@ -123,7 +126,7 @@ public class TextChat : MonoBehaviour
             return;
         }
 
-        // 送信直前: ファイルの新しい編集を取り込み、UI の内容をファイルへも残す
+        // 送信直前: 外部編集の取り込みと、UI 内容のファイルへの保存
         SyncSystemInstructionBeforeSend();
 
         string userText = inputField != null ? inputField.text.Trim() : string.Empty;
@@ -143,12 +146,14 @@ public class TextChat : MonoBehaviour
             inputField.text = string.Empty;
         }
 
+        // 通信はコルーチン。応答が来るまで yield で待ち、その間も画面は動く
         StartCoroutine(SendChatCoroutine(userText));
     }
 
-    // ----- 通信本体 -----
+    // ----- 通信本体（コルーチン） -----
 
-    // user 文言を送り、Gemini の返答を受け取って両ペインを更新する
+    // user 文言を送り、Gemini の返答を受け取って各ペインを更新する
+    // UnityWebRequest.SendWebRequest の完了まで yield するため、待ちのあいだ Status を点滅できる
     IEnumerator SendChatCoroutine(string userText)
     {
         SetSending(true);
@@ -157,7 +162,7 @@ public class TextChat : MonoBehaviour
         turns.Add(new ChatTurn { role = "user", text = userText });
         AddBubble("You", userText, true);
 
-        // 2) リクエスト組み立て（右ペインに生データを出す）
+        // 2) リクエスト組み立て（中央ペインに生データを出す）
         SetStatus("リクエスト作成中", false);
         string url = "https://generativelanguage.googleapis.com/v1beta/models/"
                      + modelName
@@ -173,7 +178,7 @@ public class TextChat : MonoBehaviour
             request.uploadHandler = new UploadHandlerRaw(bodyRaw);
             request.downloadHandler = new DownloadHandlerBuffer();
             request.SetRequestHeader("Content-Type", "application/json; charset=utf-8");
-            // Docs と同じ認証ヘッダ。キー自体は右ペインではマスク表示する
+            // Docs と同じ認証ヘッダ。キー自体は Request ペインではマスク表示する
             request.SetRequestHeader("x-goog-api-key", apiKey);
 
             // サーバ応答待ち。このあいだ Status を点滅させる
@@ -185,7 +190,7 @@ public class TextChat : MonoBehaviour
                 ? request.downloadHandler.text
                 : string.Empty;
 
-            // 4) 生レスポンスを右ペインへ
+            // 4) 生レスポンスを右ペイン（Response）へ
             SetStatus("応答解析中", false);
             ShowResponse(statusCode, responseBody);
 
@@ -203,7 +208,7 @@ public class TextChat : MonoBehaviour
             string assistantText;
             if (!TryExtractAssistantText(responseBody, out assistantText))
             {
-                ShowError("応答 JSON からテキストを取り出せませんでした。右ペインの Response を確認してください。");
+                ShowError("応答 JSON からテキストを取り出せませんでした。Response ペインを確認してください。");
                 RemoveLastTurnIfUser();
                 SetSending(false);
                 yield break;
@@ -211,6 +216,13 @@ public class TextChat : MonoBehaviour
 
             turns.Add(new ChatTurn { role = "model", text = assistantText });
             AddBubble("Gemini", assistantText, false);
+
+            // OFF のときは次の送信も単発になるよう履歴を捨てる（左の吹き出しは残す）
+            if (!IsSendContextEnabled())
+            {
+                turns.Clear();
+            }
+
             SetStatus("完了", false);
         }
 
@@ -221,7 +233,8 @@ public class TextChat : MonoBehaviour
 
     // 会話履歴を contents にまとめ、事前指示があれば systemInstruction を付ける
     // 形: {"systemInstruction":{"parts":[{"text":"..."}]},"contents":[...]}
-    // 指示が空なら従来どおり {"contents":[...]} のみ
+    // 指示が空なら {"contents":[...]} のみ（systemInstruction キー自体を出さない）
+    // 「コンテキストを送る」OFF のときは末尾の user 1件だけ（履歴を重ねない）
     string BuildRequestJson()
     {
         StringBuilder sb = new StringBuilder();
@@ -235,10 +248,17 @@ public class TextChat : MonoBehaviour
             sb.Append("\"}]},");
         }
 
-        sb.Append("\"contents\":[");
-        for (int i = 0; i < turns.Count; i++)
+        // ON: 全ターン / OFF: 今回の user だけ（学習用に差分を見せる）
+        int startIndex = 0;
+        if (!IsSendContextEnabled() && turns.Count > 0)
         {
-            if (i > 0)
+            startIndex = turns.Count - 1;
+        }
+
+        sb.Append("\"contents\":[");
+        for (int i = startIndex; i < turns.Count; i++)
+        {
+            if (i > startIndex)
             {
                 sb.Append(',');
             }
@@ -255,6 +275,12 @@ public class TextChat : MonoBehaviour
         return sb.ToString();
     }
 
+    // Toggle が無い／未配線なら履歴を送る。ON=コンテキストを送る
+    bool IsSendContextEnabled()
+    {
+        return sendContextToggle == null || sendContextToggle.isOn;
+    }
+
     // UI 欄の現在テキスト（トリム済み）。空ならリクエストに載せない
     string GetSystemInstructionText()
     {
@@ -266,144 +292,6 @@ public class TextChat : MonoBehaviour
         return systemInstructionField.text != null
             ? systemInstructionField.text.Trim()
             : string.Empty;
-    }
-
-    // ----- systemInstruction ファイル同期 -----
-
-    // Assets/.../SystemInstruction.txt の絶対パス
-    string GetSystemInstructionFilePath()
-    {
-        return Path.Combine(Application.dataPath, systemInstructionRelativePath);
-    }
-
-    // 起動時など: ファイル → UI
-    void LoadSystemInstructionFromFile()
-    {
-        if (systemInstructionField == null)
-        {
-            return;
-        }
-
-        string path = GetSystemInstructionFilePath();
-        if (!File.Exists(path))
-        {
-            Debug.LogWarning("[TextChat] SystemInstruction.txt がありません: " + path);
-            systemInstructionField.text = string.Empty;
-            systemInstructionFileWriteTimeUtc = DateTime.MinValue;
-            return;
-        }
-
-        string text = File.ReadAllText(path);
-        systemInstructionField.text = text != null ? text : string.Empty;
-        systemInstructionFileWriteTimeUtc = File.GetLastWriteTimeUtc(path);
-        Debug.Log("[TextChat] SystemInstruction.txt を読み込みました（長さ "
-                  + systemInstructionField.text.Length + "）。");
-    }
-
-    // ファイルが更新されていれば UI へ取り込む（入力中は呼ばない想定）
-    void ReloadSystemInstructionFromFileIfChanged()
-    {
-        if (systemInstructionField == null)
-        {
-            return;
-        }
-
-        string path = GetSystemInstructionFilePath();
-        if (!File.Exists(path))
-        {
-            return;
-        }
-
-        DateTime writeTimeUtc = File.GetLastWriteTimeUtc(path);
-        if (writeTimeUtc <= systemInstructionFileWriteTimeUtc)
-        {
-            return;
-        }
-
-        string text = File.ReadAllText(path);
-        systemInstructionField.text = text != null ? text : string.Empty;
-        systemInstructionFileWriteTimeUtc = writeTimeUtc;
-        Debug.Log("[TextChat] SystemInstruction.txt の変更を UI に反映しました。");
-    }
-
-    // UI → ファイルへ保存（onEndEdit / 送信直前）
-    void SaveSystemInstructionFromField()
-    {
-        if (systemInstructionField == null)
-        {
-            return;
-        }
-
-        string path = GetSystemInstructionFilePath();
-        string directory = Path.GetDirectoryName(path);
-        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        string text = systemInstructionField.text != null ? systemInstructionField.text : string.Empty;
-        File.WriteAllText(path, text, new UTF8Encoding(false));
-        systemInstructionFileWriteTimeUtc = File.GetLastWriteTimeUtc(path);
-    }
-
-    // InputField の編集確定時
-    void OnSystemInstructionEndEdit(string _)
-    {
-        SaveSystemInstructionFromField();
-    }
-
-    // 送信直前の同期: 外部編集の取り込み → UI を正としてファイルへ書き戻し
-    void SyncSystemInstructionBeforeSend()
-    {
-        if (systemInstructionField == null)
-        {
-            return;
-        }
-
-        if (!systemInstructionField.isFocused)
-        {
-            ReloadSystemInstructionFromFileIfChanged();
-        }
-
-        SaveSystemInstructionFromField();
-    }
-
-    // JSON 文字列用の最低限のエスケープ
-    static string EscapeJson(string value)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            return string.Empty;
-        }
-
-        StringBuilder sb = new StringBuilder(value.Length + 8);
-        for (int i = 0; i < value.Length; i++)
-        {
-            char c = value[i];
-            switch (c)
-            {
-                case '\\':
-                    sb.Append("\\\\");
-                    break;
-                case '"':
-                    sb.Append("\\\"");
-                    break;
-                case '\n':
-                    sb.Append("\\n");
-                    break;
-                case '\r':
-                    sb.Append("\\r");
-                    break;
-                case '\t':
-                    sb.Append("\\t");
-                    break;
-                default:
-                    sb.Append(c);
-                    break;
-            }
-        }
-
-        return sb.ToString();
     }
 
     // ----- レスポンス解析 -----
@@ -468,6 +356,124 @@ public class TextChat : MonoBehaviour
         public string text;
     }
 
+    // ----- systemInstruction ファイル同期 -----
+    // UI 欄 ↔ Assets/Common/SystemInstruction.txt
+    // 起動時に読込、編集確定と送信直前に保存。送信直前だけファイル側の更新も取り込む。
+
+    // Assets/.../SystemInstruction.txt の絶対パス
+    string GetSystemInstructionFilePath()
+    {
+        return Path.Combine(Application.dataPath, systemInstructionRelativePath);
+    }
+
+    // 起動時: ファイル → UI
+    void LoadSystemInstructionFromFile()
+    {
+        if (systemInstructionField == null)
+        {
+            return;
+        }
+
+        string text;
+        DateTime writeTimeUtc;
+        if (!TryReadSystemInstructionFile(out text, out writeTimeUtc))
+        {
+            Debug.LogWarning("[TextChat] SystemInstruction.txt がありません: " + GetSystemInstructionFilePath());
+            systemInstructionField.text = string.Empty;
+            systemInstructionFileWriteTimeUtc = DateTime.MinValue;
+            return;
+        }
+
+        systemInstructionField.text = text;
+        systemInstructionFileWriteTimeUtc = writeTimeUtc;
+        Debug.Log("[TextChat] SystemInstruction.txt を読み込みました（長さ " + text.Length + "）。");
+    }
+
+    // ファイルが更新されていれば UI へ取り込む（送信直前用）
+    void ReloadSystemInstructionFromFileIfChanged()
+    {
+        if (systemInstructionField == null)
+        {
+            return;
+        }
+
+        string text;
+        DateTime writeTimeUtc;
+        if (!TryReadSystemInstructionFile(out text, out writeTimeUtc))
+        {
+            return;
+        }
+
+        if (writeTimeUtc <= systemInstructionFileWriteTimeUtc)
+        {
+            return;
+        }
+
+        systemInstructionField.text = text;
+        systemInstructionFileWriteTimeUtc = writeTimeUtc;
+        Debug.Log("[TextChat] SystemInstruction.txt の変更を UI に反映しました。");
+    }
+
+    // ファイルを読んで text / 更新時刻を返す。無いときは false
+    bool TryReadSystemInstructionFile(out string text, out DateTime writeTimeUtc)
+    {
+        text = string.Empty;
+        writeTimeUtc = DateTime.MinValue;
+
+        string path = GetSystemInstructionFilePath();
+        if (!File.Exists(path))
+        {
+            return false;
+        }
+
+        string raw = File.ReadAllText(path);
+        text = raw != null ? raw : string.Empty;
+        writeTimeUtc = File.GetLastWriteTimeUtc(path);
+        return true;
+    }
+
+    // UI → ファイルへ保存（onEndEdit / 送信直前）
+    void SaveSystemInstructionFromField()
+    {
+        if (systemInstructionField == null)
+        {
+            return;
+        }
+
+        string path = GetSystemInstructionFilePath();
+        string directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        string text = systemInstructionField.text != null ? systemInstructionField.text : string.Empty;
+        File.WriteAllText(path, text, new UTF8Encoding(false));
+        systemInstructionFileWriteTimeUtc = File.GetLastWriteTimeUtc(path);
+    }
+
+    // InputField の編集確定時
+    void OnSystemInstructionEndEdit(string _)
+    {
+        SaveSystemInstructionFromField();
+    }
+
+    // 送信直前の同期: 外部編集の取り込み → UI を正としてファイルへ書き戻し
+    void SyncSystemInstructionBeforeSend()
+    {
+        if (systemInstructionField == null)
+        {
+            return;
+        }
+
+        if (!systemInstructionField.isFocused)
+        {
+            ReloadSystemInstructionFromFileIfChanged();
+        }
+
+        SaveSystemInstructionFromField();
+    }
+
     // ----- APIキー -----
 
     // Assets/Common/APIKey.txt を1行読む（リポジトリにはコミットしない）
@@ -504,22 +510,6 @@ public class TextChat : MonoBehaviour
         }
     }
 
-    // 画面表示用にキーを伏せる（先頭数文字だけ残す）
-    static string MaskApiKey(string key)
-    {
-        if (string.IsNullOrEmpty(key))
-        {
-            return "(none)";
-        }
-
-        if (key.Length <= 6)
-        {
-            return "******";
-        }
-
-        return key.Substring(0, 4) + "…" + new string('*', 8);
-    }
-
     // ----- UI 更新 -----
 
     // Status 欄の Value を日本語で更新する（タイトルはシーン側の固定文言）
@@ -552,7 +542,7 @@ public class TextChat : MonoBehaviour
         statusText.color = color;
     }
 
-    // 右ペイン Request: URL / マスク済みヘッダ / JSON 本文
+    // 中央ペイン Request: URL / マスク済みヘッダ / JSON 本文
     void ShowRequest(string url, string requestJson)
     {
         if (requestText == null)
@@ -641,6 +631,67 @@ public class TextChat : MonoBehaviour
         {
             systemInstructionField.interactable = !sending;
         }
+
+        if (sendContextToggle != null)
+        {
+            sendContextToggle.interactable = !sending;
+        }
+    }
+
+    // ----- JSON / 表示ヘルパー -----
+
+    // 画面表示用にキーを伏せる（先頭数文字だけ残す）
+    static string MaskApiKey(string key)
+    {
+        if (string.IsNullOrEmpty(key))
+        {
+            return "(none)";
+        }
+
+        if (key.Length <= 6)
+        {
+            return "******";
+        }
+
+        return key.Substring(0, 4) + "…" + new string('*', 8);
+    }
+
+    // JSON 文字列用の最低限のエスケープ
+    static string EscapeJson(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return string.Empty;
+        }
+
+        StringBuilder sb = new StringBuilder(value.Length + 8);
+        for (int i = 0; i < value.Length; i++)
+        {
+            char c = value[i];
+            switch (c)
+            {
+                case '\\':
+                    sb.Append("\\\\");
+                    break;
+                case '"':
+                    sb.Append("\\\"");
+                    break;
+                case '\n':
+                    sb.Append("\\n");
+                    break;
+                case '\r':
+                    sb.Append("\\r");
+                    break;
+                case '\t':
+                    sb.Append("\\t");
+                    break;
+                default:
+                    sb.Append(c);
+                    break;
+            }
+        }
+
+        return sb.ToString();
     }
 
     // インデントを軽く付けて読みやすくする（厳密なパーサではない）
