@@ -9,11 +9,10 @@
 //     → STT（generateContent + inlineData）で文字起こし
 //     → 認識テキストを user として Chat（1A と同型）へ
 //
-// 「コンテキストを送る」OFF のとき:
-//   Chat の contents には今回の user だけ載せる。成功後は turns をクリア（左の吹き出しは残る）。
+// 会話コンテキストは常に送る（Option Toggle は置かない）。
 //
 // systemInstruction（事前指示）:
-//   Chat リクエストにだけ載せる（STT には載せない）。空ならキーごと省略。
+//   Chat リクエスト（2. LLM Request）にだけ載せる（STT には載せない）。空ならキーごと省略。
 
 using System;
 using System.Collections;
@@ -44,16 +43,17 @@ public class SpeechToText : MonoBehaviour
 
     public TMP_InputField systemInstructionField; // systemInstruction（事前指示）。空なら Chat に載せない
     public TMP_Text recordHintText; // 「Space を押しているあいだ録音」などの案内
-    public Toggle sendContextToggle; // ON=会話履歴を contents に載せる / OFF=今回の発言だけ（学習用）
     public Transform messageContent; // バブルを並べる ScrollView の Content
     public ChatBubble messageBubblePrefab; // 1メッセージ分の Prefab（見た目は 1A と同型）
     public ScrollRect chatScrollRect; // 新着時に下端へスクロールするため
 
-    // ===== インスペクタ: 通信可視化（中央 Request / 右 Response、Status は左下） =====
+    // ===== インスペクタ: 通信可視化（中央 Request / 右 Response は上下2段、Status は左下） =====
 
     public TMP_Text statusText; // 待機中 / 録音中 / STT / 応答待ち などの状態
-    public TMP_Text requestText; // URL・ヘッダ（キーはマスク）・リクエスト JSON（中央ペイン）
-    public TMP_Text responseText; // HTTP ステータス + 生レスポンス JSON（右ペイン）
+    public TMP_Text sttRequestText; // 1. STT Request（音声 inlineData のリクエスト）
+    public TMP_Text llmRequestText; // 2. LLM Request（文字起こし後のチャットリクエスト）
+    public TMP_Text sttResponseText; // 1. STT Response（文字起こしの応答）
+    public TMP_Text llmResponseText; // 2. LLM Response（チャットの応答）
 
     // ===== 内部状態 =====
 
@@ -108,15 +108,10 @@ public class SpeechToText : MonoBehaviour
         }
 
         SetStatus(microphoneDevice != null ? "待機中（Space で録音）" : "マイクなし", false);
-        if (requestText != null)
-        {
-            requestText.text = "（まだ送信していません）";
-        }
-
-        if (responseText != null)
-        {
-            responseText.text = "（まだ応答がありません）";
-        }
+        SetPanelPlaceholder(sttRequestText, "（まだ送っていません）");
+        SetPanelPlaceholder(llmRequestText, "（まだ送っていません）");
+        SetPanelPlaceholder(sttResponseText, "（まだ応答がありません）");
+        SetPanelPlaceholder(llmResponseText, "（まだ応答がありません）");
 
         SetSending(false);
     }
@@ -356,33 +351,34 @@ public class SpeechToText : MonoBehaviour
     {
         SetSending(true);
 
+        // 新しい発話のたびに LLM 側はクリアし、STT から順に埋めていく
+        SetPanelPlaceholder(llmRequestText, "（STT 完了後に表示）");
+        SetPanelPlaceholder(llmResponseText, "（STT 完了後に表示）");
+
         string url = BuildGenerateContentUrl();
 
         // --- 1) STT: 音声 inlineData を送り、文字起こしテキストだけ受け取る ---
         string sttRequestJson = BuildSttRequestJson(audioBase64);
-        if (requestText != null)
+        if (sttRequestText != null)
         {
-            requestText.text =
-                "=== STT Request（音声 → テキスト）===\n"
-                + "audio/wav bytes=" + wavByteLength
+            sttRequestText.text =
+                "audio/wav bytes=" + wavByteLength
                 + " / ~" + audioSeconds.ToString("0.0") + "s\n\n"
                 + FormatHttpRequestForDisplay(url, sttRequestJson);
         }
 
-        SetStatus("STT 送信中", false);
+        SetStatus("1. STT 送信中", false);
         HttpResult sttResult = new HttpResult();
         yield return StartCoroutine(PostJsonCoroutine(url, sttRequestJson, sttResult));
 
-        if (responseText != null)
+        if (sttResponseText != null)
         {
-            responseText.text =
-                "=== STT Response ===\n"
-                + FormatHttpResponseForDisplay(sttResult.statusCode, sttResult.body);
+            sttResponseText.text = FormatHttpResponseForDisplay(sttResult.statusCode, sttResult.body);
         }
 
         if (!sttResult.ok)
         {
-            ShowError("STT HTTP エラー: " + sttResult.statusCode + " / " + sttResult.error);
+            ShowError("STT HTTP エラー: " + sttResult.statusCode + " / " + sttResult.error, sttResponseText);
             SetSending(false);
             yield break;
         }
@@ -390,7 +386,7 @@ public class SpeechToText : MonoBehaviour
         string transcript;
         if (!TryExtractAssistantText(sttResult.body, out transcript))
         {
-            ShowError("STT 応答から文字起こしを取り出せませんでした。Response ペインを確認してください。");
+            ShowError("STT 応答から文字起こしを取り出せませんでした。1. STT Response を確認してください。", sttResponseText);
             SetSending(false);
             yield break;
         }
@@ -398,40 +394,34 @@ public class SpeechToText : MonoBehaviour
         transcript = transcript.Trim();
         if (string.IsNullOrEmpty(transcript))
         {
-            ShowError("文字起こし結果が空でした。もう一度話してみてください。");
+            ShowError("文字起こし結果が空でした。もう一度話してみてください。", sttResponseText);
             SetSending(false);
             yield break;
         }
 
-        // --- 2) Chat: 認識テキストを 1A と同じ形で LLM へ送る ---
+        // --- 2) LLM: 認識テキストを会話履歴付きで送り、返答を得る ---
         turns.Add(new ChatTurn { role = "user", text = transcript });
         AddBubble("You", transcript, true);
 
         string chatRequestJson = BuildChatRequestJson();
-        if (requestText != null)
+        if (llmRequestText != null)
         {
-            requestText.text =
-                requestText.text
-                + "\n\n=== Chat Request（テキスト → 返答）===\n"
-                + FormatHttpRequestForDisplay(url, chatRequestJson);
+            llmRequestText.text = FormatHttpRequestForDisplay(url, chatRequestJson);
         }
 
-        SetStatus("Chat 送信中", false);
+        SetStatus("2. LLM 送信中", false);
         HttpResult chatResult = new HttpResult();
         yield return StartCoroutine(PostJsonCoroutine(url, chatRequestJson, chatResult));
 
-        if (responseText != null)
+        if (llmResponseText != null)
         {
-            responseText.text =
-                responseText.text
-                + "\n\n=== Chat Response ===\n"
-                + FormatHttpResponseForDisplay(chatResult.statusCode, chatResult.body);
+            llmResponseText.text = FormatHttpResponseForDisplay(chatResult.statusCode, chatResult.body);
         }
 
         SetStatus("応答解析中", false);
         if (!chatResult.ok)
         {
-            ShowError("Chat HTTP エラー: " + chatResult.statusCode + " / " + chatResult.error);
+            ShowError("LLM HTTP エラー: " + chatResult.statusCode + " / " + chatResult.error, llmResponseText);
             RemoveLastTurnIfUser();
             SetSending(false);
             yield break;
@@ -440,7 +430,7 @@ public class SpeechToText : MonoBehaviour
         string assistantText;
         if (!TryExtractAssistantText(chatResult.body, out assistantText))
         {
-            ShowError("Chat 応答 JSON からテキストを取り出せませんでした。Response ペインを確認してください。");
+            ShowError("LLM 応答 JSON からテキストを取り出せませんでした。2. LLM Response を確認してください。", llmResponseText);
             RemoveLastTurnIfUser();
             SetSending(false);
             yield break;
@@ -448,12 +438,6 @@ public class SpeechToText : MonoBehaviour
 
         turns.Add(new ChatTurn { role = "model", text = assistantText });
         AddBubble("Gemini", assistantText, false);
-
-        // OFF のときは次の送信も単発になるよう履歴を捨てる（左の吹き出しは残す）
-        if (!IsSendContextEnabled())
-        {
-            turns.Clear();
-        }
 
         SetStatus("完了（Space で録音）", false);
         SetSending(false);
@@ -505,7 +489,7 @@ public class SpeechToText : MonoBehaviour
         return sb.ToString();
     }
 
-    // Chat 用: 1A と同型。会話履歴を contents にまとめ、事前指示があれば付ける
+    // Chat 用: 会話履歴をすべて contents にまとめ、事前指示があれば付ける（コンテキストは常にON）
     string BuildChatRequestJson()
     {
         StringBuilder sb = new StringBuilder();
@@ -519,16 +503,10 @@ public class SpeechToText : MonoBehaviour
             sb.Append("\"}]},");
         }
 
-        int startIndex = 0;
-        if (!IsSendContextEnabled() && turns.Count > 0)
-        {
-            startIndex = turns.Count - 1;
-        }
-
         sb.Append("\"contents\":[");
-        for (int i = startIndex; i < turns.Count; i++)
+        for (int i = 0; i < turns.Count; i++)
         {
-            if (i > startIndex)
+            if (i > 0)
             {
                 sb.Append(',');
             }
@@ -543,12 +521,6 @@ public class SpeechToText : MonoBehaviour
 
         sb.Append("]}");
         return sb.ToString();
-    }
-
-    // Toggle が無い／未配線なら履歴を送る。ON=コンテキストを送る
-    bool IsSendContextEnabled()
-    {
-        return sendContextToggle == null || sendContextToggle.isOn;
     }
 
     // UI 欄の現在テキスト（トリム済み）。空ならリクエストに載せない
@@ -744,11 +716,7 @@ public class SpeechToText : MonoBehaviour
             Debug.LogError("[SpeechToText] APIキーファイルがありません: " + path);
             apiKey = null;
             SetStatus("エラー", false);
-            if (responseText != null)
-            {
-                responseText.text = "APIキーファイルが見つかりません:\n" + path;
-            }
-
+            SetPanelPlaceholder(sttResponseText, "APIキーファイルが見つかりません:\n" + path);
             return;
         }
 
@@ -758,10 +726,9 @@ public class SpeechToText : MonoBehaviour
             Debug.LogError("[SpeechToText] APIキーが空です: " + path);
             apiKey = null;
             SetStatus("エラー", false);
-            if (responseText != null)
-            {
-                responseText.text = "APIキーが空です。Docs/gemini-ai-studio-setup.md を参照してください。";
-            }
+            SetPanelPlaceholder(
+                sttResponseText,
+                "APIキーが空です。Docs/gemini-ai-studio-setup.md を参照してください。");
         }
         else
         {
@@ -852,14 +819,24 @@ public class SpeechToText : MonoBehaviour
         return requestJson.Substring(0, valueStart) + replacement + requestJson.Substring(valueEnd);
     }
 
-    void ShowError(string message)
+    // プレースホルダ文言を1ペインに出す
+    static void SetPanelPlaceholder(TMP_Text target, string message)
+    {
+        if (target != null)
+        {
+            target.text = message;
+        }
+    }
+
+    // チャットにエラー吹き出しを出し、該当レスポンス欄にも追記する
+    void ShowError(string message, TMP_Text responsePanel = null)
     {
         Debug.LogError("[SpeechToText] " + message);
         SetStatus("エラー", false);
         AddBubble("Error", message, false);
-        if (responseText != null && !responseText.text.Contains(message))
+        if (responsePanel != null && !responsePanel.text.Contains(message))
         {
-            responseText.text = responseText.text + "\n\n[Error]\n" + message;
+            responsePanel.text = responsePanel.text + "\n\n[Error]\n" + message;
         }
     }
 
@@ -895,11 +872,6 @@ public class SpeechToText : MonoBehaviour
         if (systemInstructionField != null)
         {
             systemInstructionField.interactable = !sending;
-        }
-
-        if (sendContextToggle != null)
-        {
-            sendContextToggle.interactable = !sending;
         }
     }
 
