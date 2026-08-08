@@ -512,7 +512,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u9001\u4FE1"
+  m_text: "VAD \u81EA\u52D5"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 124f16a11e613cd4ebc18e7a2bf87e90, type: 2}
   m_sharedMaterial: {fileID: -1564414408837547503, guid: 124f16a11e613cd4ebc18e7a2bf87e90, type: 2}
@@ -539,8 +539,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 18
-  m_fontSizeBase: 18
+  m_fontSize: 15
+  m_fontSizeBase: 15
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 0
@@ -3484,6 +3484,7 @@ MonoBehaviour:
   playbackSampleRate: 24000
   systemInstructionField: {fileID: 737174816}
   recordHintText: {fileID: 1718470724}
+  vadModeButton: {fileID: 2061889960}
   messageContent: {fileID: 1223471171}
   messageBubblePrefab: {fileID: 39396712965936275, guid: 4a916732643b426fab36b6e2fecae37d, type: 3}
   chatScrollRect: {fileID: 44115916}
@@ -7667,12 +7668,12 @@ GameObject:
   - component: {fileID: 2061889957}
   - component: {fileID: 2061889960}
   m_Layer: 0
-  m_Name: SendButton
+  m_Name: VadModeButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &2061889956
 RectTransform:
   m_ObjectHideFlags: 0
@@ -7744,9 +7745,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.LayoutElement
   m_IgnoreLayout: 0
-  m_MinWidth: 88
+  m_MinWidth: 100
   m_MinHeight: 36
-  m_PreferredWidth: 96
+  m_PreferredWidth: 120
   m_PreferredHeight: -1
   m_FlexibleWidth: 0
   m_FlexibleHeight: 1
