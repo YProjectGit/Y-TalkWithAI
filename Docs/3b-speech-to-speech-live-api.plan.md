@@ -14,7 +14,7 @@
 |---|---------------------------|--------------------------------------|
 | 通信 | HTTP `generateContent` ×3 | **WebSocket Live セッション ×1** |
 | 段 | Audio → Text → TTS | **音声 in → 音声 out（＋文字起こし）** |
-| 可視化 | 発生順 1〜6 | **段階バー + 送信列 / 受信列（チャンクログ）** |
+| 可視化 | 発生順 1〜6 | **段階バー + Setup厚め + 送受信ログ（ステータスは1行）** |
 | 文字 | Chat の text パート | **transcription**（吹き出し用） |
 | キー | `APIKey.txt` | 同じ（教材ではクライアント直結） |
 
@@ -86,35 +86,37 @@ Unity 側の通信方針:
 
 | 原則 | 内容 |
 |------|------|
-| 左右で向きを分ける | **中央＝送信（Outbound）**、**右＝受信（Inbound）**。番号の行き来より「どちら向きのパケットか」を先に読む |
-| 上に段階バー | `Connect → Send PCM → Receive PCM → Play`。いまの段階だけ強調（Status 文言と同期） |
-| チャンクは追記ログ | 1ターン分を上書きせず、`+chunk …B / total …KB` を末尾に足す（スクロール）。生 PCM / 生 Base64 は出さない |
-| 送受信中ラベル | Space 中は中央に「送信中…」、返答中は右に「受信中…／再生中…」 |
-| 文字は受信側 | transcription は右欄（または右の下段）。左吹き出しは会話の結果表示 |
+| 左右で向きを分ける | **中央＝送信（Outbound）**、**右＝受信（Inbound）** |
+| 上に段階バー | `Connect → Send PCM → Receive PCM → Play`。いまの段階だけ強調 |
+| **初期設定を厚く** | 旧案の **1. Setup** を中央上部でしっかり見せる（model / modalities / voice / transcription フラグなど）。折りたたみで隠さない |
+| チャンクは追記ログ | `+chunk …B / total …KB` を末尾に足す。生 PCM / 生 Base64 は出さない |
+| **送受信中表示は薄い** | 「送信中」「受信中／再生中」は各列下の **1行ステータス**だけ。大きなバナー・レベルメーターは置かない |
+| 文字は受信側 | **4. Transcription** は右下段。左吹き出しは会話の結果表示 |
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────┐
-│ 段階バー:  Connect → Send PCM → Receive PCM → Play （いまの段を強調）   │
+│ 段階バー:  Connect → Send PCM → Receive PCM → Play （細め）             │
 ├────────────────┬────────────────────────────┬────────────────────────────┤
 │ Left Chat      │ Center 送信（Outbound）    │ Right 受信（Inbound）      │
-│ 吹き出し       │ Setup（接続時・折りたたみ可）│ ServerContent（Audio）     │
-│ （結果）       │ RealtimeInput ログ（追記） │  … チャンクログ（追記）    │
-│ Space 案内     │ 「送信中…」                │ Transcription             │
-│                │                            │ 「受信中…／再生中…」       │
+│ 吹き出し       │ 1. Setup（設定 JSON 本体） │ 2. ServerContent（Audio）  │
+│ Space 案内     │ 3. RealtimeInput ログ      │ 4. Transcription           │
+│ Connected      │ ─ 送信中（1行・狭い）      │ ─ 受信中/再生中（1行・狭い）│
 └────────────────┴────────────────────────────┴────────────────────────────┘
 ```
 
 欄の中身:
 
-1. **段階バー** … セッション全体のいま（接続・送信・受信・再生）
-2. **Setup - Live（Outbound）** … 接続時に送った設定 JSON（キーはマスク）。以後は参照用
-3. **RealtimeInput - Live（Audio）** … 送信チャンクの追記ログ（16 kHz・チャンクバイト・累計）
-4. **ServerContent - Live（Audio）** … 受信チャンクの追記ログ（24 kHz・チャンクバイト・累計）。再生に回した分と対応
-5. **Transcription - Live** … input/output の文字起こし（左吹き出しと対応）
+1. **段階バー** … セッション全体のいま（細く、下部の送受信バナーの代わりに段階を担う）
+2. **1. Setup - Live session（Outbound・広め）** … 接続時に送った設定のエッセンス  
+   `model` / `response_modalities: AUDIO` / `speech_config.voice` / `input_audio_transcription` / `output_audio_transcription` など（キーはマスク）
+3. **3. RealtimeInput - Live（Audio）** … 送信チャンクの追記ログ（16 kHz・累計バイト）
+4. **2. ServerContent - Live（Audio）** … 受信チャンクの追記ログ（24 kHz・累計バイト）＋受信側の前提（レート等）の短い要約
+5. **4. Transcription - Live** … input/output の文字起こし（左吹き出しと対応）
+6. **各列フッター（狭い）** … `送信中` / `受信中・再生中` の1行だけ。常時大きく出さない
 
 - **左**: 3A に近いチャット（You / Gemini）。文面は transcription 由来。Option は置かない。
 - Space 以外のテキスト送信欄は置かない。
-- 旧案の「番号 1〜4 を中央・右に互い違い配置」はやめ、**向き（送信／受信）で列を固定**する。
+- 向きは列で固定。旧々案の「番号だけ互い違い」にも、巨大な送受信ヒーロー表示にもしない。
 
 ---
 
@@ -191,7 +193,7 @@ Unity 側の通信方針:
 - **Live API 一セッション**（REST の STT/LLM/TTS 再発明はしない）
 - 応答モーダリティは **AUDIO のみ**＋ transcription で文字を足す
 - UX は **Space 押し話し**（常時ハンズフリー会話はスコープ外）
-- 可視化欄は GenerateContent 1〜6 ではなく **Setup / RealtimeInput / ServerContent / Transcription**
+- 可視化は GenerateContent 1〜6 ではなく **段階バー + Setup（初期設定）を厚く + 送受信チャンクログ（送受信中表示は1行）**
 - Firebase 等のラッパー SDK は使わない
 - 共通基底クラスは作らない
 
