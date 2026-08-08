@@ -45,12 +45,12 @@ Project ウィンドウで `Assets/3A.SpeechToSpeech/SpeechToSpeech.unity` を�
 5. **5. Request - GenerateContent（TTS）** … その返答テキストを TTS モデルへ送る  
 6. **6. Response - GenerateContent（TTS）** … 音声バイトが返り、再生に使う  
 
-5 の欄で `responseModalities` に `AUDIO` があること、6 の欄では MIME とバイト数など要約だけが出ることを確認してください（音声本体は再生に回します）。
+5 の欄の先頭に `ttsModel` / `voice` / `responseModalities` の設定行が出ること、本文に `responseModalities` に `AUDIO` があること、6 の欄では MIME とバイト数など要約だけが出ることを確認してください（音声本体は再生に回します）。
 
 ### 3. 声を変えてみる
 
 1. Hierarchy でデモ本体（`SpeechToSpeech`）を選び、Inspector の **Tts Voice Name**（`ttsVoiceName`）を変更してください（初期値は `Kore`）。
-2. もう一度 Space で話し、返答の声が変わったことを確認してください（次の TTS リクエストから反映されます）。
+2. Play し直し、**5. Request** 欄先頭の `voice:` が新しい名前になっていることを確認してから、Space で話してください（次の TTS リクエストから反映されます）。
 
 使える声の名前一覧 → [Gemini API: Text-to-speech（Voice options）](https://ai.google.dev/gemini-api/docs/speech-generation#voices)
 

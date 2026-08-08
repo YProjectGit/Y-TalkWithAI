@@ -31,7 +31,7 @@ Project ウィンドウで `Assets/3B.SpeechToSpeechLiveAPI/SpeechToSpeechLiveAP
 ### 1. 接続を確認する
 
 1. 上部の段階バーが `Connect` 付近であること、左 Status が「接続済み」になることを見てください。
-2. 中央（送信）上部の **Setup** ヘッダに、model / AUDIO / voice / transcription などの設定が出ることを確認してください。
+2. 中央（送信）上部の **Setup** ヘッダに、`model` / `voice` / `responseModalities` などの設定行が出ることを確認してください（接続前から表示され、接続後に Setup JSON が続きます）。
 
 ### 2. Space で話してみる
 

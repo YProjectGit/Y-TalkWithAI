@@ -123,7 +123,8 @@ public class SpeechToSpeech : MonoBehaviour
         SetStatus(microphoneDevice != null ? "待機中（Space で録音）" : "マイクなし", false);
         SetPanelPlaceholder(sttRequestText, "（まだ送っていません）");
         SetPanelPlaceholder(llmRequestText, "（まだ送っていません）");
-        SetPanelPlaceholder(ttsRequestText, "（まだ送っていません）");
+        // TTS 欄は送る前から設定（モデル・声）が見えるようにする
+        SetPanelPlaceholder(ttsRequestText, BuildTtsSettingsSummary() + "\n\n（まだ送っていません）");
         SetPanelPlaceholder(sttResponseText, "（まだ応答がありません）");
         SetPanelPlaceholder(llmResponseText, "（まだ応答がありません）");
         SetPanelPlaceholder(ttsResponseText, "（まだ応答がありません）");
@@ -369,7 +370,7 @@ public class SpeechToSpeech : MonoBehaviour
         // 新しい発話のたびに LLM / TTS 側はクリアし、STT から順に埋めていく
         SetPanelPlaceholder(llmRequestText, "（STT 完了後に表示）");
         SetPanelPlaceholder(llmResponseText, "（STT 完了後に表示）");
-        SetPanelPlaceholder(ttsRequestText, "（Chat 完了後に表示）");
+        SetPanelPlaceholder(ttsRequestText, BuildTtsSettingsSummary() + "\n\n（Chat 完了後に表示）");
         SetPanelPlaceholder(ttsResponseText, "（Chat 完了後に表示）");
 
         string url = BuildGenerateContentUrl();
@@ -457,14 +458,16 @@ public class SpeechToSpeech : MonoBehaviour
         AddBubble("Gemini", assistantText, false);
 
         // --- 3) TTS: 返答テキストを TTS モデルへ送り、AUDIO を受け取って再生する ---
-        SetPanelPlaceholder(ttsRequestText, "（Chat 完了後に表示）");
+        SetPanelPlaceholder(ttsRequestText, BuildTtsSettingsSummary() + "\n\n（Chat 完了後に表示）");
         SetPanelPlaceholder(ttsResponseText, "（Chat 完了後に表示）");
 
         string ttsUrl = BuildTtsGenerateContentUrl();
         string ttsRequestJson = BuildTtsRequestJson(assistantText);
         if (ttsRequestText != null)
         {
-            ttsRequestText.text = FormatHttpRequestForDisplay(ttsUrl, ttsRequestJson);
+            // 設定行（voice など）を先頭に置き、その下に実際の HTTP リクエストを続ける
+            ttsRequestText.text =
+                BuildTtsSettingsSummary() + "\n\n" + FormatHttpRequestForDisplay(ttsUrl, ttsRequestJson);
         }
 
         SetStatus("5. Request 送信中", false);
@@ -537,6 +540,14 @@ public class SpeechToSpeech : MonoBehaviour
         return "https://generativelanguage.googleapis.com/v1beta/models/"
                + ttsModelName
                + ":generateContent";
+    }
+
+    // TTS パネル先頭に出す設定サマリー（Inspector の ttsModelName / ttsVoiceName など）
+    string BuildTtsSettingsSummary()
+    {
+        return "ttsModel: " + ttsModelName + "\n"
+               + "voice: " + ttsVoiceName + "\n"
+               + "responseModalities: AUDIO";
     }
 
     // JSON を POST し、結果を result に書き込む
