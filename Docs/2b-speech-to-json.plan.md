@@ -7,6 +7,7 @@
 - **UI**: 左は 1B 型（3D＋録音案内）、中央／右は 2A 型の発生順 1〜4（Request/Response × Audio/Text）。
 - **コピー派生**: 共通基底は作らない。`SpeechToText` と `TextToJSON` から必要な部分をコピーして短く追える1ファイルにまとめる。
 - **触らないもの**: 1A/1B/2A の挙動、3 以降、TTS。
+- **適用状況**: 実装済み（シーン・スクリプト・README・UIイメージ）。
 - **完了条件**: シーン・`SpeechToJSON.cs`・WorkshopMaterial 準拠 README。クラウドのため Editor 検証は省略し、**UI 構成イメージを画像で出す**。
 
 | | 2A.SpeechToText | 1B.TextToJSON | 2B.SpeechToJSON（本プラン） |

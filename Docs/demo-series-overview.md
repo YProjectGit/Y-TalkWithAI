@@ -2,8 +2,8 @@
 
 音声・画像インタラクション・ワークショップの学習順と、各デモのパイプライン位置づけです。
 
-**実装済み**: `1A.TextToText` / `1B.TextToJSON` / `2A.SpeechToText`  
-**概要のみ**（フォルダと README）: `2B` 以降
+**実装済み**: `1A.TextToText` / `1B.TextToJSON` / `2A.SpeechToText` / `2B.SpeechToJSON`  
+**概要のみ**（フォルダと README）: `3` 以降
 
 ---
 
@@ -82,6 +82,7 @@
 - [x] 各フォルダに概要または本編 README がある
 - [x] 本ドキュメントでシリーズ全体の位置づけが読める
 - [x] `2A.SpeechToText` のシーン・スクリプト・本編 README
-- [ ] `2B` 以降のシーン・スクリプト（実装は別タスク）
+- [x] `2B.SpeechToJSON` のシーン・スクリプト・本編 README
+- [ ] `3` 以降のシーン・スクリプト（実装は別タスク）
 
 詳細な手順は、実装が入ったタイミングで各デモ README を `1A.TextToText` 並みに厚くします。

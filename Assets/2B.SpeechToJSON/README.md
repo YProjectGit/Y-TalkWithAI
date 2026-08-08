@@ -1,49 +1,69 @@
 # 2B.SpeechToJSON
 
-> **現状**: フォルダと概要のみ。シーン・スクリプトは未実装です。  
-> シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
+シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
 
-## このデモで学べること（予定）
+---
 
-- マイク入力と STT で発話をテキストにする流れ（`2A.SpeechToText` と同型）
-- そのテキストを LLM に渡し、JSON（構造化出力）で返す流れ（`1B.TextToJSON` と同型）
-- 「声で指示して、Unity の見た目やパラメータを動かす」組み合わせ
+## このデモで学べること
 
-## 処理の骨格
+- 声で色が変わる前に、Unity と API のあいだでは何が起きているのか？
+- 文字起こしと構造化 JSON は、それぞれどの Request / Response か？
+- スキーマの `NUMBER` と、キューブに塗られる色はどう対応しているか？
 
-```text
-マイク入力（音声）
-  → STT（ユーザー発話テキスト）
-  → LLM（JSON）
-  → UI / パラメータへ反映
-```
+---
 
-`2A` の入力に、`1B` の JSON 反映を足した形です。新しいモダリティ（TTS など）は増やしません。
+## 事前準備
 
-## 事前準備（実装後に使う想定）
+1. Google AI Studio から Gemini の API にアクセスするための APIキーを取得し、`Assets/Common/APIKey.txt` に保管してください。  
+   手順 → [Docs/gemini-ai-studio-setup.md](../../Docs/gemini-ai-studio-setup.md)
+2. PC にマイクがつながり、Unity から使える状態にしてください（OS のマイク権限を含む）。
 
-1. APIキーの取得と `Assets/Common/APIKey.txt` への保管  
-   → [Docs/gemini-ai-studio-setup.md](../../Docs/gemini-ai-studio-setup.md)
-2. Unity でマイク権限・入力デバイスが使えること
-3. `1B.TextToJSON` と同様、反映先（色やオブジェクトなど）がシーンにあること
+---
 
-## 予定するファイル構成
+## 動かし方
 
-実装時に、このフォルダへ次をそろえる想定です。
+Project ウィンドウで `Assets/2B.SpeechToJSON/SpeechToJSON.unity` を開き、Play を押してください。
 
-| 種類 | 例 | 役割 |
-|------|-----|------|
-| シーン | `SpeechToJSON.unity` | デモの入口 |
-| スクリプト | `SpeechToJSON.cs` など | 録音〜STT〜LLM(JSON)〜反映 |
-| チュートリアル MD | 本 README（実装後に手順を追記） | 学生向け手順 |
+### 1. Space で色を変えてみる
 
-## 主要スクリプトの読み方（実装後）
+1. **Space を押したまま**、たとえば「キューブは夕焼けのオレンジ、背景は夜の紺」と話し、**離してください**。
+2. Status が録音 → 音声変換 → 1. Request → 3. Request と進むことを見てください。
+3. 左の **3D キューブの色** と **背景色** が変わること、認識テキスト欄に文字起こしが出ることを確認してください。
 
-入口スクリプトを上から読む想定の流れです。
+### 2. 発生順（1〜4）で Request / Response を追う
 
-1. APIキー読込・マイク初期化・反映先の参照
-2. 録音開始 / 停止（または押し話し）
-3. STT で発話テキスト化・表示
-4. LLM（スキーマ付き）→ 構造化 JSON
-5. パースして UI / パラメータへ反映
-6.（教材向け）Schema / Response / Status の可視化
+どちらも Gemini の `generateContent` です。番号は呼ばれた順番です。
+
+1. **1. Request - GenerateContent（Audio）** … 音声（`inlineData` / `audio/wav`）を送る  
+2. **2. Response - GenerateContent（Audio）** … 文字起こしが返る  
+3. **3. Request - GenerateContent（Text）** … 認識テキスト＋`responseSchema`（rgb は `NUMBER`）を送る  
+4. **4. Response - GenerateContent（Text）** … 構造化 JSON が返り、色へ反映される  
+
+---
+
+## マイク入力と音声データとは？
+
+マイク入力とは、PC のマイクが拾った音を、プログラムが扱える数字の列として取り込むことです。このデモでは Unity の `Microphone` が録音中の音を **AudioClip** へ書き込み、WAV（16-bit PCM）→ Base64 にして 1. Request の `inlineData` に載せます。
+
+試し方: Space で録音したあと、1. Request に `mimeType: audio/wav` があるかを見る。
+
+---
+
+## 構造化出力とスキーマとは？
+
+構造化出力とは、自由文ではなく **決まった形の JSON** で返してもらうことです。スキーマはその形の約束で、このデモでは `cubeColor` / `backgroundColor` の `r` / `g` / `b` を **`NUMBER`（0〜1）** で受け取ります（`1B.TextToJSON` と同じ）。
+
+3. Request の `generationConfig.responseSchema` と、4. Response の JSON、左のキューブ色を見比べてください。
+
+---
+
+## 主要クラス
+
+### SpeechToJSON（[`SpeechToJSON.cs`](Script/SpeechToJSON.cs)）
+
+デモの本体です。Space 押し話しは **旧 Input Manager**（`Input.GetKeyDown` / `GetKeyUp`）です。通信は **UnityWebRequest** と **コルーチン** による非同期処理です。
+
+1. **起動時の準備をする** … APIキー、マイク、3D プレビュー、案内文言  
+2. **Space で録音する** … `Microphone.Start` → `End` → WAV → Base64  
+3. **1→2. GenerateContent（Audio）** … 文字起こしを取り、認識テキスト欄へ  
+4. **3→4. GenerateContent（Text）** … スキーマ付きで構造化 JSON を受け取り、色へ反映  
