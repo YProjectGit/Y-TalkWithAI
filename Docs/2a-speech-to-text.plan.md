@@ -4,7 +4,7 @@
 
 - **何をするか**: `1A.TextToText` を土台に、入力だけ「Space 押し話し録音 → 音声データ → STT →（既存どおり）LLM → テキスト表示」へ拡張する。
 - **作り方**: 共通基底クラスは作らない。1A のスクリプト／UI／Prefab を **コピーして派生**（教材方針どおり短く追える形）。
-- **入力**: Input System の Space（押している間だけ `Microphone` 録音）。テキスト送信欄は置かない。
+- **入力**: **旧 Input Manager**（`UnityEngine.Input`）の Space（押している間だけ `Microphone` 録音）。新 Input System（`UnityEngine.InputSystem`）は使わない。テキスト送信欄は置かない。
 - **STT**: Gemini `generateContent` に音声（WAV / base64 `inlineData`）を送り文字起こし → そのテキストで 1A と同型のチャット送信。
 - **README**: 「マイク → `AudioClip` → WAV バイト列 → Base64」を概念節と主要クラスの両方で追えるようにする。
 - **触らないもの**: 1A / 1B の実装、2B 以降、共通 API キー手順の本体。
@@ -47,7 +47,7 @@
 ### 処理の流れ（`SpeechToText.cs`）
 
 1. **Start** — APIキー / SystemInstruction / UI 初期化、マイクデバイス確認（`Microphone.devices`）
-2. **Update** — Space の押下／解放を検知（Input System）、Status 点滅
+2. **Update** — Space の押下／解放を検知（旧 Input）、Status 点滅
 3. **Space 押下** — `Microphone.Start` で録音開始、Status「録音中」
 4. **Space 解放** — `Microphone.End` → 録音区間を `AudioClip` に切り出し → **WAV バイト列化** → Base64
 5. **STT コルーチン** — `generateContent` に `inlineData`（`audio/wav`）＋「文字起こしだけ返す」指示 → 認識テキストを取得・表示
@@ -56,7 +56,11 @@
 
 ### Space 押し話し（入力）
 
-- `activeInputHandler` は Input System（`1`）。`UnityEngine.InputSystem.Keyboard.current.spaceKey` を使う。
+- **旧 Input Manager を使う**（新 Input System API は使わない）。
+  - 押し始め: `Input.GetKeyDown(KeyCode.Space)`
+  - 押している間: `Input.GetKey(KeyCode.Space)`（必要なら）
+  - 離したとき: `Input.GetKeyUp(KeyCode.Space)`
+- プロジェクトの Active Input Handling が Input System のみ（現状 `1`）だと旧 `Input` が効かないため、**Both（`2`）に変更する**（既存の Input System 資産は残しつつ旧 API を有効化）。
 - **押し始め**で録音開始、**離したとき**に停止→変換→送信。タップ一発録音にはしない。
 - 送信中（`isSending`）は録音開始しない。
 - System Instruction 欄にフォーカス中は Space を録音に使わない（文字入力と衝突するため）。
@@ -170,6 +174,8 @@ STT 用プロンプトはコード内の定数（日本語で「音声を文字�
 
 - STT と Chat は **2 リクエスト**（パイプラインを隠さない）
 - 入力は **Space 押し話しのみ**（テキスト送信は付けない）
+- Space 検知は **旧 Input Manager**（`Input.GetKeyDown` / `GetKeyUp`）。新 Input System は使わない
+- Active Input Handling は **Both** に変更して旧 `Input` を有効化する
 - コードは **1A コピー派生**（継承・共通化しない）
 
 この方針で実装に進めてよいか確認する。
