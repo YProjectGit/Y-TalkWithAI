@@ -1143,17 +1143,6 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         return ExtractJsonStringFieldFrom(json, textKey);
     }
 
-    static string ExtractJsonStringField(string json, string field)
-    {
-        int keyIndex = json.IndexOf("\"" + field + "\"", StringComparison.Ordinal);
-        if (keyIndex < 0)
-        {
-            return null;
-        }
-
-        return ExtractJsonStringFieldFrom(json, keyIndex);
-    }
-
     static string ExtractJsonStringFieldFrom(string json, int keyIndex)
     {
         int colon = json.IndexOf(':', keyIndex);
