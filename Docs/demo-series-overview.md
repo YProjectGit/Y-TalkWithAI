@@ -10,7 +10,7 @@
 ## 学習の三段
 
 1. **つながる / 形で動かす（テキスト入力）** … `1A` → `1B`
-2. **声で入る（マイク入力）** … `2A` → `2B` → `3A`（REST で TTS）→ `3B`（Live API・後続）
+2. **声で入る（マイク入力）** … `2A` → `2B` → `3A`（REST で TTS）→ `3B`（Live API）
 3. **見る・描く** … `4`〜`7`（映像・画像）
 
 入力モダリティごとに、**A = 自由テキスト出力 / B = JSON（構造化）出力** を揃えます（`3` だけは出力が音声になるため、REST / Live API の対比）。
@@ -70,7 +70,7 @@
 | 2A.SpeechToText | マイク録音、音声→テキスト（STT）。出力は 1A と同型のテキスト |
 | 2B.SpeechToJSON | 2A の入力＋1B の JSON 反映（組み合わせ） |
 | 3A.SpeechToSpeech | TTS と再生（REST の `generateContent` 三段。ここで声の出口が初出） |
-| 3B.SpeechToSpeechLiveAPI | Live API で音声→音声を一セッションにまとめる（後続） |
+| 3B.SpeechToSpeechLiveAPI | Live API で音声→音声を一セッションにまとめる（送信／受信の可視化） |
 | 4.VisionToSpeech | WebCam などからの画像取得、画像付きで LLM へ、返答を TTS |
 | 5.ScreenToSpeech | 画面／RenderTexture のキャプチャ（入力源がカメラではなく画面） |
 | 6.TextToImage | 画像生成リクエスト、テクスチャ表示 |
