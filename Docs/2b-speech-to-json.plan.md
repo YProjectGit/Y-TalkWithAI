@@ -83,12 +83,16 @@ Space 押し話し
 6. `TryParseAndApply` — キューブと背景色へ反映
 7. 各欄へ Request/Response を番号どおり表示（長い Base64 は表示だけ短縮）
 
+### スキーマ（1B と統一）
+
+`r` / `g` / `b` の型は **`NUMBER`**（1B `TextToJSON.cs` の `ResponseSchemaJson` と同じ）。`FLOAT` 等にはしない。スキーマ文字列は 1B からコピーして揃える。
+
 ### 1B / 2A から流用するもの
 
 | 流用元 | 内容 |
 |--------|------|
 | 2A | Space、`Microphone`、WAV 化、Audio リクエスト組み立て、4欄表示、旧 Input |
-| 1B | `ResponseSchemaJson`、`BuildRequestJson`（schema 付き）、`TryParseAndApply`、カメラ／プレビュー矩形の扱い |
+| 1B | `ResponseSchemaJson`（rgb=`NUMBER`）、`BuildRequestJson`（schema 付き）、`TryParseAndApply`、カメラ／プレビュー矩形の扱い |
 
 会話履歴（turns）は持たない。毎回「いまの発話 → JSON」の単発。
 
