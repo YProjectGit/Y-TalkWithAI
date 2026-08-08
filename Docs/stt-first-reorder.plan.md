@@ -1,143 +1,158 @@
-# STT 先行へのデモ並び替え
+# STT 先行・A/B 番号へのデモ再構成
 
 ## 要点（サマリー）
 
-- **何をするか**: 音声パートの学習順を「TTS（出力）→ STT（入力）」から「STT（入力）→ TTS（出力）」に入れ替える。
-- **推奨案（案A）**: デモ数 8 を維持。`3` を `SpeechToText`、`4` を `SpeechToSpeech`（ここで TTS 初出）。孤立した `TextToSpeech` は廃止。
-- **触らないもの**: `1. TextChat` / `2. StructuredOutput` の実装、`7`/`8` の画像デモの中身、API キー手順。
-- **完了条件**: `Docs/demo-series-overview.md` と `3`〜`6` の概要 README・フォルダ名が新順に揃い、相互参照が矛盾しないこと（この段階ではシーン実装はしない）。
-- **一言**: 声の入り口（マイク／STT）を先に学び、次で声の出口（TTS）を足して往復にする。
+- **何をするか**: 学習順を「入力モダリティ × 出力の形（Text / JSON）」の A/B に再編し、音声は STT を TTS より先にする。
+- **推奨案（案C）**: 下記の番号体系。旧案A（平坦な 3=STT / 4=S2S）よりこちらを推奨。
+- **触らないもの（この段階）**: 各デモの中身の新規実装。まずは概要・フォルダ名・overview の合意。
+- **完了条件（並び替え適用時）**: overview とフォルダ／README の番号・題名・相互参照が案Cで一致すること。
+- **一言**: テキストで Text→JSON を覚えたら、同じ型をマイク入力で melる。そのあと声の往復。
 
-| | 現状 | 変更後（案A） |
-|---|------|----------------|
-| 3 | TextToSpeech（Text→LLM→TTS） | **SpeechToText**（Mic→STT→LLM→Text） |
-| 4 | SpeechToSpeech（Mic→STT→LLM→TTS） | **SpeechToSpeech**（同上・ここで TTS 初出） |
-| 孤立 TTS | 3 で学習 | 廃止（4 の一段として初出） |
-| 5〜8 | Vision / Screen / 画像 | 番号・題名は維持（参照先だけ更新） |
+| 番号 | 題名 | 骨格 | 現状との対応 |
+|------|------|------|----------------|
+| 1A | TextToText | Text → LLM → Text | 旧 `1. TextChat` |
+| 1B | TextToJSON | Text → LLM(JSON) → UI | 旧 `2. StructuredOutput` |
+| 2A | SpeechToText | Mic → STT → LLM → Text | 新設（旧 3 TTS の位置を置換） |
+| 2B | SpeechToJSON | Mic → STT → LLM(JSON) → UI | 新設 |
+| 3 | SpeechToSpeech | Mic → STT → LLM → TTS → Audio | 旧 `4. SpeechToSpeech`（TTS 初出） |
+| 4… | Vision / Screen / 画像 | 後述 | 旧 5〜8 を再配置 |
 
 ---
 
-## 背景と方針
+## なぜよいか
 
-現状の「感覚を足す」は、先に **出力モダリティ（TTS）** を足し、次に **入力モダリティ（STT）** を足す積み上げです。
+入力で段階を切り、各段階で **A=自由テキスト / B=構造化** を揃えるので、学生から見て対応関係が読みやすい。
 
 ```text
-現状:  [3] Text → LLM → TTS → Audio
-       [4] Mic → STT → LLM → TTS → Audio
+        出力: Text              出力: JSON
+入力 Text   1A TextToText         1B TextToJSON
+入力 Speech  2A SpeechToText       2B SpeechToJSON
+入力+出力声  3  SpeechToSpeech（ここで TTS）
 ```
 
-今回の方向は対称に、先に **入力（STT）**、次に **出力（TTS）** です。
+- STT が TTS より先（当初の要望を満たす）。
+- 孤立 TTS（Text→TTS のみ）は置かない。TTS は 3 で「声の出口」として初出。
+- 2B は「声で Unity を動かす」体験になり、ワークショップの山場にしやすい。
+
+---
+
+## パイプライン図（1A〜3）
 
 ```text
-案A:   [3] Mic → STT → LLM → Text
-       [4] Mic → STT → LLM → TTS → Audio
+[1A] Text ──────────────► LLM ──────────────────────► Text
+[1B] Text ──────────────► LLM (JSON) ───────────────► UI / 数値など
+[2A] Mic ──► STT ─────► LLM ──────────────────────► Text
+[2B] Mic ──► STT ─────► LLM (JSON) ───────────────► UI / 数値など
+[3]  Mic ──► STT ─────► LLM ──► TTS ──────────────► Audio
 ```
 
-`1` / `2` の「つながる」「形で動かす」は変えません。変更は主に概要ドキュメントと未実装デモ（`3`〜`6`）のラベル・相互参照です。
+### 各段で増えるもの
+
+| デモ | 前から増える主な要素 |
+|------|----------------------|
+| 1A | API 送受信、可視化、コンテキスト |
+| 1B | JSON スキーマ、パース、UI / パラメータ反映 |
+| 2A | マイク録音、STT（出力は 1A と同型のテキスト） |
+| 2B | 2A の入力 + 1B の JSON 反映（新しい API は増やさず組み合わせ） |
+| 3 | TTS と再生（入力は 2A と同型） |
 
 ---
 
-## 推奨: 案A（デモ数 8 維持）
+## 4 以降の伸ばし方（案）
 
-### 変更後の一覧
+A/B をむやみに増やさない。Vision 以降は「入力源」で番号を進める。
 
-| # | フォルダ | 入力 | 処理の骨格 | 出力 | 前から増える要素 |
-|---|----------|------|------------|------|------------------|
-| 1 | TextChat | テキスト | LLM | テキスト | （据え置き） |
-| 2 | StructuredOutput | テキスト | LLM（JSON） | UI / パラメータ | （据え置き） |
-| 3 | **SpeechToText** | マイク音声 | **STT → LLM** | **テキスト** | マイク録音、STT、認識結果の可視化 |
-| 4 | SpeechToSpeech | マイク音声 | STT → LLM → **TTS** | 音声 | TTS と再生（3 の後段） |
-| 5 | VisionToSpeech | カメラ画像 | Vision LLM → TTS | 音声 | 画像入力（TTS は 4 と同型） |
-| 6 | ScreenToSpeech | 画面キャプチャ | Vision LLM → TTS | 音声 | 入力源が画面 |
-| 7 | TextToImage | テキスト | 画像生成 | 画像 | （据え置き） |
-| 8 | ImageToImage | 画像＋指示 | 画像変換 | 画像 | （据え置き） |
+| 番号 | 題名（案） | 骨格 |
+|------|------------|------|
+| 4 | VisionToSpeech | Camera → Vision LLM → TTS → Audio |
+| 5 | ScreenToSpeech | Screen → Vision LLM → TTS → Audio |
+| 6 | TextToImage | Text → Image Gen → Image |
+| 7 | ImageToImage | Image + Text → Image Edit → Image |
 
-### パイプライン図（音声パート）
+必要なら後から `4B VisionToJSON` などを足せるが、**初版は 4〜7 を平坦番号のまま**にする（学習ポイントの絞り込み）。
 
 ```text
-[3]  Mic ──► STT ─────► LLM ──────────────────────► Text
-[4]  Mic ──► STT ─────► LLM ──► TTS ──────────────► Audio
-[5]  Camera ──────────► Vision LLM ──► TTS ───────► Audio
-[6]  Screen ──────────► Vision LLM ──► TTS ───────► Audio
+[4] Camera ──► Vision LLM ──► TTS ──► Audio
+[5] Screen ──► Vision LLM ──► TTS ──► Audio
+[6] Text ───► Image Gen ────────────► Image
+[7] Image＋Text ► Image Edit ───────► Image
 ```
 
-### 学習上の狙い
+---
 
-- 3 は「声で聞いて、画面上は TextChat と同じテキスト返答」に留め、STT とマイクだけに焦点を当てる。
-- 4 は 3 に TTS を足すだけ、と説明できる（現状の 4 が「3 に STT を足す」だった関係の入れ替え）。
-- Vision / Screen はこれまでどおり TTS 出力。参照先を旧 `3. TextToSpeech` から新 `4. SpeechToSpeech` に付け替える。
+## フォルダ命名（ルール更新が必要）
 
-### 捨てるもの
+現行 WorkshopMaterial は `Assets/{番号}. {題名}/`（例: `1. TextChat`）。
 
-- 番号付きデモとしての **孤立 TextToSpeech**（Text→LLM→TTS のみ）。
-  - TTS 単体を先に見せたい場合は下記「案B」へ。
+案C では次に揃える。
+
+| フォルダ例 | README 標題例 |
+|------------|----------------|
+| `Assets/1A. TextToText/` | `# 1A.TextToText` |
+| `Assets/1B. TextToJSON/` | `# 1B.TextToJSON` |
+| `Assets/2A. SpeechToText/` | `# 2A.SpeechToText` |
+| `Assets/2B. SpeechToJSON/` | `# 2B.SpeechToJSON` |
+| `Assets/3. SpeechToSpeech/` | `# 3.SpeechToSpeech` |
+
+- シーン名・メインスクリプト名は題名に合わせる（`TextToText.cs` 等）。
+- 既存実装の改名: `TextChat` → `TextToText`、`StructuredOutput` → `TextToJSON`（スクリプト／シーン／Prefab 参照の更新が発生）。GUID は維持してフォルダ改名する。
 
 ---
 
-## 代替: 案B（一段ずつ厳密・デモ数 9）
+## リスク・トレードオフ
 
-| # | フォルダ | 骨格 |
-|---|----------|------|
-| 3 | SpeechToText | Mic → STT → LLM → Text |
-| 4 | TextToSpeech | Text → LLM → TTS → Audio |
-| 5 | SpeechToSpeech | Mic → STT → LLM → TTS → Audio |
-| 6〜9 | Vision / Screen / TextToImage / ImageToImage | 現行 5〜8 を +1 |
-
-- 長所: 入出力を完全に一段ずつ分離できる。
-- 短所: シリーズが 9 本になり、Vision 以降の番号がすべてずれる。ワークショップ時間も伸びる。
-
-**既定は案A。** 案B にする場合は実装前に明示する。
+| 点 | 内容 |
+|----|------|
+| 改名コスト | 実装済みの 1 / 2 をフォルダ・クラス・シーンごと改名する必要がある |
+| 2B の密度 | STT + JSON の組み合わせデモ。1B・2A をやった前提なら一段足すだけ、と説明できる |
+| 番号の慣れ | `1A`/`1B` は教材では分かりやすいが、ルールと overview の表記を先に直す必要あり |
+| 旧名 TextChat | パイプライン名（TextToText）に揃える利点あり。愛称として README 本文で「チャット」と呼ぶのは可 |
 
 ---
 
-## 設計の骨格（教材方針との整合）
+## 廃止・採用しない案
 
-- 1 デモ = 1 フォルダ。共通基盤への寄せすぎはしない（現行どおり）。
-- パイプラインは隠さない（Status / 中間テキスト可視化は TextChat と同じ発想）。
-- 3 の出力はテキストのままなので、左チャット＋ Request / Response の三ペインを流用しやすい。
-- 4 で初めて `AudioClip` 再生が入る。
-- 具体的なエンドポイント・モデル名は各デモ実装時に決める（今回の並び替えでは固定しない）。
+- **旧案A**（平坦 3=SpeechToText / 4=SpeechToSpeech、1/2 名は据え置き）: A/B 対称が弱いので案C を優先。
+- **旧案B**（孤立 TextToSpeech を挟んで 9 本）: 案C では採らない。
+- 番号付きデモとしての孤立 TextToSpeech は置かない。
 
 ---
 
-## 作業タスク（ドキュメント並び替え）
+## 作業タスク（方針確定後）
 
-実装（シーン／スクリプト）は別タスク。このプランの適用作業は次のみ。
+1. WorkshopMaterial のフォルダ命名規約を `1A` / `1B` 形式に更新
+2. `Docs/demo-series-overview.md` を案Cの表・図に差し替え
+3. フォルダ改名（GUID 維持）
+   - `1. TextChat` → `1A. TextToText`（クラス／シーン名も追随するかは実装タスクで分割可）
+   - `2. StructuredOutput` → `1B. TextToJSON`
+   - `3. TextToSpeech` → 削除または `2A. SpeechToText` に転用
+   - `4. SpeechToSpeech` → `3. SpeechToSpeech`
+   - `2B. SpeechToJSON` を新設（概要 README）
+   - Vision 以降を 4〜7 に振り直し
+4. 各概要 README の相互参照を更新
+5. （別タスク）未実装デモのシーン／スクリプト、および 1A/1B の識別子リネーム
 
-1. **フォルダ改名**
-   - `Assets/3. TextToSpeech/` → `Assets/3. SpeechToText/`
-   - `Assets/4. SpeechToSpeech/` は題名維持（中身の説明だけ更新）
-   - `.meta` の GUID は維持（削除して作り直さない）
-2. **`Docs/demo-series-overview.md`**
-   - 学習順表・ASCII 図・「増えるもの」表を案Aに更新
-   - 「いま実装済みは 1 のみ」等の現状注記は事実に合わせて維持／修正
-3. **概要 README の差し替え／更新**
-   - 新 `3. SpeechToText/README.md`（骨格・学べること・まだやらないことに TTS を「次」と書く）
-   - `4. SpeechToSpeech/README.md`（「3 の後段に TTS」と書き直し。旧「3 の前段に STT」を削除）
-   - `5. VisionToSpeech` / `6. ScreenToSpeech` の「TTS は 3 と同型」→「4 と同型」など参照更新
-4. **旧 TextToSpeech README の廃止**
-   - フォルダ改名に伴い内容を SpeechToText 用に置き換える（履歴に残るので別ファイル退避は不要）
+### 識別子リネームの分割（推奨）
 
-### 触らないもの
+- **パス1（ドキュメントのみ）**: フォルダ名と README / overview だけ案Cに。中のクラス名は旧名のまま一時許容、README で対応を書く。
+- **パス2（実装追随）**: `TextChat` → `TextToText` 等のコード改名とシーン配線。
 
-- `Assets/1. TextChat/` のコード・シーン
-- `Assets/2. StructuredOutput/` の実装（README に音声デモへの誘導があれば参照だけ直す）
-- `Assets/7.*` / `Assets/8.*`（番号維持）
-- `Docs/gemini-ai-studio-setup.md`
-- ルールファイル（並びが確定してから必要なら追記）
+初回適用はパス1でもよい。
 
 ---
 
-## 完了条件
+## 完了条件（並び替え適用時）
 
-- [ ] 案A（または明示した案B）で overview の表と図が一致している
-- [ ] `Assets/3. SpeechToText/` が存在し、旧 `3. TextToSpeech/` が残っていない
-- [ ] `3`〜`6` README の相互参照に旧順（「3=TTS」「4 の前段が STT」）が残っていない
-- [ ] シーン／スクリプトの新規実装は含まない（概要段階のまま）
+- [ ] overview が 1A〜3 と 4〜7 の表・図で一致
+- [ ] フォルダ名が `1A` / `1B` / `2A` / `2B` / `3`… になっている
+- [ ] 旧 `TextToSpeech` が先頭音声デモとして残っていない
+- [ ] WorkshopMaterial の命名例が新形式になっている
 
 ---
 
-## 判断待ち（このプラン適用前）
+## 判断待ち
 
-1. **案A（8本・孤立 TTS なし）でよいか、案B（9本）か**
-2. 3 の題名は `SpeechToText` でよいか（別名案: `SpeechChat` / `VoiceToText`）
+1. **案C（本番号体系）で確定してよいか**
+2. 4 以降は上表（Vision→Screen→画像、A/B なし）でよいか
+3. 既存 `TextChat` / `StructuredOutput` のクラス名改名はすぐやるか、パス1で後回しするか
+4. 2B の題名は `SpeechToJSON` でよいか（`SpeechToStructured` 等の別名があるか）
