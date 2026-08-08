@@ -1,4 +1,4 @@
-# 2. StructuredOutput（構造化出力）
+# 1B.TextToJSON
 
 シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
 
@@ -17,7 +17,7 @@
 
 ## 動かし方
 
-Project ウィンドウで `Assets/2. StructuredOutput/StructuredOutput.unity` を開き、Play を押してください。
+Project ウィンドウで `Assets/1B.TextToJSON/TextToJSON.unity` を開き、Play を押してください。
 
 ### 1. 文字を送信すると、キューブの色が変わるのを見る
 
@@ -42,7 +42,7 @@ AI に自由文で答えてもらうのではなく、**あらかじめ決めら
 
 たとえ話で言うと、自由文のチャットが「作文」なら、構造化出力は **記入欄のある用紙** です。作文だとプログラムは文の意味を読み解く必要がありますが、用紙なら「キューブの色」の欄を見れば済みます。このデモでは、その欄が `cubeColor` や `backgroundColor` といったキーにあたります。
 
-このデモのポイントは、返ってきた JSON をプログラムが解釈し、文字の表示ではなく **キューブや背景の色** として画面に反映していることです。TextChat が「返事を読んで見せる」なら、ここでは **返事でプログラムを動かす** が体験の中心です。
+このデモのポイントは、返ってきた JSON をプログラムが解釈し、文字の表示ではなく **キューブや背景の色** として画面に反映していることです。TextToText が「返事を読んで見せる」なら、ここでは **返事でプログラムを動かす** が体験の中心です。
 
 ---
 
@@ -66,7 +66,7 @@ Gemini へのリクエストにこのスキーマを含めることで、モデ�
 
 | 返し方 | Unity 側でやりやすいこと |
 |--------|--------------------------|
-| **自由文** | そのまま表示する（TextChat） |
+| **自由文** | そのまま表示する（TextToText） |
 | **構造化** | キーを読んで色などに割り当てる（このデモ） |
 
 試し方: 送信後、中央 Schema と右 Response の JSON が同じ構造になっているかを見比べる。
@@ -94,7 +94,7 @@ Gemini へのリクエストにこのスキーマを含めることで、モデ�
 
 ### スキーマのつくり方（例: scale）
 
-`StructuredOutput.cs` の `ResponseSchemaJson` に、プロパティと `required` を足します。
+`TextToJSON.cs` の `ResponseSchemaJson` に、プロパティと `required` を足します。
 
 ```json
 "scale": {
@@ -119,7 +119,7 @@ Gemini へのリクエストにこのスキーマを含めることで、モデ�
 エージェントに頼むときは、「スキーマ」と「反映コード」の両方を明示するとよいです。
 
 ```
-Assets/2. StructuredOutput/Script/StructuredOutput.cs を改修してください。
+Assets/1B.TextToJSON/Script/TextToJSON.cs を改修してください。
 
 追加したいフィールド:
 - scale (NUMBER): キューブの均一スケール。0.2〜3 程度
@@ -139,11 +139,11 @@ Assets/2. StructuredOutput/Script/StructuredOutput.cs を改修してくださ�
 
 ## 主要クラス
 
-### StructuredOutput（[`StructuredOutput.cs`](Script/StructuredOutput.cs)）
+### TextToJSON（[`TextToJSON.cs`](Script/TextToJSON.cs)）
 
 デモの本体です。上から、送信後の流れを追うとわかりやすいです。
 
-通信は **UnityWebRequest**（HTTP の送受信）と **コルーチン**（`IEnumerator` + `yield`）による **非同期処理** です。コルーチンは `Update` などのメインスレッドの処理とは独立した時間軸で進むので、応答待ちのあいだも画面が固まりません。TextChat との違いは、返答テキストを吹き出しに足すのではなく、**JSON をパースしてキューブ色と背景色へ反映する**ところです。
+通信は **UnityWebRequest**（HTTP の送受信）と **コルーチン**（`IEnumerator` + `yield`）による **非同期処理** です。コルーチンは `Update` などのメインスレッドの処理とは独立した時間軸で進むので、応答待ちのあいだも画面が固まりません。TextToText との違いは、返答テキストを吹き出しに足すのではなく、**JSON をパースしてキューブ色と背景色へ反映する**ところです。
 
 1. **起動時の準備をする**  
    `Start` — APIキー読込、送信ボタン／Enter の購読、キューブとカメラの参照

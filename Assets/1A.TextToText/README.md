@@ -1,4 +1,4 @@
-# 1.TextChat
+# 1A.TextToText
 
 シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
 
@@ -21,7 +21,7 @@ Google AI Studio から Gemini の API にアクセスするための APIキー�
 
 ## 動かし方
 
-Project ウィンドウで `Assets/1. TextChat/TextChat.unity` を開き、Play を押してください。
+Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、Play を押してください。
 
 ### 1. チャットをしてみる
 
@@ -88,7 +88,7 @@ Web の API 呼び出しは、ざっくり「手紙のやりとり」に似て�
 
 ## 主要クラス
 
-### TextChat（[`TextChat.cs`](Script/TextChat.cs)）
+### TextToText（[`TextToText.cs`](Script/TextToText.cs)）
 
 デモの本体です。上から、送信後の流れを追うとわかりやすいです。
 
@@ -112,4 +112,4 @@ Web の API 呼び出しは、ざっくり「手紙のやりとり」に似て�
 
 ### ChatBubble（[`ChatBubble.cs`](Script/ChatBubble.cs)）
 
-左ペインの吹き出し1件分です（Prefab: [`Prefab/MessageBubble.prefab`](Prefab/MessageBubble.prefab)）。`TextChat` が Prefab を `Instantiate` し、`SetMessage` で話者名・本文・背景色（user / assistant）を書き込みます。見た目の色分けだけを持つ小さなクラスで、通信ロジックは持ちません。
+左ペインの吹き出し1件分です（Prefab: [`Prefab/MessageBubble.prefab`](Prefab/MessageBubble.prefab)）。`TextToText` が Prefab を `Instantiate` し、`SetMessage` で話者名・本文・背景色（user / assistant）を書き込みます。見た目の色分けだけを持つ小さなクラスで、通信ロジックは持ちません。

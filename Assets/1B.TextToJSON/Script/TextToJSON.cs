@@ -1,4 +1,4 @@
-// StructuredOutput.cs
+// TextToJSON.cs
 // Gemini の構造化出力（JSON）で、3D キューブの色とカメラ背景色を変えるデモの本体。
 // 中央に Schema（形の約束）、右に構造化された Response を出し、パース結果を左の 3D に反映する。
 //
@@ -22,7 +22,7 @@ using UnityEngine.UI;
 /// <summary>
 /// Gemini generateContent の構造化出力で色を受け取り、キューブとカメラ背景へ反映する。
 /// </summary>
-public class StructuredOutput : MonoBehaviour
+public class TextToJSON : MonoBehaviour
 {
     // ===== インスペクタ: 設定 =====
 
@@ -463,7 +463,7 @@ public class StructuredOutput : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogError("[StructuredOutput] 応答 JSON 解析失敗: " + e.Message);
+            Debug.LogError("[TextToJSON] 応答 JSON 解析失敗: " + e.Message);
             return false;
         }
 
@@ -492,7 +492,7 @@ public class StructuredOutput : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogError("[StructuredOutput] 構造化 JSON のパース失敗: " + e.Message);
+            Debug.LogError("[TextToJSON] 構造化 JSON のパース失敗: " + e.Message);
             return false;
         }
 
@@ -511,7 +511,7 @@ public class StructuredOutput : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("[StructuredOutput] cubeRenderer が未設定です。");
+            Debug.LogWarning("[TextToJSON] cubeRenderer が未設定です。");
         }
 
         Camera cam = targetCamera != null ? targetCamera : Camera.main;
@@ -526,7 +526,7 @@ public class StructuredOutput : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("[StructuredOutput] カメラが見つかりません。");
+            Debug.LogWarning("[TextToJSON] カメラが見つかりません。");
         }
 
         return true;
@@ -550,7 +550,7 @@ public class StructuredOutput : MonoBehaviour
         string path = Path.Combine(Application.dataPath, apiKeyRelativePath);
         if (!File.Exists(path))
         {
-            Debug.LogError("[StructuredOutput] APIキーファイルがありません: " + path);
+            Debug.LogError("[TextToJSON] APIキーファイルがありません: " + path);
             apiKey = null;
             SetStatus("エラー", false);
             if (responseText != null)
@@ -564,7 +564,7 @@ public class StructuredOutput : MonoBehaviour
         apiKey = File.ReadAllText(path).Trim();
         if (string.IsNullOrEmpty(apiKey))
         {
-            Debug.LogError("[StructuredOutput] APIキーが空です: " + path);
+            Debug.LogError("[TextToJSON] APIキーが空です: " + path);
             apiKey = null;
             SetStatus("エラー", false);
             if (responseText != null)
@@ -574,7 +574,7 @@ public class StructuredOutput : MonoBehaviour
         }
         else
         {
-            Debug.Log("[StructuredOutput] APIキーを読み込みました（長さ " + apiKey.Length + "）。キー自体はログに出しません。");
+            Debug.Log("[TextToJSON] APIキーを読み込みました（長さ " + apiKey.Length + "）。キー自体はログに出しません。");
         }
     }
 
@@ -647,7 +647,7 @@ public class StructuredOutput : MonoBehaviour
     // エラーを Status と Response に出す（吹き出しは使わない）
     void ShowError(string message)
     {
-        Debug.LogError("[StructuredOutput] " + message);
+        Debug.LogError("[TextToJSON] " + message);
         SetStatus("エラー", false);
         if (responseText != null)
         {

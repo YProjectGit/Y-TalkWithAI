@@ -1,42 +1,46 @@
 # デモシリーズ全体構成（概要）
 
-音声・画像インタラクション・ワークショップの学習順と、各デモのパイプライン位置づけです。  
-**いま実装済みなのは `1. TextChat` のみ**です。2〜8 はフォルダと概要 README だけの段階です。
+音声・画像インタラクション・ワークショップの学習順と、各デモのパイプライン位置づけです。
+
+**実装済み**: `1A.TextToText` / `1B.TextToJSON`  
+**概要のみ**（フォルダと README）: `2A` 以降
 
 ---
 
 ## 学習の三段
 
-1. **つながる** … `1. TextChat`（送受信と可視化）
-2. **形で動かす** … `2. StructuredOutput`（構造化出力で Unity を更新）
-3. **感覚を足す** … `3`〜`8`（声・映像・画像）
+1. **つながる / 形で動かす（テキスト入力）** … `1A` → `1B`
+2. **声で入る（マイク入力）** … `2A` → `2B` → `3`（ここで TTS）
+3. **見る・描く** … `4`〜`7`（映像・画像）
+
+入力モダリティごとに、**A = 自由テキスト出力 / B = JSON（構造化）出力** を揃えます。
 
 ---
 
 ## 学習の進め方
 
-入力と出力を一段ずつ足していきます。前のデモで覚えた「LLM への送受信」を土台にします。
-
 | # | フォルダ | 入力 | 処理の骨格 | 出力 |
 |---|----------|------|------------|------|
-| 1 | [`Assets/1. TextChat/`](../Assets/1.%20TextChat/) | テキスト | LLM | テキスト |
-| 2 | [`Assets/2. StructuredOutput/`](../Assets/2.%20StructuredOutput/) | テキスト | LLM（JSON） | UI / パラメータ |
-| 3 | [`Assets/3. TextToSpeech/`](../Assets/3.%20TextToSpeech/) | テキスト | LLM → TTS | 音声 |
-| 4 | [`Assets/4. SpeechToSpeech/`](../Assets/4.%20SpeechToSpeech/) | マイク音声 | STT → LLM → TTS | 音声 |
-| 5 | [`Assets/5. VisionToSpeech/`](../Assets/5.%20VisionToSpeech/) | カメラ画像 | Vision LLM → TTS | 音声 |
-| 6 | [`Assets/6. ScreenToSpeech/`](../Assets/6.%20ScreenToSpeech/) | 画面キャプチャ | Vision LLM → TTS | 音声 |
-| 7 | [`Assets/7. TextToImage/`](../Assets/7.%20TextToImage/) | テキスト | 画像生成 | 画像 |
-| 8 | [`Assets/8. ImageToImage/`](../Assets/8.%20ImageToImage/) | 画像＋指示 | 画像変換 | 画像 |
+| 1A | [`Assets/1A.TextToText/`](../Assets/1A.TextToText/) | テキスト | LLM | テキスト |
+| 1B | [`Assets/1B.TextToJSON/`](../Assets/1B.TextToJSON/) | テキスト | LLM（JSON） | UI / パラメータ |
+| 2A | [`Assets/2A.SpeechToText/`](../Assets/2A.SpeechToText/) | マイク音声 | STT → LLM | テキスト |
+| 2B | [`Assets/2B.SpeechToJSON/`](../Assets/2B.SpeechToJSON/) | マイク音声 | STT → LLM（JSON） | UI / パラメータ |
+| 3 | [`Assets/3.SpeechToSpeech/`](../Assets/3.SpeechToSpeech/) | マイク音声 | STT → LLM → TTS | 音声 |
+| 4 | [`Assets/4.VisionToSpeech/`](../Assets/4.VisionToSpeech/) | カメラ画像 | Vision LLM → TTS | 音声 |
+| 5 | [`Assets/5.ScreenToSpeech/`](../Assets/5.ScreenToSpeech/) | 画面キャプチャ | Vision LLM → TTS | 音声 |
+| 6 | [`Assets/6.TextToImage/`](../Assets/6.TextToImage/) | テキスト | 画像生成 | 画像 |
+| 7 | [`Assets/7.ImageToImage/`](../Assets/7.ImageToImage/) | 画像＋指示 | 画像変換 | 画像 |
 
 ```text
-[1]  Text ──────────────► LLM ──────────────────────► Text
-[2]  Text ──────────────► LLM (JSON) ───────────────► UI / 数値など
-[3]  Text ──────────────► LLM ──► TTS ──────────────► Audio
-[4]  Mic ──► STT ─────► LLM ──► TTS ──────────────► Audio
-[5]  Camera ──────────► Vision LLM ──► TTS ───────► Audio
-[6]  Screen ──────────► Vision LLM ──► TTS ───────► Audio
-[7]  Text ──────────────► Image Gen ────────────────► Image
-[8]  Image ＋ Text ─────► Image Edit ───────────────► Image
+[1A] Text ──────────────► LLM ──────────────────────► Text
+[1B] Text ──────────────► LLM (JSON) ───────────────► UI / 数値など
+[2A] Mic ──► STT ─────► LLM ──────────────────────► Text
+[2B] Mic ──► STT ─────► LLM (JSON) ───────────────► UI / 数値など
+[3]  Mic ──► STT ─────► LLM ──► TTS ──────────────► Audio
+[4]  Camera ──────────► Vision LLM ──► TTS ───────► Audio
+[5]  Screen ──────────► Vision LLM ──► TTS ───────► Audio
+[6]  Text ──────────────► Image Gen ────────────────► Image
+[7]  Image ＋ Text ─────► Image Edit ───────────────► Image
 ```
 
 共通の前提（キー取得など）は [gemini-ai-studio-setup.md](gemini-ai-studio-setup.md) を参照します。
@@ -48,7 +52,8 @@
 教材として追いやすくするため、次を守る想定です。
 
 - **1 デモ = 1 フォルダ**（シーン・メインスクリプト・README をセットで後から足す）
-- **パイプラインを隠さない** — 右ペインなどで Status / 中間結果（テキスト・JSON）を見える化する（TextChat と同じ考え方）
+- **フォルダ名は `Assets/{番号}.{題名}/`**（例: `1A.TextToText`。番号と題名のあいだはピリオドのみ、スペースなし）
+- **パイプラインを隠さない** — Status / 中間結果（テキスト・JSON）を見える化する（TextToText と同じ考え方）
 - **API キーは `Assets/Common/APIKey.txt`**（リポジトリにはコミットしない）
 - **共通基盤への寄せすぎはしない** — コピーして改変しやすい短い流れを優先
 - 具体的なエンドポイント名・モデル名・音声／画像フォーマットは、各デモ実装時に決める（概要 README ではパイプラインだけ固定）
@@ -59,21 +64,23 @@
 
 | デモ | 前の段階から増える主な要素 |
 |------|------------------------------|
-| 2. StructuredOutput | 決まった形（JSON）での返答、パース、UI / パラメータへの反映 |
-| 3. TextToSpeech | LLM の返答テキストを音声にする（TTS）、再生 |
-| 4. SpeechToSpeech | マイク録音、音声→テキスト（STT）、その後は 3 と同様 |
-| 5. VisionToSpeech | WebCam などからの画像取得、画像付きで LLM へ、返答を TTS |
-| 6. ScreenToSpeech | 画面／RenderTexture のキャプチャ（入力源がカメラではなく画面） |
-| 7. TextToImage | 画像生成リクエスト、テクスチャ表示（出力が音声ではなく画像） |
-| 8. ImageToImage | 入力画像＋指示での変換、Before / After 表示 |
+| 1B.TextToJSON | 決まった形（JSON）での返答、パース、UI / パラメータへの反映 |
+| 2A.SpeechToText | マイク録音、音声→テキスト（STT）。出力は 1A と同型のテキスト |
+| 2B.SpeechToJSON | 2A の入力＋1B の JSON 反映（組み合わせ） |
+| 3.SpeechToSpeech | TTS と再生（ここで声の出口が初出） |
+| 4.VisionToSpeech | WebCam などからの画像取得、画像付きで LLM へ、返答を TTS |
+| 5.ScreenToSpeech | 画面／RenderTexture のキャプチャ（入力源がカメラではなく画面） |
+| 6.TextToImage | 画像生成リクエスト、テクスチャ表示 |
+| 7.ImageToImage | 入力画像＋指示での変換、Before / After 表示 |
 
 ---
 
 ## いまの完了条件（この段階）
 
-- [x] 2〜8 の番号フォルダがある（`2. StructuredOutput` を含む）
-- [x] 各フォルダに概要 README がある
+- [x] 案C（1A/1B/2A/2B/3…）の番号フォルダがある
+- [x] フォルダ表記が `1A.TextToText` 形式（ピリオド区切り・スペースなし）
+- [x] 各フォルダに概要または本編 README がある
 - [x] 本ドキュメントでシリーズ全体の位置づけが読める
-- [ ] 各デモのシーン・スクリプト（実装は別タスク。`1. TextChat` のみ実装済み）
+- [ ] `2A` 以降のシーン・スクリプト（実装は別タスク）
 
-詳細な手順・改変ヒントは、実装が入ったタイミングで各デモ README を TextChat 並みに厚くします。
+詳細な手順は、実装が入ったタイミングで各デモ README を `1A.TextToText` 並みに厚くします。

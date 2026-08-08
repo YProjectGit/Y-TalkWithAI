@@ -3455,7 +3455,7 @@ GameObject:
   - component: {fileID: 818441806}
   - component: {fileID: 818441805}
   m_Layer: 0
-  m_Name: TextChat
+  m_Name: TextToText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3472,7 +3472,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f75d629708a83814eb2fdcf5f96982c7, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TextChat
+  m_EditorClassIdentifier: Assembly-CSharp::TextToText
   modelName: gemini-3.6-flash
   apiKeyRelativePath: Common/APIKey.txt
   systemInstructionRelativePath: Common/SystemInstruction.txt

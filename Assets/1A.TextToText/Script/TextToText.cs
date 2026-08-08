@@ -1,4 +1,4 @@
-// TextChat.cs
+// TextToText.cs
 // Gemini とテキストチャットするデモの本体。
 // 左ペインに会話、中央に Request、右に Response の生データを出し、通信の流れを追えるようにする。
 //
@@ -28,7 +28,7 @@ using UnityEngine.UI;
 /// <summary>
 /// Gemini generateContent で複数ターンのテキストチャットを行い、送受信の生データを可視化する。
 /// </summary>
-public class TextChat : MonoBehaviour
+public class TextToText : MonoBehaviour
 {
     // ===== インスペクタ: 設定 =====
 
@@ -312,7 +312,7 @@ public class TextChat : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogError("[TextChat] JSON 解析失敗: " + e.Message);
+            Debug.LogError("[TextToText] JSON 解析失敗: " + e.Message);
             return false;
         }
 
@@ -378,7 +378,7 @@ public class TextChat : MonoBehaviour
         DateTime writeTimeUtc;
         if (!TryReadSystemInstructionFile(out text, out writeTimeUtc))
         {
-            Debug.LogWarning("[TextChat] SystemInstruction.txt がありません: " + GetSystemInstructionFilePath());
+            Debug.LogWarning("[TextToText] SystemInstruction.txt がありません: " + GetSystemInstructionFilePath());
             systemInstructionField.text = string.Empty;
             systemInstructionFileWriteTimeUtc = DateTime.MinValue;
             return;
@@ -386,7 +386,7 @@ public class TextChat : MonoBehaviour
 
         systemInstructionField.text = text;
         systemInstructionFileWriteTimeUtc = writeTimeUtc;
-        Debug.Log("[TextChat] SystemInstruction.txt を読み込みました（長さ " + text.Length + "）。");
+        Debug.Log("[TextToText] SystemInstruction.txt を読み込みました（長さ " + text.Length + "）。");
     }
 
     // ファイルが更新されていれば UI へ取り込む（送信直前用）
@@ -411,7 +411,7 @@ public class TextChat : MonoBehaviour
 
         systemInstructionField.text = text;
         systemInstructionFileWriteTimeUtc = writeTimeUtc;
-        Debug.Log("[TextChat] SystemInstruction.txt の変更を UI に反映しました。");
+        Debug.Log("[TextToText] SystemInstruction.txt の変更を UI に反映しました。");
     }
 
     // ファイルを読んで text / 更新時刻を返す。無いときは false
@@ -482,7 +482,7 @@ public class TextChat : MonoBehaviour
         string path = Path.Combine(Application.dataPath, apiKeyRelativePath);
         if (!File.Exists(path))
         {
-            Debug.LogError("[TextChat] APIキーファイルがありません: " + path);
+            Debug.LogError("[TextToText] APIキーファイルがありません: " + path);
             apiKey = null;
             SetStatus("エラー", false);
             if (responseText != null)
@@ -496,7 +496,7 @@ public class TextChat : MonoBehaviour
         apiKey = File.ReadAllText(path).Trim();
         if (string.IsNullOrEmpty(apiKey))
         {
-            Debug.LogError("[TextChat] APIキーが空です: " + path);
+            Debug.LogError("[TextToText] APIキーが空です: " + path);
             apiKey = null;
             SetStatus("エラー", false);
             if (responseText != null)
@@ -506,7 +506,7 @@ public class TextChat : MonoBehaviour
         }
         else
         {
-            Debug.Log("[TextChat] APIキーを読み込みました（長さ " + apiKey.Length + "）。キー自体はログに出しません。");
+            Debug.Log("[TextToText] APIキーを読み込みました（長さ " + apiKey.Length + "）。キー自体はログに出しません。");
         }
     }
 
@@ -577,7 +577,7 @@ public class TextChat : MonoBehaviour
     // チャットにエラー吹き出し、ステータスを Error に
     void ShowError(string message)
     {
-        Debug.LogError("[TextChat] " + message);
+        Debug.LogError("[TextToText] " + message);
         SetStatus("エラー", false);
         AddBubble("Error", message, false);
         if (responseText != null && !responseText.text.Contains(message))
@@ -600,7 +600,7 @@ public class TextChat : MonoBehaviour
     {
         if (messageBubblePrefab == null || messageContent == null)
         {
-            Debug.LogWarning("[TextChat] messageBubblePrefab または messageContent が未設定です。");
+            Debug.LogWarning("[TextToText] messageBubblePrefab または messageContent が未設定です。");
             return;
         }
 
