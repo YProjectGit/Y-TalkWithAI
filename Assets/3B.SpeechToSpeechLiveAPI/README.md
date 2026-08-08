@@ -1,38 +1,98 @@
 # 3B.SpeechToSpeechLiveAPI
 
-> **現状**: フォルダと概要のみ。シーン・スクリプトは未実装です。  
-> シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
+シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
 
-## このデモで学べること（予定）
+---
 
-- Live API では、声の入出力がどのように1セッションでつながるか？
+## このデモで学べること
+
+- Live API では、声の往復がどのように1セッションでつながるか？
 - `3A.SpeechToSpeech`（REST の STT → LLM → TTS）と、どこが同じでどこが違うか？
-- WebSocket で音声を流すとき、Unity 側では何をバッファする必要があるか？
+- 中央の送信ログと右の受信ログは、ソケット上のどちら向きのデータか？
 
-## 処理の骨格（予定）
+---
 
-```text
-マイク（PCM ストリーム）
-  → Live API セッション（ネイティブ音声）
-  → 返答音声（PCM）＋必要なら文字起こし
-  → スピーカー再生
-```
+## 事前準備
 
-`3A` のように STT / Chat / TTS を三段の `generateContent` に分けず、**音声→音声を Live API 一発**で行うデモにする予定です。
+1. Google AI Studio から Gemini の API にアクセスするための APIキーを取得し、`Assets/Common/APIKey.txt` に保管してください。  
+   手順 → [Docs/gemini-ai-studio-setup.md](../../Docs/gemini-ai-studio-setup.md)
+2. PC にマイクがつながり、Unity から使える状態にしてください（OS のマイク権限を含む）。
+3. スピーカーまたはヘッドホンで再生音が聞こえる状態にしてください。
 
-## 事前準備（実装後に使う想定）
+---
 
-1. APIキーの取得と `Assets/Common/APIKey.txt` への保管  
-   → [Docs/gemini-ai-studio-setup.md](../../Docs/gemini-ai-studio-setup.md)
-2. Unity でマイク権限・入力デバイスが使えること
-3. 双方向ストリーム（WebSocket）を扱える実装の準備
+## 動かし方
 
-## 予定するファイル構成
+Project ウィンドウで `Assets/3B.SpeechToSpeechLiveAPI/SpeechToSpeechLiveAPI.unity` を開き、Play を押してください。
 
-| 種類 | 例 | 役割 |
-|------|-----|------|
-| シーン | `SpeechToSpeechLiveAPI.unity` | デモの入口 |
-| スクリプト | Live API 接続・送受信・再生 | セッション管理 |
-| チュートリアル MD | 本 README（実装後に手順を追記） | 学生向け手順 |
+### 1. 接続を確認する
 
-実装は後続タスクです。いまは `3A.SpeechToSpeech`（REST）を先に学びます。
+1. 上部の段階バーが `Connect` 付近であること、左 Status が「接続済み」になることを見てください。
+2. 中央（送信）上部の **Setup** ヘッダに、model / AUDIO / voice / transcription などの設定が出ることを確認してください。
+
+### 2. Space で話してみる
+
+1. **Space を押したまま**短い文を話し、**離してください**。
+2. 段階バーが `Send PCM` → `Receive PCM` → `Play` と進むこと、中央に送信チャンクログ、右に受信チャンクログが増えることを見てください。
+3. 左に吹き出し（transcription）が出て、返答が声で再生されることを確認してください。
+
+教材デモでは APIキーをクライアントから直接使います。本番アプリでは ephemeral token などの短い資格情報を使うことが推奨されます。
+
+---
+
+## Live API（セッション）とは？
+
+Live API とは、HTTP の `generateContent` を何回も呼ぶのではなく、**WebSocket で1本のセッションを張り、音声をチャンクで双方向に流す**仕組みです。
+
+このデモでは Play 開始時に接続と Setup を行い、そのあと Space 押し話しの PCM を `realtimeInput` で送り、サーバからの PCM と transcription を受け取ります。3A のように「文字起こし用」「チャット用」「TTS 用」とリクエストを分けません。
+
+試し方: 中央 Setup ヘッダと、Space 中に増える送信ログ、返答時の受信ログを見比べる。
+
+---
+
+## 3A（REST 三段）との違いは？
+
+| | 3A | 3B（このデモ） |
+|---|----|----------------|
+| 通信 | `generateContent` ×3 | WebSocket Live ×1 |
+| 見える化 | 発生順 1〜6 | 送信列 / 受信列 |
+| 文字 | Chat の text | transcription |
+
+体験（声で入って声で返る）は近いですが、学生が追う山場が「何段の REST か」から「セッションとオンの向き」へ移ります。
+
+試し方: 同じ発話内容を 3A と 3B で試し、画面の欄の種類の違いを見る。
+
+---
+
+## PCM ストリームと再生バッファとは？
+
+PCM とは、音を時刻ごとの振幅の数字列として表した音声データです。このデモの送信は 16 kHz、受信はおおむね 24 kHz の 16-bit PCM です。
+
+ソケットには一度に全部ではなく、小さなチャンクが連続して流れます。右の受信ログがその要約で、再生側ではチャンクをキューに入れてから `AudioSource` で順に鳴らします。
+
+試し方: Space 中に中央ログの `+chunk` が増えること、返答中に右ログの `+audio` と「再生中」を見比べる。
+
+---
+
+## 主要クラス
+
+### SpeechToSpeechLiveAPI（[`SpeechToSpeechLiveAPI.cs`](Script/SpeechToSpeechLiveAPI.cs)）
+
+デモの本体です。上から、接続〜送信〜受信〜再生の順に追うとわかりやすいです。
+
+通信は **ClientWebSocket**（双方向のソケット）です。受信はバックグラウンドのループで行い、UI や `AudioSource` の更新だけメインスレッドのキュー経由で戻します。Space の押し話し検知は `Update` と **旧 Input Manager**（`Input.GetKeyDown` / `GetKeyUp`）です。
+
+1. **Live セッションに接続する**  
+   `ConnectLiveSessionCoroutine` — WSS 接続 → Setup JSON 送信 → `setupComplete` 待ち
+2. **Space 押し話しを検知する**  
+   `UpdatePushToTalk` — 押しているあいだ録音送信、離したら `activityEnd`
+3. **PCM チャンクを送る**  
+   `PumpMicrophoneChunksIfRecording` — マイク差分 → 16-bit PCM → Base64 → `realtimeInput.audio`
+4. **サーバメッセージを振り分ける**  
+   `HandleServerMessage` — 音声は再生キュー、transcription はログと吹き出し
+5. **受信 PCM を再生する**  
+   `PlaybackPumpCoroutine` — キューから `AudioClip` 化して `AudioSource.Play`
+
+### ChatBubble（[`ChatBubble.cs`](../1A.TextToText/Script/ChatBubble.cs)）
+
+左ペインの吹き出し1件分です（Prefab: [`Prefab/MessageBubble.prefab`](Prefab/MessageBubble.prefab)）。見た目用で、通信ロジックは持ちません。文面は Live の transcription 由来です。
