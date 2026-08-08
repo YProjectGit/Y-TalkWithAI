@@ -27,16 +27,19 @@ Project ウィンドウで `Assets/2A.SpeechToText/SpeechToText.unity` を開き
 ### 1. Space で話してみる
 
 1. **Space を押したまま**短い文を話し、**離してください**。
-2. Status が「録音中」→「音声データ変換中」→「1. STT」→「2. LLM」と進むことを見てください。
-3. 左に認識されたあなたの発言と Gemini の返答が出ること、中央・右が番号つきの2段になっていることを確認してください。
+2. Status が「録音中」→「音声データ変換中」→「1. Request」→「3. Request」と進むことを見てください。
+3. 左に認識されたあなたの発言と Gemini の返答が出ること、中央・右に番号 1〜4 の欄があることを確認してください。
 
-### 2. 番号つき Request / Response を追う
+### 2. 発生順（1〜4）で Request / Response を追う
 
-1. 中央上の **1. STT Request** を見てください。`inlineData` と `mimeType: audio/wav` があること、`data` に長い文字（Base64）が載っていることを確認してください（画面では途中で省略表示されます）。
-2. 右上の **1. STT Response** で、文字起こし結果が返ってきていることを見てください。
-3. 中央下の **2. LLM Request** で、その文字が `contents` の user として載っていることを見てください。
-4. 右下の **2. LLM Response** で、チャットの返答本文を確認してください。
+どちらも Gemini の `generateContent` です。番号は呼ばれた順番です。
 
+1. **1. Request - GenerateContent（Audio）** … 音声（`inlineData` / `audio/wav`）を送る  
+2. **2. Response - GenerateContent（Audio）** … 文字起こしが返る  
+3. **3. Request - GenerateContent（Text）** … 認識テキストを会話として送る  
+4. **4. Response - GenerateContent（Text）** … チャットの返答が返る  
+
+1 の欄で `inlineData` と `mimeType: audio/wav` があること、`data` に長い文字（Base64）が載っていることを確認してください（画面では途中で省略表示されます）。  
 会話の履歴は毎回まとめて送られます（コンテキストは常にオンです）。
 
 ---
@@ -58,22 +61,19 @@ Base64
   → そのバイト列を文字にして JSON に載せる
 ```
 
-このデモのポイントは、その変換を隠さず Status と **1. STT Request** で見せていることです。左の吹き出しだけ見ると「声が文字になった」ように見えますが、Request を見ると「まず WAV のバイト列を送り、文字起こししている」ことが追えます。
+このデモのポイントは、その変換を隠さず Status と **1. Request - GenerateContent（Audio）** で見せていることです。左の吹き出しだけ見ると「声が文字になった」ように見えますが、Request を見ると「まず WAV のバイト列を送り、文字起こししている」ことが追えます。
 
-試し方: Space で録音したあと、Status に「音声データ変換中」が出ることと、1. STT Request の `inlineData` を見比べる。
+試し方: Space で録音したあと、Status に「音声データ変換中」が出ることと、1. Request の `inlineData` を見比べる。
 
 ---
 
 ## STT（Speech-to-Text）とは？
 
-音声をテキストに変換することです。このデモでは専用の別サービスではなく、Gemini の `generateContent` に音声（`audio/wav`）を載せ、「文字起こしだけ返して」と頼んでいます。
+音声をテキストに変換することです。このデモでは専用の別サービス（Cloud Speech-to-Text）ではなく、Gemini の `generateContent` に音声（`audio/wav`）を載せ、「文字起こしだけ返して」と頼んでいます。
 
-返ってきたテキストを user の発言として扱い、そのあと **もう一度** `generateContent` でチャット返信を取ります。画面の番号はその順番です。
+返ってきたテキストを user の発言として扱い、そのあと **もう一度** `generateContent`（Text）でチャット返信を取ります。画面の 1→2→3→4 がその順番です。
 
-1. STT Request / Response … 音声 → 文字起こし  
-2. LLM Request / Response … 文字 → 返答
-
-試し方: 同じ発話のあと、1. STT Response の文字と左の You 吹き出しが一致しているかを見る。
+試し方: 同じ発話のあと、2. Response の文字と左の You 吹き出しが一致しているかを見る。
 
 ---
 
@@ -93,10 +93,10 @@ Base64
    `BeginRecording` / `EndRecordingAndSend` — `Microphone.Start` → `End` → 録れたサンプルだけ切り出し
 4. **音声データに変換する**  
    `ConvertAudioClipToWav` — float サンプルを 16-bit PCM にし、WAV ヘッダを付けて `byte[]` にする → Base64
-5. **1. STT する**  
-   `SendSpeechPipelineCoroutine` の前半 — `inlineData` 付き JSON を POST し、文字起こしを取り出す（1. STT Request / Response に表示）
-6. **2. LLM する**  
-   同コルーチンの後半 — 認識テキストと会話履歴を POST し、返答を吹き出しへ（2. LLM Request / Response に表示）
+5. **1→2. GenerateContent（Audio）**  
+   `SendSpeechPipelineCoroutine` の前半 — 音声付き JSON を POST し、文字起こしを取り出す
+6. **3→4. GenerateContent（Text）**  
+   同コルーチンの後半 — 認識テキストと会話履歴を POST し、返答を吹き出しへ
 
 ### ChatBubble（[`ChatBubble.cs`](../1A.TextToText/Script/ChatBubble.cs)）
 

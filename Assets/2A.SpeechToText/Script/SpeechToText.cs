@@ -12,7 +12,7 @@
 // 会話コンテキストは常に送る（Option Toggle は置かない）。
 //
 // systemInstruction（事前指示）:
-//   Chat リクエスト（2. LLM Request）にだけ載せる（STT には載せない）。空ならキーごと省略。
+//   Chat リクエスト（3. Request - GenerateContent（Text））にだけ載せる。空ならキーごと省略。
 
 using System;
 using System.Collections;
@@ -50,10 +50,10 @@ public class SpeechToText : MonoBehaviour
     // ===== インスペクタ: 通信可視化（中央 Request / 右 Response は上下2段、Status は左下） =====
 
     public TMP_Text statusText; // 待機中 / 録音中 / STT / 応答待ち などの状態
-    public TMP_Text sttRequestText; // 1. STT Request（音声 inlineData のリクエスト）
-    public TMP_Text llmRequestText; // 2. LLM Request（文字起こし後のチャットリクエスト）
-    public TMP_Text sttResponseText; // 1. STT Response（文字起こしの応答）
-    public TMP_Text llmResponseText; // 2. LLM Response（チャットの応答）
+    public TMP_Text sttRequestText; // 1. Request - GenerateContent（Audio）
+    public TMP_Text llmRequestText; // 3. Request - GenerateContent（Text）
+    public TMP_Text sttResponseText; // 2. Response - GenerateContent（Audio）
+    public TMP_Text llmResponseText; // 4. Response - GenerateContent（Text）
 
     // ===== 内部状態 =====
 
@@ -367,7 +367,7 @@ public class SpeechToText : MonoBehaviour
                 + FormatHttpRequestForDisplay(url, sttRequestJson);
         }
 
-        SetStatus("1. STT 送信中", false);
+        SetStatus("1. Request 送信中", false);
         HttpResult sttResult = new HttpResult();
         yield return StartCoroutine(PostJsonCoroutine(url, sttRequestJson, sttResult));
 
@@ -386,7 +386,7 @@ public class SpeechToText : MonoBehaviour
         string transcript;
         if (!TryExtractAssistantText(sttResult.body, out transcript))
         {
-            ShowError("STT 応答から文字起こしを取り出せませんでした。1. STT Response を確認してください。", sttResponseText);
+            ShowError("STT 応答から文字起こしを取り出せませんでした。2. Response を確認してください。", sttResponseText);
             SetSending(false);
             yield break;
         }
@@ -409,7 +409,7 @@ public class SpeechToText : MonoBehaviour
             llmRequestText.text = FormatHttpRequestForDisplay(url, chatRequestJson);
         }
 
-        SetStatus("2. LLM 送信中", false);
+        SetStatus("3. Request 送信中", false);
         HttpResult chatResult = new HttpResult();
         yield return StartCoroutine(PostJsonCoroutine(url, chatRequestJson, chatResult));
 
@@ -430,7 +430,7 @@ public class SpeechToText : MonoBehaviour
         string assistantText;
         if (!TryExtractAssistantText(chatResult.body, out assistantText))
         {
-            ShowError("LLM 応答 JSON からテキストを取り出せませんでした。2. LLM Response を確認してください。", llmResponseText);
+            ShowError("LLM 応答 JSON からテキストを取り出せませんでした。4. Response を確認してください。", llmResponseText);
             RemoveLastTurnIfUser();
             SetSending(false);
             yield break;
