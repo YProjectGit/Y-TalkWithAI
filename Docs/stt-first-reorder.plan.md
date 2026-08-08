@@ -4,16 +4,17 @@
 
 - **何をするか**: 学習順を「入力モダリティ × 出力の形（Text / JSON）」の A/B に再編し、音声は STT を TTS より先にする。
 - **確定案（案C）**: 下記。フォルダ表記は `1A.TextToText`（番号と題名のあいだはピリオドのみ、スペースなし）。
-- **適用状況**: フォルダ改名・overview・README・命名規約・実装済み 1A/1B のクラス／シーン名まで反映済み。`2A` 以降のシーン実装は別タスク。
-- **一言**: テキストで Text→JSON を覚えたら、同じ型をマイク入力で辿る。そのあと声の往復。
+- **適用状況**: フォルダ改名・overview・README・命名規約・実装済み 1A〜3A まで反映済み。`3B`（Live API）以降のシーン実装は別タスク。
+- **一言**: テキストで Text→JSON を覚えたら、同じ型をマイク入力で辿る。そのあと REST で声の往復（Live API は後続）。
 
 | 番号 | 題名 | 骨格 | 備考 |
 |------|------|------|------|
 | 1A | TextToText | Text → LLM → Text | 旧 TextChat（実装済み） |
 | 1B | TextToJSON | Text → LLM(JSON) → UI | 旧 StructuredOutput（実装済み） |
-| 2A | SpeechToText | Mic → STT → LLM → Text | 概要のみ |
-| 2B | SpeechToJSON | Mic → STT → LLM(JSON) → UI | 概要のみ |
-| 3 | SpeechToSpeech | Mic → STT → LLM → TTS → Audio | TTS 初出・概要のみ |
+| 2A | SpeechToText | Mic → STT → LLM → Text | 実装済み |
+| 2B | SpeechToJSON | Mic → STT → LLM(JSON) → UI | 実装済み |
+| 3A | SpeechToSpeech | Mic → STT → LLM → TTS → Audio | REST・TTS 初出（実装済み） |
+| 3B | SpeechToSpeechLiveAPI | Live API（音声↔音声） | 概要のみ（後続） |
 | 4 | VisionToSpeech | Camera → Vision LLM → TTS | 概要のみ |
 | 5 | ScreenToSpeech | Screen → Vision LLM → TTS | 概要のみ |
 | 6 | TextToImage | Text → Image Gen | 概要のみ |
@@ -29,6 +30,7 @@ Assets/1B.TextToJSON/
 Assets/2A.SpeechToText/
 Assets/2B.SpeechToJSON/
 Assets/3A.SpeechToSpeech/
+Assets/3B.SpeechToSpeechLiveAPI/
 ...
 ```
 
