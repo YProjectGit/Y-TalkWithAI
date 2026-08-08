@@ -158,6 +158,7 @@ STT 用プロンプトはコード内の定数（日本語で「音声を文字�
 | 短すぎる録音 | 最低秒数（例: 0.3s）未満は送らず Status で案内 |
 | Request 肥大 | WAV+Base64 は大きい。中央ペインは全文表示しつつ、学習上は `inlineData` の位置が分かればよい |
 | System Instruction フォーカス中の Space | 録音に使わない |
+| Active Input Handling | Both へ変更（Input System のみのままだと旧 `Input` が無効） |
 | シーン YAML | 破損しやすいので複製後は参照・クラス名を grep で確認 |
 
 ---
