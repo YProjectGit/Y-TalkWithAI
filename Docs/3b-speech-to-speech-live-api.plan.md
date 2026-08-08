@@ -14,7 +14,7 @@
 |---|---------------------------|--------------------------------------|
 | 通信 | HTTP `generateContent` ×3 | **WebSocket Live セッション ×1** |
 | 段 | Audio → Text → TTS | **音声 in → 音声 out（＋文字起こし）** |
-| 可視化 | 発生順 1〜6 | Setup / RealtimeInput / ServerContent |
+| 可視化 | 発生順 1〜6 | **段階バー + 送信列 / 受信列（チャンクログ）** |
 | 文字 | Chat の text パート | **transcription**（吹き出し用） |
 | キー | `APIKey.txt` | 同じ（教材ではクライアント直結） |
 
