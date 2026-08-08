@@ -4,11 +4,13 @@
 //
 // 上からの流れ:
 //   Start → APIキー読込・systemInstruction・マイク・AudioSource・Live 接続（Setup）
-//   Space 押下 → activityStart → Microphone から PCM チャンクを realtimeInput で送り続ける
-//   Space 解放 → 送信停止 → activityEnd
+//   【手動モード（初期）】
+//     Space 押下 → activityStart → Microphone から PCM チャンクを realtimeInput で送り続ける
+//     Space 解放 → 送信停止 → activityEnd
+//   【VAD 自動モード】（ボタンで切替。切替時は Setup を載せ直すため再接続）
+//     マイクを常時送信。サーバの automaticActivityDetection が無音でターンを区切る
+//     このあいだ Space は無効
 //   受信 → serverContent の音声を再生キューへ / transcription を吹き出しと右欄へ
-//
-// 自動 VAD はオフにし、Space でターン境界を明示する（教材で追いやすくするため）。
 
 using System;
 using System.Collections;
@@ -43,7 +45,8 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
     // ===== インスペクタ: 左ペイン（チャット UI） =====
 
     public TMP_InputField systemInstructionField; // systemInstruction。空なら Setup に載せない
-    public TMP_Text recordHintText; // Space 案内
+    public TMP_Text recordHintText; // Space / VAD モードの案内
+    public Button vadModeButton; // VAD 自動モードのトグル（Message 行のボタン）
     public Transform messageContent; // バブルを並べる Content
     public ChatBubble messageBubblePrefab; // 1A と同型の吹き出し Prefab
     public ScrollRect chatScrollRect; // 新着時に下端へ
@@ -73,12 +76,14 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
     readonly StringBuilder transcriptionLog = new StringBuilder(); // 文字起こしログ本文
 
     bool setupComplete; // setupComplete 受信済みか
-    bool isRecording; // Space 押し話し中か
+    bool isMicStreaming; // マイクから PCM を送り続けているか
+    bool vadAutoMode; // true=サーバ VAD 自動 / false=Space 手動
+    bool isReconnecting; // VAD 切替のための再接続中か
     bool isConnected; // ソケットが Open か
     string microphoneDevice; // マイク名
     AudioClip micClip; // ループ録音用クリップ
     int lastMicSamplePos; // 前回送ったサンプル位置
-    float recordingStartedTime; // 録音開始時刻
+    float recordingStartedTime; // 手動モードの録音開始時刻
     long outboundTotalBytes; // 送信累計バイト
     long inboundTotalBytes; // 受信累計バイト
     int outboundChunkCount; // 送信チャンク数
@@ -88,9 +93,14 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
     bool playbackCoroutineRunning; // 再生コルーチン稼働中か
     DateTime systemInstructionFileWriteTimeUtc; // SystemInstruction.txt 同期用
     Stage currentStage = Stage.Connect; // 段階バー用
+    TMP_Text vadModeButtonLabel; // ボタン上のラベル（Start で取得）
+    Image vadModeButtonImage; // ボタン色（ON/OFF 表示用）
+    string lastSetupJsonForDisplay; // Setup ヘッダに添える直近の Setup JSON
 
     const int MicClipSeconds = 2; // マイクのリングバッファ長さ（秒）
     const int MaxLogChars = 8000; // ログ欄の上限（古い先頭を捨てる）
+    static readonly Color VadButtonOffColor = new Color(0.25f, 0.55f, 0.9f, 1f); // 手動モード時のボタン色
+    static readonly Color VadButtonOnColor = new Color(0.2f, 0.65f, 0.35f, 1f); // VAD 自動 ON 時
     const string WsEndpoint =
         "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent";
 
@@ -116,16 +126,14 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
 
         SetupMicrophone();
         EnsurePlaybackAudioSource();
+        SetupVadModeButton();
         InitPanelTexts();
-
-        if (recordHintText != null)
-        {
-            recordHintText.text = "Space を押しているあいだ送信します（離すと返答待ち）";
-        }
+        RefreshModeUi();
 
         if (string.IsNullOrEmpty(apiKey) || microphoneDevice == null)
         {
             SetStatus("準備エラー（キーまたはマイク）", false);
+            SetVadButtonInteractable(false);
             return;
         }
 
@@ -138,14 +146,28 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
     {
         DrainMainThreadActions();
         UpdatePushToTalk();
-        PumpMicrophoneChunksIfRecording();
+        PumpMicrophoneChunksIfStreaming();
     }
 
     // 終了時にソケットとマイクを解放する
     void OnDestroy()
     {
-        StopRecordingInternal(false);
-        CloseSocket();
+        StopMicStreamingInternal();
+        CloseSocket(true);
+    }
+
+    // VAD トグルボタンのラベル／クリックを配線する
+    void SetupVadModeButton()
+    {
+        if (vadModeButton == null)
+        {
+            return;
+        }
+
+        vadModeButtonLabel = vadModeButton.GetComponentInChildren<TMP_Text>(true);
+        vadModeButtonImage = vadModeButton.GetComponent<Image>();
+        vadModeButton.onClick.RemoveListener(OnVadModeButtonClicked);
+        vadModeButton.onClick.AddListener(OnVadModeButtonClicked);
     }
 
     // ----- 接続（Setup） -----
@@ -157,6 +179,7 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         SetStatus("接続中…", true);
         SetOutboundStatus("—");
         SetInboundStatus("—");
+        SetVadButtonInteractable(false);
 
         Uri uri = new Uri(WsEndpoint + "?key=" + Uri.EscapeDataString(apiKey));
         socket = new ClientWebSocket();
@@ -174,6 +197,7 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
                 ? connectTask.Exception.GetBaseException().Message
                 : "WebSocket を Open にできませんでした";
             ShowError("Live 接続失敗: " + err);
+            SetVadButtonInteractable(true);
             yield break;
         }
 
@@ -190,6 +214,7 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         if (sendSetup.IsFaulted)
         {
             ShowError("Setup 送信失敗: " + sendSetup.Exception.GetBaseException().Message);
+            SetVadButtonInteractable(true);
             yield break;
         }
 
@@ -207,16 +232,31 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         if (!setupComplete)
         {
             ShowError("setupComplete がタイムアウトしました。モデル名とキーを確認してください。");
+            SetVadButtonInteractable(true);
             yield break;
         }
 
         isConnected = true;
-        SetStatus("接続済み（Space で送信）", false);
         SetStage(Stage.Connect);
-        Debug.Log("[SpeechToSpeechLiveAPI] Live セッション準備完了。");
+        SetVadButtonInteractable(true);
+        RefreshModeUi();
+
+        // VAD 自動なら接続直後からマイク常時送信を始める（activityStart は送らない）
+        if (vadAutoMode)
+        {
+            BeginContinuousListening();
+        }
+        else
+        {
+            SetStatus(GetReadyStatusText(), false);
+        }
+
+        Debug.Log(
+            "[SpeechToSpeechLiveAPI] Live セッション準備完了。VAD="
+            + (vadAutoMode ? "auto" : "manual"));
     }
 
-    // Setup メッセージ（最初に1回だけ送るセッション設定）
+    // Setup メッセージ（最初に1回だけ送るセッション設定）。VAD モードで automaticActivityDetection を切り替える
     string BuildSetupJson()
     {
         StringBuilder sb = new StringBuilder(512);
@@ -225,8 +265,17 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         sb.Append(EscapeJson(modelName));
         sb.Append("\",");
 
-        // 自動 VAD オフ → Space で activityStart / activityEnd を送る
-        sb.Append("\"realtimeInputConfig\":{\"automaticActivityDetection\":{\"disabled\":true}},");
+        // 手動: disabled=true（Space で activityStart/End）
+        // 自動: disabled=false（サーバが無音判定。クライアントは PCM を流し続けるだけ）
+        if (vadAutoMode)
+        {
+            sb.Append("\"realtimeInputConfig\":{\"automaticActivityDetection\":{\"disabled\":false}},");
+        }
+        else
+        {
+            sb.Append("\"realtimeInputConfig\":{\"automaticActivityDetection\":{\"disabled\":true}},");
+        }
+
         sb.Append("\"inputAudioTranscription\":{},");
         sb.Append("\"outputAudioTranscription\":{},");
 
@@ -248,12 +297,112 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         return sb.ToString();
     }
 
-    // ----- Space 押し話し -----
+    // ----- VAD モード切替（ボタン） -----
 
-    // 旧 Input Manager で Space の押し始め／離しを見る
+    // ボタンを押すたびに手動 ↔ サーバ VAD を入れ替える。Setup が接続時設定のため再接続する
+    void OnVadModeButtonClicked()
+    {
+        if (isReconnecting)
+        {
+            return;
+        }
+
+        if (string.IsNullOrEmpty(apiKey) || microphoneDevice == null)
+        {
+            ShowError("VAD 切替できません（キーまたはマイクなし）。");
+            return;
+        }
+
+        // 再接続するので activityEnd は送らず、マイクだけ止める
+        StopMicStreamingInternal();
+        vadAutoMode = !vadAutoMode;
+        RefreshModeUi();
+        StartCoroutine(ReconnectForVadModeCoroutine());
+    }
+
+    // 現在の vadAutoMode でソケットを張り直す
+    IEnumerator ReconnectForVadModeCoroutine()
+    {
+        isReconnecting = true;
+        SetVadButtonInteractable(false);
+        SetStatus(vadAutoMode ? "VAD 自動へ切替中…" : "Space 手動へ切替中…", true);
+        AppendOutboundLog(
+            "mode switch → " + (vadAutoMode ? "VAD auto (reconnect)" : "manual Space (reconnect)"));
+
+        CloseSocket(false);
+        setupComplete = false;
+        isConnected = false;
+        ClearPlaybackQueue();
+
+        yield return StartCoroutine(ConnectLiveSessionCoroutine());
+
+        isReconnecting = false;
+        if (!isConnected)
+        {
+            SetVadButtonInteractable(true);
+        }
+    }
+
+    // 案内文・ボタン表示・Setup 要約の VAD 行をモードに合わせる
+    void RefreshModeUi()
+    {
+        if (recordHintText != null)
+        {
+            recordHintText.text = vadAutoMode
+                ? "VAD 自動モード中（Space 無効・サーバが無音でターンを区切る）"
+                : "Space を押しているあいだ送信します（離すと返答待ち）";
+        }
+
+        if (vadModeButtonLabel != null)
+        {
+            vadModeButtonLabel.text = vadAutoMode ? "VAD ON" : "VAD 自動";
+        }
+
+        if (vadModeButtonImage != null)
+        {
+            vadModeButtonImage.color = vadAutoMode ? VadButtonOnColor : VadButtonOffColor;
+        }
+
+        if (setupHeaderText == null)
+        {
+            return;
+        }
+
+        // 設定行の VAD 表記を更新。接続後は直近の Setup JSON も添える
+        if (!string.IsNullOrEmpty(lastSetupJsonForDisplay) && isConnected)
+        {
+            setupHeaderText.text =
+                BuildSetupSettingsSummary() + "\n\n"
+                + PrettyPrintJson(TruncateForDisplay(lastSetupJsonForDisplay, 400));
+        }
+        else
+        {
+            setupHeaderText.text =
+                BuildSetupSettingsSummary() + "\n\n（接続後に Setup JSON を表示）";
+        }
+    }
+
+    void SetVadButtonInteractable(bool interactable)
+    {
+        if (vadModeButton != null)
+        {
+            vadModeButton.interactable = interactable;
+        }
+    }
+
+    string GetReadyStatusText()
+    {
+        return vadAutoMode
+            ? "VAD 自動（無音で区切って返答）"
+            : "接続済み（Space で送信）";
+    }
+
+    // ----- Space 押し話し（手動モードのみ） -----
+
+    // 旧 Input Manager で Space の押し始め／離しを見る。VAD 自動中は無効
     void UpdatePushToTalk()
     {
-        if (!isConnected || !setupComplete)
+        if (vadAutoMode || isReconnecting || !isConnected || !setupComplete)
         {
             return;
         }
@@ -263,13 +412,13 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
             return;
         }
 
-        if (!isRecording && Input.GetKeyDown(KeyCode.Space))
+        if (!isMicStreaming && Input.GetKeyDown(KeyCode.Space))
         {
             BeginRecording();
             return;
         }
 
-        if (!isRecording)
+        if (!isMicStreaming)
         {
             return;
         }
@@ -302,29 +451,15 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
                && EventSystem.current.currentSelectedGameObject == systemInstructionField.gameObject;
     }
 
-    // Space 押し始め: マイク開始 + activityStart
+    // Space 押し始め: マイク開始 + activityStart（手動モード専用）
     void BeginRecording()
     {
-        if (microphoneDevice == null || socket == null || socket.State != WebSocketState.Open)
+        if (!TryStartMicrophoneStreaming())
         {
-            ShowError("録音できません（未接続またはマイクなし）。");
             return;
         }
 
-        SyncSystemInstructionBeforeSend();
-        inputTranscriptBuffer = string.Empty;
-        outputTranscriptBuffer = string.Empty;
-
-        micClip = Microphone.Start(microphoneDevice, true, MicClipSeconds, sampleRate);
-        if (micClip == null)
-        {
-            ShowError("Microphone.Start に失敗しました。");
-            return;
-        }
-
-        lastMicSamplePos = 0;
         recordingStartedTime = Time.time;
-        isRecording = true;
         SetStage(Stage.SendPcm);
         SetStatus("録音送信中", true);
         SetOutboundStatus("送信中");
@@ -333,18 +468,18 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         AppendOutboundLog("activityStart");
     }
 
-    // Space 解放: 残りサンプル送信 + activityEnd
+    // Space 解放: 残りサンプル送信 + activityEnd（手動モード専用）
     void EndRecording()
     {
-        if (!isRecording)
+        if (!isMicStreaming || vadAutoMode)
         {
             return;
         }
 
         float elapsed = Time.time - recordingStartedTime;
         // 最後の差分を送ってから止める
-        PumpMicrophoneChunksIfRecording();
-        StopRecordingInternal(true);
+        PumpMicrophoneChunksIfStreaming();
+        StopMicStreamingInternal();
 
         if (elapsed < minRecordingSeconds)
         {
@@ -362,25 +497,67 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         SetStage(Stage.ReceivePcm);
     }
 
-    void StopRecordingInternal(bool sendWasActive)
+    // VAD 自動: マイク常時送信を始める（activityStart は送らない。サーバが発話／無音を判定する）
+    void BeginContinuousListening()
     {
-        isRecording = false;
+        if (!TryStartMicrophoneStreaming())
+        {
+            return;
+        }
+
+        SetStage(Stage.SendPcm);
+        SetStatus("VAD 自動（マイク常時送信）", true);
+        SetOutboundStatus("常時送信");
+        SetInboundStatus("—");
+        AppendOutboundLog("VAD auto: continuous mic (no activityStart/End)");
+    }
+
+    // マイクリングバッファを開き、PCM 送信ループの対象にする
+    bool TryStartMicrophoneStreaming()
+    {
+        if (isMicStreaming)
+        {
+            return true;
+        }
+
+        if (microphoneDevice == null || socket == null || socket.State != WebSocketState.Open)
+        {
+            ShowError("録音できません（未接続またはマイクなし）。");
+            return false;
+        }
+
+        SyncSystemInstructionBeforeSend();
+        inputTranscriptBuffer = string.Empty;
+        outputTranscriptBuffer = string.Empty;
+
+        micClip = Microphone.Start(microphoneDevice, true, MicClipSeconds, sampleRate);
+        if (micClip == null)
+        {
+            ShowError("Microphone.Start に失敗しました。");
+            return false;
+        }
+
+        lastMicSamplePos = 0;
+        isMicStreaming = true;
+        return true;
+    }
+
+    // マイク送信だけ止める（activityEnd は送らない。切替・終了用）
+    void StopMicStreamingInternal()
+    {
+        isMicStreaming = false;
         if (microphoneDevice != null && Microphone.IsRecording(microphoneDevice))
         {
             Microphone.End(microphoneDevice);
         }
 
         micClip = null;
-        if (!sendWasActive)
-        {
-            return;
-        }
     }
 
-    // 録音中だけ、リングバッファの新規サンプルを PCM にして送る
-    void PumpMicrophoneChunksIfRecording()
+    // マイク送信中だけ、リングバッファの新規サンプルを PCM にして送る
+    void PumpMicrophoneChunksIfStreaming()
     {
-        if (!isRecording || micClip == null || socket == null || socket.State != WebSocketState.Open)
+        if (!isMicStreaming || micClip == null || socket == null || socket.State != WebSocketState.Open)
         {
             return;
         }
@@ -686,7 +863,17 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
             SetStage(Stage.Play);
         }
 
-        SetStatus("接続済み（Space で送信）", false);
+        // VAD 自動ではマイク常時送信を続けたまま待機表示にする
+        if (vadAutoMode && isMicStreaming)
+        {
+            SetStatus("VAD 自動（マイク常時送信）", true);
+            SetOutboundStatus("常時送信");
+            SetStage(Stage.SendPcm);
+        }
+        else
+        {
+            SetStatus(GetReadyStatusText(), false);
+        }
     }
 
     // ----- 再生 -----
@@ -724,9 +911,13 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
             if (playbackPcmQueue.IsEmpty)
             {
                 SetInboundStatus("—");
-                if (!isRecording)
+                if (!isMicStreaming)
                 {
                     SetStage(Stage.Connect);
+                }
+                else if (vadAutoMode)
+                {
+                    SetStage(Stage.SendPcm);
                 }
             }
         }
@@ -779,17 +970,22 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
     // Setup ヘッダ先頭の設定行（Inspector の modelName / voiceName など）
     string BuildSetupSettingsSummary()
     {
+        string vadLine = vadAutoMode
+            ? "VAD: auto (server silence detection)\n"
+            : "VAD: manual (Space → activityStart/End)\n";
+
         return "model: " + modelName + "\n"
                + "responseModalities: AUDIO\n"
                + "voice: " + voiceName + "\n"
                + "transcription: input/output ON\n"
                + "send: PCM " + sampleRate + "Hz\n"
-               + "VAD: manual (Space → activityStart/End)\n"
+               + vadLine
                + "key: " + MaskApiKey(apiKey);
     }
 
     void RefreshSetupHeader(string setupJson)
     {
+        lastSetupJsonForDisplay = setupJson;
         if (setupHeaderText == null)
         {
             return;
@@ -1094,20 +1290,28 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         }
     }
 
-    void CloseSocket()
+    // WebSocket を閉じる。VAD 切替の再接続時は再生ポンプを止めない
+    void CloseSocket(bool stopPlaybackPump)
     {
-        playbackCoroutineRunning = false;
+        if (stopPlaybackPump)
+        {
+            playbackCoroutineRunning = false;
+        }
+
         try
         {
             if (receiveCts != null)
             {
                 receiveCts.Cancel();
+                receiveCts.Dispose();
             }
         }
         catch
         {
             // ignore
         }
+
+        receiveCts = null;
 
         try
         {
@@ -1129,6 +1333,7 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
 
         socket = null;
         isConnected = false;
+        setupComplete = false;
     }
 
     // ----- JSON / 表示ヘルパー -----
