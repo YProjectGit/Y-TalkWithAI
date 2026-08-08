@@ -2,18 +2,18 @@
 
 音声・画像インタラクション・ワークショップの学習順と、各デモのパイプライン位置づけです。
 
-**実装済み**: `1A.TextToText` / `1B.TextToJSON` / `2A.SpeechToText` / `2B.SpeechToJSON`  
-**概要のみ**（フォルダと README）: `3` 以降
+**実装済み**: `1A.TextToText` / `1B.TextToJSON` / `2A.SpeechToText` / `2B.SpeechToJSON` / `3A.SpeechToSpeech`  
+**概要のみ**（フォルダと README）: `3B` 以降
 
 ---
 
 ## 学習の三段
 
 1. **つながる / 形で動かす（テキスト入力）** … `1A` → `1B`
-2. **声で入る（マイク入力）** … `2A` → `2B` → `3`（ここで TTS）
+2. **声で入る（マイク入力）** … `2A` → `2B` → `3A`（REST で TTS）→ `3B`（Live API・後続）
 3. **見る・描く** … `4`〜`7`（映像・画像）
 
-入力モダリティごとに、**A = 自由テキスト出力 / B = JSON（構造化）出力** を揃えます。
+入力モダリティごとに、**A = 自由テキスト出力 / B = JSON（構造化）出力** を揃えます（`3` だけは出力が音声になるため、REST / Live API の対比）。
 
 ---
 
@@ -25,7 +25,8 @@
 | 1B | [`Assets/1B.TextToJSON/`](../Assets/1B.TextToJSON/) | テキスト | LLM（JSON） | UI / パラメータ |
 | 2A | [`Assets/2A.SpeechToText/`](../Assets/2A.SpeechToText/) | マイク音声 | STT → LLM | テキスト |
 | 2B | [`Assets/2B.SpeechToJSON/`](../Assets/2B.SpeechToJSON/) | マイク音声 | STT → LLM（JSON） | UI / パラメータ |
-| 3 | [`Assets/3.SpeechToSpeech/`](../Assets/3.SpeechToSpeech/) | マイク音声 | STT → LLM → TTS | 音声 |
+| 3A | [`Assets/3A.SpeechToSpeech/`](../Assets/3A.SpeechToSpeech/) | マイク音声 | STT → LLM → TTS（REST） | 音声 |
+| 3B | [`Assets/3B.SpeechToSpeechLiveAPI/`](../Assets/3B.SpeechToSpeechLiveAPI/) | マイク音声 | Live API（音声↔音声） | 音声 |
 | 4 | [`Assets/4.VisionToSpeech/`](../Assets/4.VisionToSpeech/) | カメラ画像 | Vision LLM → TTS | 音声 |
 | 5 | [`Assets/5.ScreenToSpeech/`](../Assets/5.ScreenToSpeech/) | 画面キャプチャ | Vision LLM → TTS | 音声 |
 | 6 | [`Assets/6.TextToImage/`](../Assets/6.TextToImage/) | テキスト | 画像生成 | 画像 |
@@ -36,7 +37,8 @@
 [1B] Text ──────────────► LLM (JSON) ───────────────► UI / 数値など
 [2A] Mic ──► STT ─────► LLM ──────────────────────► Text
 [2B] Mic ──► STT ─────► LLM (JSON) ───────────────► UI / 数値など
-[3]  Mic ──► STT ─────► LLM ──► TTS ──────────────► Audio
+[3A] Mic ──► STT ─────► LLM ──► TTS ──────────────► Audio
+[3B] Mic ════════════► Live API ══════════════════► Audio
 [4]  Camera ──────────► Vision LLM ──► TTS ───────► Audio
 [5]  Screen ──────────► Vision LLM ──► TTS ───────► Audio
 [6]  Text ──────────────► Image Gen ────────────────► Image
@@ -67,7 +69,8 @@
 | 1B.TextToJSON | 決まった形（JSON）での返答、パース、UI / パラメータへの反映 |
 | 2A.SpeechToText | マイク録音、音声→テキスト（STT）。出力は 1A と同型のテキスト |
 | 2B.SpeechToJSON | 2A の入力＋1B の JSON 反映（組み合わせ） |
-| 3.SpeechToSpeech | TTS と再生（ここで声の出口が初出） |
+| 3A.SpeechToSpeech | TTS と再生（REST の `generateContent` 三段。ここで声の出口が初出） |
+| 3B.SpeechToSpeechLiveAPI | Live API で音声→音声を一セッションにまとめる（後続） |
 | 4.VisionToSpeech | WebCam などからの画像取得、画像付きで LLM へ、返答を TTS |
 | 5.ScreenToSpeech | 画面／RenderTexture のキャプチャ（入力源がカメラではなく画面） |
 | 6.TextToImage | 画像生成リクエスト、テクスチャ表示 |
@@ -83,6 +86,7 @@
 - [x] 本ドキュメントでシリーズ全体の位置づけが読める
 - [x] `2A.SpeechToText` のシーン・スクリプト・本編 README
 - [x] `2B.SpeechToJSON` のシーン・スクリプト・本編 README
-- [ ] `3` 以降のシーン・スクリプト（実装は別タスク）
+- [x] `3A.SpeechToSpeech` のシーン・スクリプト・本編 README
+- [ ] `3B` 以降のシーン・スクリプト（実装は別タスク）
 
 詳細な手順は、実装が入ったタイミングで各デモ README を `1A.TextToText` 並みに厚くします。

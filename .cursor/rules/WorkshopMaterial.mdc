@@ -38,7 +38,7 @@ alwaysApply: true
 
 命名:
 
-- デモフォルダ: `Assets/{番号}.{題名}/`（番号は学習順。半角の番号＋ピリオド＋題名。**スペースは入れない**。例: `1A.TextToText` / `2B.SpeechToJSON` / `3.SpeechToSpeech`）
+- デモフォルダ: `Assets/{番号}.{題名}/`（番号は学習順。半角の番号＋ピリオド＋題名。**スペースは入れない**。例: `1A.TextToText` / `2B.SpeechToJSON` / `3A.SpeechToSpeech`）
 - 番号は `1A` / `1B` / `2A` のように英字サフィックスを付けてよい（同一入力段階の Text / JSON など）
 - シーン名・メインスクリプト名は題名と揃える（例: TextToText）
 - プロジェクト全体の環境準備（API キー取得など）は `Docs/` に置き、各デモの MD からリンクする

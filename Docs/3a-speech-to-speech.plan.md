@@ -1,15 +1,16 @@
-# 3.SpeechToSpeech 実装プラン
+# 3A.SpeechToSpeech 実装プラン
 
 ## 要点（サマリー）
 
-- **何をするか**: `2A.SpeechToText` の後段に **TTS（声の出口）と再生** を足し、「声で話して声で返る」一気通貫にする。シリーズで TTS 初出。
+- **何をするか**: `2A.SpeechToText` の後段に **TTS（声の出口）と再生** を足し、「声で話して声で返る」一気通貫にする。シリーズで TTS 初出（REST）。
 - **パイプライン**: Mic → WAV → **1→2 Audio（文字起こし）** → **3→4 Text（返答）** → **5→6 TTS（音声生成）** → `AudioSource` 再生。
 - **UI**: 左は 2A 型（吹き出し＋Space）。中央／右は発生順 **1〜6**（Request/Response × Audio / Text / TTS）。
 - **コピー派生**: 共通基底は作らない。`SpeechToText.cs` を土台に TTS 段と再生を足す。
-- **触らないもの**: 1A/1B/2A/2B の挙動、4 以降。
+- **触らないもの**: 1A/1B/2A/2B の挙動、`3B`（Live API）、4 以降。
 - **完了条件**: シーン・スクリプト・README。クラウドのため Editor 検証は省略し、UI 構成イメージを画像で出す。
+- **姉妹デモ**: Live API で音声→音声を一発にする案は `3B.SpeechToSpeechLiveAPI`（後続）。
 
-| | 2A.SpeechToText | 3.SpeechToSpeech（本プラン） |
+| | 2A.SpeechToText | 3A.SpeechToSpeech（本プラン） |
 |---|-----------------|------------------------------|
 | 1→2 | GenerateContent（Audio）文字起こし | 同じ |
 | 3→4 | GenerateContent（Text）自由文返答 | 同じ（吹き出し表示） |
@@ -47,9 +48,9 @@ Space 押し話し
 
 Gemini の **TTS 向け `generateContent`** を使う（Cloud Text-to-Speech の別エンドポイントにはしない。キーも `APIKey.txt` のまま）。
 
-- モデル: 実装時にキーで使える TTS モデルを選ぶ（例: `gemini-2.5-flash-preview-tts` / `gemini-3.1-flash-tts-preview`）。インスペクタで変更可能にする。
+- モデル: 実装時にキーで使える TTS モデルを選ぶ（既定例: `gemini-3.1-flash-tts-preview`）。インスペクタで変更可能にする。
 - リクエスト要点:
-  - `contents` に返答テキスト（必要なら短い読み上げ指示）
+  - `contents` に返答テキスト（短い読み上げ指示付き）
   - `generationConfig.responseModalities`: `["AUDIO"]`
   - `generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName`（例: `Kore`）
 - レスポンス: `candidates[].content.parts[].inlineData`（音声バイト／Base64）を取り出し、Unity で `AudioClip` 化して再生。
@@ -70,7 +71,7 @@ Gemini の **TTS 向け `generateContent`** を使う（Cloud Text-to-Speech の
 └──────────────┴─────────────────────────────┴─────────────────────────────┘
 ```
 
-- **左**: 2A と同型（System Instruction あり、コンテキスト常時 ON、Space 押し話し、吹き出し）。再生中は Status または短い表示で分かるようにする。
+- **左**: 2A と同型（System Instruction あり、コンテキスト常時 ON、Space 押し話し、吹き出し）。再生中は Status で分かるようにする。
 - **中央／右**: 上下3段ずつ（発生順の奇数＝Request、偶数＝Response）。
 - 6. Response は音声バイナリが大きいので、表示は MIME／バイト数／先頭省略に留め、実データは再生に回す。
 
@@ -82,10 +83,10 @@ Gemini の **TTS 向け `generateContent`** を使う（Cloud Text-to-Speech の
 
 | パス | 由来 |
 |------|------|
-| `Assets/3.SpeechToSpeech/SpeechToSpeech.unity` | 2A シーンを複製し、中央／右を3段化 |
-| `Assets/3.SpeechToSpeech/Script/SpeechToSpeech.cs` | 2A をコピーして TTS＋再生を追加 |
-| `Assets/3.SpeechToSpeech/Prefab/MessageBubble.prefab` | 2A からコピー（または 1A ChatBubble 流用） |
-| `Assets/3.SpeechToSpeech/README.md` | WorkshopMaterial 準拠で本文化 |
+| `Assets/3A.SpeechToSpeech/SpeechToSpeech.unity` | 2A シーンを複製し、中央／右を3段化 |
+| `Assets/3A.SpeechToSpeech/Script/SpeechToSpeech.cs` | 2A をコピーして TTS＋再生を追加 |
+| `Assets/3A.SpeechToSpeech/Prefab/MessageBubble.prefab` | 2A からコピー（ChatBubble は 1A 流用） |
+| `Assets/3A.SpeechToSpeech/README.md` | WorkshopMaterial 準拠で本文化 |
 
 ### `SpeechToSpeech.cs` の流れ
 
@@ -108,19 +109,20 @@ Gemini の **TTS 向け `generateContent`** を使う（Cloud Text-to-Speech の
 
 - 学べること（問い）: 声が返るまでに何段の generateContent があるか／TTS はどの Request か、など
 - 動かし方: Space → 吹き出し → 声で返答 → 1〜6 を順に見る
-- 概念節: マイクと音声データ（短く）、TTS（Text-to-Speech）とは？、（必要なら）responseModalities
+- 概念節: TTS（Text-to-Speech）とは？、マイクと音声データ（短く）
 - 主要クラス: 発生順 1〜6 で読む
 
 ---
 
 ## 実装タスク順
 
-1. 2A から Script／Prefab／シーンを 3 へコピー
-2. 中央・右を3段（1〜6）に拡張し、標題を設定
-3. `SpeechToSpeech.cs` に TTS リクエスト・デコード・再生を追加
-4. README・overview 更新
-5. **UI 構成イメージを画像出力**
-6. コミット / push（Editor 検証は省略と明記）
+1. `3.SpeechToSpeech` を `3A.SpeechToSpeech` に改名し、`3B.SpeechToSpeechLiveAPI` スタブを追加
+2. 2A から Script／Prefab／シーンを 3A へコピー
+3. 中央・右を3段（1〜6）に拡張し、標題を設定
+4. `SpeechToSpeech.cs` に TTS リクエスト・デコード・再生を追加
+5. README・overview 更新
+6. **UI 構成イメージを画像出力**
+7. コミット / push（Editor 検証は省略と明記）
 
 ---
 
@@ -140,5 +142,4 @@ Gemini の **TTS 向け `generateContent`** を使う（Cloud Text-to-Speech の
 - 番号は発生順 **1〜6**（Audio / Text / TTS）
 - テキスト送信欄は置かない（Space のみ）
 - 共通クラス化はしない
-
-この方針で実装に進めてよいか確認する。
+- Live API 版は **3B** に分離（本デモでは扱わない）
