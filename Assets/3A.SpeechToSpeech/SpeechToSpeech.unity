@@ -8320,7 +8320,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u8fd4\u7b54\u30c6\u30ad\u30b9\u30c8\u3092\u58f0\u306b\u3059\u308b\u30ea\u30af\u30a8\u30b9\u30c8"
+  m_text: "ttsModel / voice / AUDIO"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 124f16a11e613cd4ebc18e7a2bf87e90, type: 2}
   m_sharedMaterial: {fileID: -1564414408837547503, guid: 124f16a11e613cd4ebc18e7a2bf87e90, type: 2}

@@ -31,13 +31,21 @@ Project ウィンドウで `Assets/3B.SpeechToSpeechLiveAPI/SpeechToSpeechLiveAP
 ### 1. 接続を確認する
 
 1. 上部の段階バーが `Connect` 付近であること、左 Status が「接続済み」になることを見てください。
-2. 中央（送信）上部の **Setup** ヘッダに、model / AUDIO / voice / transcription などの設定が出ることを確認してください。
+2. 中央（送信）上部の **Setup** ヘッダに、`model` / `voice` / `responseModalities` などの設定行が出ることを確認してください（接続前から表示され、接続後に Setup JSON が続きます）。
 
 ### 2. Space で話してみる
 
 1. **Space を押したまま**短い文を話し、**離してください**。
 2. 段階バーが `Send PCM` → `Receive PCM` → `Play` と進むこと、中央に送信チャンクログ、右に受信チャンクログが増えることを見てください。
 3. 左に吹き出し（transcription）が出て、返答が声で再生されることを確認してください。
+
+### 3. 声を変えてみる
+
+1. Play を止め、Hierarchy でデモ本体（`SpeechToSpeechLiveAPI`）を選び、Inspector の **Voice Name**（`voiceName`）を変更してください（初期値は `Kore`）。
+2. もう一度 Play を押し、中央 Setup ヘッダの `voice` が新しい名前になっていることを確認してから、Space で話してください。
+
+声は接続時の Setup で一度だけ送るため、変更後は **Stop → Play** が必要です。設定の書き方 → [Live API: Change voice and language](https://ai.google.dev/gemini-api/docs/live-api/capabilities#change-voice-and-language)  
+使える声の名前一覧 → [Gemini API: Text-to-speech（Voice options）](https://ai.google.dev/gemini-api/docs/speech-generation#voices)
 
 教材デモでは APIキーをクライアントから直接使います。本番アプリでは ephemeral token などの短い資格情報を使うことが推奨されます。
 
@@ -47,9 +55,9 @@ Project ウィンドウで `Assets/3B.SpeechToSpeechLiveAPI/SpeechToSpeechLiveAP
 
 Live API とは、HTTP の `generateContent` を何回も呼ぶのではなく、**WebSocket で1本のセッションを張り、音声をチャンクで双方向に流す**仕組みです。
 
-このデモでは Play 開始時に接続と Setup を行い、そのあと Space 押し話しの PCM を `realtimeInput` で送り、サーバからの PCM と transcription を受け取ります。3A のように「文字起こし用」「チャット用」「TTS 用」とリクエストを分けません。
+このデモでは Play 開始時に接続と Setup を行い、そのあと Space 押し話しの PCM を `realtimeInput` で送り、サーバからの PCM と transcription を受け取ります。声色は Setup の `speechConfig`（`voiceName`）で一度指定します。3A のように「文字起こし用」「チャット用」「TTS 用」とリクエストを分けません。
 
-試し方: 中央 Setup ヘッダと、Space 中に増える送信ログ、返答時の受信ログを見比べる。
+試し方: 中央 Setup ヘッダと、Space 中に増える送信ログ、返答時の受信ログを見比べる。Inspector で声を変えて聞き比べる（手順は「動かし方」の節。変更後は Stop → Play）。
 
 ---
 

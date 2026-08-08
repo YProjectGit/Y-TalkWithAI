@@ -768,10 +768,24 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         SetOutboundStatus("—");
         SetInboundStatus("—");
         SetInboundHeaderStatic();
+        // 接続前から設定（model / voice など）を見せ、JSON は接続後に足す
         if (setupHeaderText != null)
         {
-            setupHeaderText.text = "（接続後に Setup 内容を表示）";
+            setupHeaderText.text =
+                BuildSetupSettingsSummary() + "\n\n（接続後に Setup JSON を表示）";
         }
+    }
+
+    // Setup ヘッダ先頭の設定行（Inspector の modelName / voiceName など）
+    string BuildSetupSettingsSummary()
+    {
+        return "model: " + modelName + "\n"
+               + "responseModalities: AUDIO\n"
+               + "voice: " + voiceName + "\n"
+               + "transcription: input/output ON\n"
+               + "send: PCM " + sampleRate + "Hz\n"
+               + "VAD: manual (Space → activityStart/End)\n"
+               + "key: " + MaskApiKey(apiKey);
     }
 
     void RefreshSetupHeader(string setupJson)
@@ -782,13 +796,7 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         }
 
         setupHeaderText.text =
-            "model: " + modelName + "\n"
-            + "responseModalities: AUDIO\n"
-            + "voice: " + voiceName + "\n"
-            + "transcription: input/output ON\n"
-            + "send: PCM " + sampleRate + "Hz\n"
-            + "VAD: manual (Space → activityStart/End)\n"
-            + "key: " + MaskApiKey(apiKey) + "\n\n"
+            BuildSetupSettingsSummary() + "\n\n"
             + PrettyPrintJson(TruncateForDisplay(setupJson, 400));
     }
 

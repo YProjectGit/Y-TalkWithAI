@@ -45,17 +45,24 @@ Project ウィンドウで `Assets/3A.SpeechToSpeech/SpeechToSpeech.unity` を�
 5. **5. Request - GenerateContent（TTS）** … その返答テキストを TTS モデルへ送る  
 6. **6. Response - GenerateContent（TTS）** … 音声バイトが返り、再生に使う  
 
-5 の欄で `responseModalities` に `AUDIO` があること、6 の欄では MIME とバイト数など要約だけが出ることを確認してください（音声本体は再生に回します）。
+5 の欄の先頭に `ttsModel` / `voice` / `responseModalities` の設定行が出ること、本文に `responseModalities` に `AUDIO` があること、6 の欄では MIME とバイト数など要約だけが出ることを確認してください（音声本体は再生に回します）。
+
+### 3. 声を変えてみる
+
+1. Hierarchy でデモ本体（`SpeechToSpeech`）を選び、Inspector の **Tts Voice Name**（`ttsVoiceName`）を変更してください（初期値は `Kore`）。
+2. Play し直し、**5. Request** 欄先頭の `voice:` が新しい名前になっていることを確認してから、Space で話してください（次の TTS リクエストから反映されます）。
+
+使える声の名前一覧 → [Gemini API: Text-to-speech（Voice options）](https://ai.google.dev/gemini-api/docs/speech-generation#voices)
 
 ---
 
 ## TTS（Text-to-Speech）とは？
 
-テキストを音声データに変換することです。このデモでは、Chat（3→4）で得た返答文を、**別の TTS 向けモデル**の `generateContent` に渡し、`responseModalities: ["AUDIO"]` で音声バイトを受け取ります。
+テキストを音声データに変換することです。このデモでは、Chat（3→4）で得た返答文を、**別の TTS 向けモデル**の `generateContent` に渡し、`responseModalities: ["AUDIO"]` で音声バイトを受け取ります。声色はリクエスト内の `speechConfig`（`ttsVoiceName`）で指定します。
 
 2A までは「声 → 文字 → 文字の返答」で終わりました。3A ではその返答をもう一度 API に渡し、「文字 → 声」にしてスピーカーで再生します。画面の 1→2→3→4→5→6 がその順番です。
 
-試し方: 左の Gemini 吹き出しの文を聞いた声と照らし合わせる。5. Request の本文に同じ文が載っているかを見る。
+試し方: 左の Gemini 吹き出しの文を聞いた声と照らし合わせる。5. Request の本文に同じ文が載っているかを見る。Inspector で声を変えて聞き比べる（手順は「動かし方」の節）。
 
 ---
 
