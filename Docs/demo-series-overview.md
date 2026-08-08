@@ -13,7 +13,9 @@
 2. **声で入る（マイク入力）** … `2A` → `2B` → `3A`（REST で TTS）→ `3B`（Live API）
 3. **見る・描く** … `4`〜`7`（映像・画像）
 
-入力モダリティごとに、**A = 自由テキスト出力 / B = JSON（構造化）出力** を揃えます（`3` だけは出力が音声になるため、REST / Live API の対比）。
+入力モダリティごとに、**A = 自由テキスト出力 / B = JSON（構造化）出力** を揃えます（`3` は出力が音声になるため REST / Live の対比。`4`/`5` の映像→音声は Live API）。
+
+`4` の実装プラン → [4-vision-to-speech.plan.md](4-vision-to-speech.plan.md)
 
 ---
 
@@ -27,8 +29,8 @@
 | 2B | [`Assets/2B.SpeechToJSON/`](../Assets/2B.SpeechToJSON/) | マイク音声 | STT → LLM（JSON） | UI / パラメータ |
 | 3A | [`Assets/3A.SpeechToSpeech/`](../Assets/3A.SpeechToSpeech/) | マイク音声 | STT → LLM → TTS（REST） | 音声 |
 | 3B | [`Assets/3B.SpeechToSpeechLiveAPI/`](../Assets/3B.SpeechToSpeechLiveAPI/) | マイク音声 | Live API（音声↔音声） | 音声 |
-| 4 | [`Assets/4.VisionToSpeech/`](../Assets/4.VisionToSpeech/) | カメラ画像 | Vision LLM → TTS | 音声 |
-| 5 | [`Assets/5.ScreenToSpeech/`](../Assets/5.ScreenToSpeech/) | 画面キャプチャ | Vision LLM → TTS | 音声 |
+| 4 | [`Assets/4.VisionToSpeech/`](../Assets/4.VisionToSpeech/) | カメラ画像 | Live API（映像→音声） | 音声 |
+| 5 | [`Assets/5.ScreenToSpeech/`](../Assets/5.ScreenToSpeech/) | 画面キャプチャ | Live API（映像→音声） | 音声 |
 | 6 | [`Assets/6.TextToImage/`](../Assets/6.TextToImage/) | テキスト | 画像生成 | 画像 |
 | 7 | [`Assets/7.ImageToImage/`](../Assets/7.ImageToImage/) | 画像＋指示 | 画像変換 | 画像 |
 
@@ -39,8 +41,8 @@
 [2B] Mic ──► STT ─────► LLM (JSON) ───────────────► UI / 数値など
 [3A] Mic ──► STT ─────► LLM ──► TTS ──────────────► Audio
 [3B] Mic ════════════► Live API ══════════════════► Audio
-[4]  Camera ──────────► Vision LLM ──► TTS ───────► Audio
-[5]  Screen ──────────► Vision LLM ──► TTS ───────► Audio
+[4]  Camera ═════════► Live API ══════════════════► Audio
+[5]  Screen ═════════► Live API ══════════════════► Audio
 [6]  Text ──────────────► Image Gen ────────────────► Image
 [7]  Image ＋ Text ─────► Image Edit ───────────────► Image
 ```
@@ -71,8 +73,8 @@
 | 2B.SpeechToJSON | 2A の入力＋1B の JSON 反映（組み合わせ） |
 | 3A.SpeechToSpeech | TTS と再生（REST の `generateContent` 三段。ここで声の出口が初出） |
 | 3B.SpeechToSpeechLiveAPI | Live API で音声→音声を一セッションにまとめる（送信／受信の可視化） |
-| 4.VisionToSpeech | WebCam などからの画像取得、画像付きで LLM へ、返答を TTS |
-| 5.ScreenToSpeech | 画面／RenderTexture のキャプチャ（入力源がカメラではなく画面） |
+| 4.VisionToSpeech | WebCam フレームを Live API へ（Space シャッター／連続送信）。声で返答 |
+| 5.ScreenToSpeech | 画面／RenderTexture のキャプチャを Live へ（入力源がカメラではなく画面） |
 | 6.TextToImage | 画像生成リクエスト、テクスチャ表示 |
 | 7.ImageToImage | 入力画像＋指示での変換、Before / After 表示 |
 
@@ -88,6 +90,7 @@
 - [x] `2B.SpeechToJSON` のシーン・スクリプト・本編 README
 - [x] `3A.SpeechToSpeech` のシーン・スクリプト・本編 README
 - [x] `3B.SpeechToSpeechLiveAPI` のシーン・スクリプト・本編 README
+- [x] `4.VisionToSpeech` の実装プラン（Live API・UI イメージ）
 - [ ] `4` 以降のシーン・スクリプト（実装は別タスク）
 
 詳細な手順は、実装が入ったタイミングで各デモ README を `1A.TextToText` 並みに厚くします。
