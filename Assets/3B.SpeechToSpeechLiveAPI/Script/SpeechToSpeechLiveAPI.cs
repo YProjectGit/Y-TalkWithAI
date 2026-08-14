@@ -121,7 +121,7 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         LoadSystemInstructionFromFile();
         if (systemInstructionField != null)
         {
-            systemInstructionField.onEndEdit.AddListener(_ => SaveSystemInstructionFromField());
+            systemInstructionField.onEndEdit.AddListener(OnSystemInstructionEndEdit);
         }
 
         SetupMicrophone();
@@ -1213,6 +1213,12 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
 
         systemInstructionField.text = File.ReadAllText(path);
         systemInstructionFileWriteTimeUtc = File.GetLastWriteTimeUtc(path);
+    }
+
+    // InputField の編集確定時
+    void OnSystemInstructionEndEdit(string _)
+    {
+        SaveSystemInstructionFromField();
     }
 
     void SaveSystemInstructionFromField()

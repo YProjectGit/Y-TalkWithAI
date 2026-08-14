@@ -15,6 +15,14 @@
 
 ---
 
+## 事前準備
+
+Google AI Studio から Gemini の API にアクセスするための APIキーを取得し、`Assets/Common/APIKey.txt` に保管してください。  
+手順 → [Docs/gemini-ai-studio-setup.md](../../Docs/gemini-ai-studio-setup.md)  
+無料枠で 429 が出たら、有料への移り方と値段の目安 → [Docs/gemini-api-pricing.md](../../Docs/gemini-api-pricing.md)
+
+---
+
 ## 動かし方
 
 Project ウィンドウで `Assets/1B.TextToJSON/TextToJSON.unity` を開き、Play を押してください。
@@ -157,7 +165,7 @@ Assets/1B.TextToJSON/Script/TextToJSON.cs を改修してください。
 4. **リクエスト JSON を組み立てる**  
    `BuildRequestJson` — ユーザー入力と、返してほしい形（スキーマ）を載せる
 5. **構造化の返答を取り出す**  
-   `TryExtractJson` — レスポンスから構造化された JSON 本文を取り出す
+   `TryExtractStructuredJson` — レスポンスから構造化された JSON 本文を取り出す
 6. **パースして画面へ反映する**  
    `TryParseAndApply` — `cubeColor` / `backgroundColor` を読み、キューブとカメラ背景に書く  
    `ShowSchema` / `ShowResponse` — 中央・右ペインへの可視化

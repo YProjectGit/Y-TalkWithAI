@@ -2,7 +2,7 @@
 
 音声・画像インタラクション・ワークショップの学習順と、各デモのパイプライン位置づけです。
 
-**実装済み**: `1A.TextToText` / `1B.TextToJSON` / `2A.SpeechToText` / `2B.SpeechToJSON` / `3A.SpeechToSpeech` / `3B.SpeechToSpeechLiveAPI` / `4.VisionToSpeech` / `5.ScreenToSpeech` / `6.TextToImage` / `7.ImageToImage`
+対象デモ: `1A.TextToText` / `1B.TextToJSON` / `2A.SpeechToText` / `2B.SpeechToJSON` / `3A.SpeechToSpeech` / `3B.SpeechToSpeechLiveAPI` / `4.VisionToSpeech` / `5.ScreenToSpeech` / `6.TextToImage` / `7.ImageToImage`
 
 ---
 
@@ -12,12 +12,7 @@
 2. **声で入る（マイク入力）** … `2A` → `2B` → `3A`（REST で TTS）→ `3B`（Live API）
 3. **見る・描く** … `4`〜`7`（映像・画像）
 
-入力モダリティごとに、**A = 自由テキスト出力 / B = JSON（構造化）出力** を揃えます（`3` は出力が音声になるため REST / Live の対比。`4`/`5` の映像→音声は Live API）。
-
-`4` の実装プラン → [4-vision-to-speech.plan.md](4-vision-to-speech.plan.md)  
-`5` の実装プラン → [5-screen-to-speech.plan.md](5-screen-to-speech.plan.md)  
-`6` の実装プラン → [6-text-to-image.plan.md](6-text-to-image.plan.md)（実装済み）  
-`7` の実装プラン → [7-image-to-image.plan.md](7-image-to-image.plan.md)（実装済み）
+入力モダリティごとに、**A = 自由テキスト出力 / B = JSON（構造化）出力** を揃えます（`3` は出力が音声になるため REST / Live の対比。`4`/`5` の映像→音声は Live API）。各デモの手順は、そのフォルダの README を見てください。
 
 ---
 
@@ -53,16 +48,15 @@
 
 ---
 
-## 設計の骨格（実装時の方針）
+## 設計の骨格
 
-教材として追いやすくするため、次を守る想定です。
+教材として追いやすくするため、次を守っています。
 
-- **1 デモ = 1 フォルダ**（シーン・メインスクリプト・README をセットで後から足す）
+- **1 デモ = 1 フォルダ**（シーン・メインスクリプト・README をセット）
 - **フォルダ名は `Assets/{番号}.{題名}/`**（例: `1A.TextToText`。番号と題名のあいだはピリオドのみ、スペースなし）
-- **パイプラインを隠さない** — Status / 中間結果（テキスト・JSON）を見える化する（TextToText と同じ考え方）
+- **パイプラインを隠さない** — Status / 中間結果（テキスト・JSON）を見える化する（TextToText と同じ考え方。`5` は体験画面のため送信／受信欄を出さない）
 - **API キーは `Assets/Common/APIKey.txt`**（リポジトリにはコミットしない）
 - **共通基盤への寄せすぎはしない** — コピーして改変しやすい短い流れを優先
-- 具体的なエンドポイント名・モデル名・音声／画像フォーマットは、各デモ実装時に決める（概要 README ではパイプラインだけ固定）
 
 ---
 
@@ -79,26 +73,3 @@
 | 5.ScreenToSpeech | ドローイングパッドの画面を Live へ。送信／受信欄は出さず、描きながら声で解釈する |
 | 6.TextToImage | 画像生成リクエスト、テクスチャ表示 |
 | 7.ImageToImage | カメラ1フレーム＋指示での変換、ライブ映像 / After 表示 |
-
----
-
-## いまの完了条件（この段階）
-
-- [x] 案C（1A/1B/2A/2B/3…）の番号フォルダがある
-- [x] フォルダ表記が `1A.TextToText` 形式（ピリオド区切り・スペースなし）
-- [x] 各フォルダに概要または本編 README がある
-- [x] 本ドキュメントでシリーズ全体の位置づけが読める
-- [x] `2A.SpeechToText` のシーン・スクリプト・本編 README
-- [x] `2B.SpeechToJSON` のシーン・スクリプト・本編 README
-- [x] `3A.SpeechToSpeech` のシーン・スクリプト・本編 README
-- [x] `3B.SpeechToSpeechLiveAPI` のシーン・スクリプト・本編 README
-- [x] `4.VisionToSpeech` の実装プラン（Live API・UI イメージ）
-- [x] `4.VisionToSpeech` のシーン・スクリプト・本編 README
-- [x] `5.ScreenToSpeech` の実装プラン（描画パッド・体験 UI イメージ）
-- [x] `5.ScreenToSpeech` のシーン・スクリプト・本編 README
-- [x] `6.TextToImage` の実装プラン（REST 画像生成・UI イメージ）
-- [x] `6.TextToImage` のシーン・スクリプト・本編 README
-- [x] `7.ImageToImage` の実装プラン（カメラ1フレーム・REST 変換）
-- [x] `7.ImageToImage` のシーン・スクリプト・本編 README
-
-詳細な手順は、実装が入ったタイミングで各デモ README を `1A.TextToText` 並みに厚くします。

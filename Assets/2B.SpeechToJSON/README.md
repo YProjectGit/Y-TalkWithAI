@@ -64,9 +64,19 @@ Project ウィンドウで `Assets/2B.SpeechToJSON/SpeechToJSON.unity` を開き
 
 ### SpeechToJSON（[`SpeechToJSON.cs`](Script/SpeechToJSON.cs)）
 
-デモの本体です。Space 押し話しは **旧 Input Manager**（`Input.GetKeyDown` / `GetKeyUp`）です。通信は **UnityWebRequest** と **コルーチン** による非同期処理です。
+デモの本体です。上から、録音〜文字起こし〜構造化 JSON〜色反映の流れを追うとわかりやすいです。
 
-1. **起動時の準備をする** … APIキー、マイク、3D プレビュー、案内文言  
-2. **Space で録音する** … `Microphone.Start` → `End` → WAV → Base64  
-3. **1→2. GenerateContent（Audio）** … 文字起こしを取り、認識テキスト欄へ  
-4. **3→4. GenerateContent（Text）** … スキーマ付きで構造化 JSON を受け取り、色へ反映  
+通信は **UnityWebRequest**（HTTP の送受信）と **コルーチン**（`IEnumerator` + `yield`）による **非同期処理** です。コルーチンは `Update` などのメインスレッドの処理とは独立した時間軸で進むので、応答待ちのあいだも画面が固まりません。Space の押し話し検知だけは `Update` で、**旧 Input Manager**（`Input.GetKeyDown` / `GetKeyUp`）を使います。2A との違いは、チャット返答ではなく **スキーマ付き JSON をパースしてキューブ色と背景色へ反映する**ところです。
+
+1. **起動時の準備をする**  
+   `Start` — APIキー読込、マイク確認、3D プレビュー、案内文言
+2. **Space 押し話しを検知する**  
+   `UpdatePushToTalk` — 押しているあいだ録音、離したら変換へ
+3. **マイクで録音する**  
+   `BeginRecording` / `EndRecordingAndSend` — `Microphone.Start` → `End` → 録れたサンプルだけ切り出し
+4. **音声データに変換する**  
+   `ConvertAudioClipToWav` — float サンプルを 16-bit PCM にし、WAV ヘッダを付けて `byte[]` にする → Base64
+5. **1→2. GenerateContent（Audio）**  
+   `SendSpeechPipelineCoroutine` の前半 — 音声付き JSON を POST し、文字起こしを認識テキスト欄へ
+6. **3→4. GenerateContent（Text）**  
+   同コルーチンの後半 — スキーマ付きで構造化 JSON を受け取り、色へ反映  
