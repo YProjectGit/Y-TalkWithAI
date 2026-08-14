@@ -3,14 +3,14 @@ name: uloop-compile
 description: "Compile the Unity project and report errors/warnings. Use after C# edits or when a full Domain Reload compile is needed."
 ---
 
-# uloop compile
+# npx --yes uloop-cli@2.2.0 compile
 
 Execute Unity project compilation.
 
 ## Usage
 
 ```bash
-uloop compile [--force-recompile <true|false>] [--wait-for-domain-reload <true|false>]
+npx --yes uloop-cli@2.2.0 compile [--force-recompile <true|false>] [--wait-for-domain-reload <true|false>]
 ```
 
 ## Parameters
@@ -23,7 +23,7 @@ uloop compile [--force-recompile <true|false>] [--wait-for-domain-reload <true|f
 ## When to use --force-recompile
 
 Almost never. Unity itself detects changed files — even when they were edited outside the
-Editor, a plain `uloop compile` runs every recompilation the changes require. A forced full
+Editor, a plain `npx --yes uloop-cli@2.2.0 compile` runs every recompilation the changes require. A forced full
 recompile can freeze the Editor for a long time on large projects, and with
 `--wait-for-domain-reload true` the response crosses a Domain Reload so `Success` comes back
 as `null`, making it useless as a verification step. The only legitimate use: surfacing
@@ -39,16 +39,16 @@ warnings hidden by other asmdefs with a full build.
 
 ```bash
 # Check compilation
-uloop compile
+npx --yes uloop-cli@2.2.0 compile
 
 # Force full recompilation
-uloop compile --force-recompile true
+npx --yes uloop-cli@2.2.0 compile --force-recompile true
 
 # Force recompilation and wait for Domain Reload completion
-uloop compile --force-recompile true --wait-for-domain-reload true
+npx --yes uloop-cli@2.2.0 compile --force-recompile true --wait-for-domain-reload true
 
 # Wait for Domain Reload completion even without force recompilation
-uloop compile --force-recompile false --wait-for-domain-reload true
+npx --yes uloop-cli@2.2.0 compile --force-recompile false --wait-for-domain-reload true
 ```
 
 ## Output
@@ -65,15 +65,15 @@ Diagnose the failure mode before retrying.
 **Stale lock files** (CLI hangs or shows "Unity is busy" while Unity Editor *is* running):
 
 ```bash
-uloop fix
+npx --yes uloop-cli@2.2.0 fix
 ```
 
-This removes any leftover lock files (`compiling.lock`, `domainreload.lock`, `serverstarting.lock`) from the Unity project's Temp directory. Then retry `uloop compile`.
+This removes any leftover lock files (`compiling.lock`, `domainreload.lock`, `serverstarting.lock`) from the Unity project's Temp directory. Then retry `npx --yes uloop-cli@2.2.0 compile`.
 
 **Unity Editor not running** (CLI returns a connection failure and no Unity process is alive):
 
 ```bash
-uloop launch
+npx --yes uloop-cli@2.2.0 launch
 ```
 
-`uloop launch` auto-detects the project at the current working directory and opens it in the matching Unity Editor version. After Unity finishes launching, retry `uloop compile`.
+`npx --yes uloop-cli@2.2.0 launch` auto-detects the project at the current working directory and opens it in the matching Unity Editor version. After Unity finishes launching, retry `npx --yes uloop-cli@2.2.0 compile`.
