@@ -2,14 +2,14 @@
 
 音声・画像インタラクション・ワークショップの学習順と、各デモのパイプライン位置づけです。
 
-対象デモ: `1A.TextToText` / `1B.TextToJSON` / `2A.SpeechToText` / `2B.SpeechToJSON` / `3A.SpeechToSpeech` / `3B.SpeechToSpeechLiveAPI` / `4.VisionToSpeech` / `5.ScreenToSpeech` / `6.TextToImage` / `7.ImageToImage`
+対象デモ: `1A.TextToText` / `1B.TextToJSON` / `2A.SpeechToText` / `2C.SpeechToTextLocal` / `2D.SpeechToTextWhisper` / `2B.SpeechToJSON` / `3A.SpeechToSpeech` / `3B.SpeechToSpeechLiveAPI` / `4.VisionToSpeech` / `5.ScreenToSpeech` / `6.TextToImage` / `7.ImageToImage`
 
 ---
 
 ## 学習の三段
 
 1. **つながる / 形で動かす（テキスト入力）** … `1A` → `1B`
-2. **声で入る（マイク入力）** … `2A` → `2B` → `3A`（REST で TTS）→ `3B`（Live API）
+2. **声で入る（マイク入力）** … `2A` → `2C`（sherpa）→ `2D`（whisper）→ `2B` → `3A`（REST で TTS）→ `3B`（Live API）
 3. **見る・描く** … `4`〜`7`（映像・画像）
 
 入力モダリティごとに、**A = 自由テキスト出力 / B = JSON（構造化）出力** を揃えます（`3` は出力が音声になるため REST / Live の対比。`4`/`5` の映像→音声は Live API）。各デモの手順は、そのフォルダの README を見てください。
@@ -22,7 +22,9 @@
 |---|----------|------|------------|------|
 | 1A | [`Assets/1A.TextToText/`](../Assets/1A.TextToText/) | テキスト | LLM | テキスト |
 | 1B | [`Assets/1B.TextToJSON/`](../Assets/1B.TextToJSON/) | テキスト | LLM（JSON） | UI / パラメータ |
-| 2A | [`Assets/2A.SpeechToText/`](../Assets/2A.SpeechToText/) | マイク音声 | STT → LLM | テキスト |
+| 2A | [`Assets/2A.SpeechToText/`](../Assets/2A.SpeechToText/) | マイク音声 | Gemini STT → LLM | テキスト |
+| 2C | [`Assets/2C.SpeechToTextLocal/`](../Assets/2C.SpeechToTextLocal/) | マイク音声 | sherpa STT → LLM | テキスト |
+| 2D | [`Assets/2D.SpeechToTextWhisper/`](../Assets/2D.SpeechToTextWhisper/) | マイク音声 | whisper STT → LLM | テキスト |
 | 2B | [`Assets/2B.SpeechToJSON/`](../Assets/2B.SpeechToJSON/) | マイク音声 | STT → LLM（JSON） | UI / パラメータ |
 | 3A | [`Assets/3A.SpeechToSpeech/`](../Assets/3A.SpeechToSpeech/) | マイク音声 | STT → LLM → TTS（REST） | 音声 |
 | 3B | [`Assets/3B.SpeechToSpeechLiveAPI/`](../Assets/3B.SpeechToSpeechLiveAPI/) | マイク音声 | Live API（音声↔音声） | 音声 |
@@ -34,8 +36,10 @@
 ```text
 [1A] Text ──────────────► LLM ──────────────────────► Text
 [1B] Text ──────────────► LLM (JSON) ───────────────► UI / 数値など
-[2A] Mic ──► STT ─────► LLM ──────────────────────► Text
-[2B] Mic ──► STT ─────► LLM (JSON) ───────────────► UI / 数値など
+[2A] Mic ──► Gemini STT ─► LLM ───────────────────► Text
+[2C] Mic ──► sherpa STT ─► LLM ───────────────────► Text
+[2D] Mic ──► whisper STT ─► LLM ───────────────────► Text
+[2B] Mic ──► STT ────────► LLM (JSON) ────────────► UI / 数値など
 [3A] Mic ──► STT ─────► LLM ──► TTS ──────────────► Audio
 [3B] Mic ════════════► Live API ══════════════════► Audio
 [4]  Camera ═════════► Live API ══════════════════► Audio
@@ -66,6 +70,8 @@
 |------|------------------------------|
 | 1B.TextToJSON | 決まった形（JSON）での返答、パース、UI / パラメータへの反映 |
 | 2A.SpeechToText | マイク録音、音声→テキスト（STT）。出力は 1A と同型のテキスト |
+| 2C.SpeechToTextLocal | STT だけ sherpa-onnx（端末）。Chat は 2A と同じ Gemini |
+| 2D.SpeechToTextWhisper | STT だけ whisper.unity（端末）。Chat は 2A と同じ Gemini |
 | 2B.SpeechToJSON | 2A の入力＋1B の JSON 反映（組み合わせ） |
 | 3A.SpeechToSpeech | TTS と再生（REST の `generateContent` 三段。ここで声の出口が初出） |
 | 3B.SpeechToSpeechLiveAPI | Live API で音声→音声を一セッションにまとめる（送信／受信の可視化） |
