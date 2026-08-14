@@ -2,8 +2,7 @@
 
 音声・画像インタラクション・ワークショップの学習順と、各デモのパイプライン位置づけです。
 
-**実装済み**: `1A.TextToText` / `1B.TextToJSON` / `2A.SpeechToText` / `2B.SpeechToJSON` / `3A.SpeechToSpeech` / `3B.SpeechToSpeechLiveAPI` / `4.VisionToSpeech` / `5.ScreenToSpeech` / `6.TextToImage`  
-**プラン済み・未実装**: `7.ImageToImage`（6 のあと）
+**実装済み**: `1A.TextToText` / `1B.TextToJSON` / `2A.SpeechToText` / `2B.SpeechToJSON` / `3A.SpeechToSpeech` / `3B.SpeechToSpeechLiveAPI` / `4.VisionToSpeech` / `5.ScreenToSpeech` / `6.TextToImage` / `7.ImageToImage`
 
 ---
 
@@ -18,7 +17,7 @@
 `4` の実装プラン → [4-vision-to-speech.plan.md](4-vision-to-speech.plan.md)  
 `5` の実装プラン → [5-screen-to-speech.plan.md](5-screen-to-speech.plan.md)  
 `6` の実装プラン → [6-text-to-image.plan.md](6-text-to-image.plan.md)（実装済み）  
-`7` の実装プラン → [7-image-to-image.plan.md](7-image-to-image.plan.md)（次に実装）
+`7` の実装プラン → [7-image-to-image.plan.md](7-image-to-image.plan.md)（実装済み）
 
 ---
 
@@ -35,7 +34,7 @@
 | 4 | [`Assets/4.VisionToSpeech/`](../Assets/4.VisionToSpeech/) | カメラ画像 | Live API（映像→音声） | 音声 |
 | 5 | [`Assets/5.ScreenToSpeech/`](../Assets/5.ScreenToSpeech/) | 描画パッド | Live API（映像→音声） | 音声 |
 | 6 | [`Assets/6.TextToImage/`](../Assets/6.TextToImage/) | テキスト | 画像生成 | 画像 |
-| 7 | [`Assets/7.ImageToImage/`](../Assets/7.ImageToImage/) | 画像＋指示 | 画像変換 | 画像 |
+| 7 | [`Assets/7.ImageToImage/`](../Assets/7.ImageToImage/) | カメラ1フレーム＋指示 | 画像変換 | 画像 |
 
 ```text
 [1A] Text ──────────────► LLM ──────────────────────► Text
@@ -47,7 +46,7 @@
 [4]  Camera ═════════► Live API ══════════════════► Audio
 [5]  Screen ═════════► Live API ══════════════════► Audio
 [6]  Text ──────────────► Image Gen ────────────────► Image
-[7]  Image ＋ Text ─────► Image Edit ───────────────► Image
+[7]  Camera ＋ Text ────► Image Edit ───────────────► Image
 ```
 
 共通の前提（キー取得など）は [gemini-ai-studio-setup.md](gemini-ai-studio-setup.md) を参照します。無料枠のあと有料に移るとき → [gemini-api-pricing.md](gemini-api-pricing.md)
@@ -79,7 +78,7 @@
 | 4.VisionToSpeech | WebCam フレームを Live API へ（Space シャッター／連続送信）。声で返答 |
 | 5.ScreenToSpeech | ドローイングパッドの画面を Live へ。送信／受信欄は出さず、描きながら声で解釈する |
 | 6.TextToImage | 画像生成リクエスト、テクスチャ表示 |
-| 7.ImageToImage | 入力画像＋指示での変換、Before / After 表示 |
+| 7.ImageToImage | カメラ1フレーム＋指示での変換、ライブ映像 / After 表示 |
 
 ---
 
@@ -99,7 +98,7 @@
 - [x] `5.ScreenToSpeech` のシーン・スクリプト・本編 README
 - [x] `6.TextToImage` の実装プラン（REST 画像生成・UI イメージ）
 - [x] `6.TextToImage` のシーン・スクリプト・本編 README
-- [x] `7.ImageToImage` の実装プラン（参照画像・Before/After。実装は 6 のあと）
-- [ ] `7.ImageToImage` のシーン・スクリプト・本編 README
+- [x] `7.ImageToImage` の実装プラン（カメラ1フレーム・REST 変換）
+- [x] `7.ImageToImage` のシーン・スクリプト・本編 README
 
 詳細な手順は、実装が入ったタイミングで各デモ README を `1A.TextToText` 並みに厚くします。
