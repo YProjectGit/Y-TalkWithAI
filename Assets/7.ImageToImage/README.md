@@ -11,7 +11,7 @@
 - **参照画像**  
   テキストだけの生成ではなく、今のカメラ画像を手がかりにする
 - **同じ generateContent に画像を載せる**  
-  6 と同じ REST の `parts` に、指示テキストと JPEG を並べて送る
+  6 と同じ REST で、指示テキストとカメラ JPEG を並べて送る
 
 ---
 
@@ -30,23 +30,20 @@
 
 Project ウィンドウで `Assets/7.ImageToImage/ImageToImage.unity` を開き、Play を押してください。
 
-### 1. カメラの映像を絵にする
+### 1. カメラの映像を見る
 
 1. 左の Camera にライブ映像が出ることを確認してください。
-2. 指示欄の文をそのまま使うか書き換えて、**変換** を押してください（Enter でも送れます。Shift+Enter で改行です）。
-3. 数秒待って、左の After に変換後の絵が出ることを確認してください。
+2. 右の After は、まだ変換していないので空です。
 
-### 2. Request で参照画像が載っていることを見る
+### 2. 今の1枚を変換する
 
-1. 中央ペインの Request を開き、`parts` に `"text"` と `"inlineData"` が並んでいることを確認してください。
-2. `"inlineData"` の `mimeType` が `image/jpeg` であること、`data` が先頭だけになっていることを見てください。
-3. `generationConfig` の `"responseModalities"` に `"IMAGE"` が入っていることも見てください。
+1. 指示欄の文をそのまま使うか書き換えて、**変換** を押してください（Enter でも送れます。Shift+Enter で改行です）。
+2. 数秒待って、右の After に変換後の絵が出ることを確認してください。
 
-### 3. Response で変換後の画像バイトを追う
+### 3. もう一度変換する
 
-1. 右ペインの Response 先頭に、`HTTP 200` と `mimeType` / `image bytes` が出ることを確認してください。
-2. 左の After が、そのバイト列を `Texture2D` にしたものだと対応づけてください。
-3. カメラを動かしてもう一度変換し、After が上書きされることを見てください。
+1. カメラを動かすか指示を変えて、もう一度 **変換** を押してください。
+2. After が上書きされることを見てください。Camera のライブ映像は、待ちのあいだも動き続けます。
 
 教材デモでは APIキーをクライアントから直接使います。本番アプリでは ephemeral token などの短い資格情報を使うことが推奨されます。
 
@@ -58,7 +55,7 @@ Project ウィンドウで `Assets/7.ImageToImage/ImageToImage.unity` を開き�
 
 たとえ話で言うと、「この写真を、こう変えて」と絵葉書を預けるイメージです。返ってくるのも絵です。
 
-試し方: 中央 Request の `parts` に `text` と `inlineData` が並ぶこと、左の Camera と After を見比べる。
+試し方: 左の Camera と右の After を見比べる。
 
 ---
 
@@ -76,9 +73,9 @@ Project ウィンドウで `Assets/7.ImageToImage/ImageToImage.unity` を開き�
 
 JSON の中に、画像そのものを Base64 という文字の列で埋め込んだものです。6 では **返ってきた絵** が `inlineData` でした。ここでは **送る側** にも同じ入れ物でカメラ JPEG を載せます。
 
-Unity では WebCam の画素を `EncodeToJPG` して Base64 にします。右ペインの返却画像も、6 と同じく `Texture2D.LoadImage` で After に出します。長い Base64 は画面では先頭だけです（送受信そのものは全文です）。
+Unity では WebCam の画素を `EncodeToJPG` して Base64 にします。返ってきた画像も、6 と同じく `Texture2D.LoadImage` で After に出します。
 
-試し方: Request の `camera JPEG` 行と、省略された `data` の `chars total` を見る。
+試し方: 変換後、After に絵が出ることと、Camera の今の映像がそのままではないことを見比べる。
 
 ---
 
@@ -91,17 +88,15 @@ Unity では WebCam の画素を `EncodeToJPG` して Base64 にします。右�
 通信は **UnityWebRequest**（HTTP の送受信）と **コルーチン**（`IEnumerator` + `yield`）による **非同期処理** です。コルーチンは `Update` などのメインスレッドの処理とは独立した時間軸で進むので、応答待ちのあいだもプレビューが動き続けます。
 
 1. **起動時の準備をする**  
-   `Start` — APIキー読込、3分割 UI、WebCam 起動、変換ボタン／Enter の購読
+   `Start` — APIキー読込、体験 UI、WebCam 起動、変換ボタン／Enter の購読
 2. **変換を始める**  
    `OnConvertClicked` → `TryCaptureJpeg` → `StartCoroutine(SendImageCoroutine)` — 送信の入口
 3. **API と通信する**  
    `SendImageCoroutine` — 通信本体  
    - `BuildRequestJson` → `UnityWebRequest` で POST  
    - `yield return request.SendWebRequest()` で応答待ち  
-   - Response 表示 → 画像抽出 → After に `Texture2D` 表示
+   - 画像抽出 → After に `Texture2D` 表示
 4. **リクエスト JSON を組み立てる**  
    `BuildRequestJson` — 指示テキストとカメラ JPEG を `parts` に並べ、`responseModalities` / `imageConfig` を載せる
 5. **画像バイトを取り出す**  
    `TryExtractInlineImage` — レスポンス JSON から `inlineData` とテキスト part を取り出す
-6. **送受信を画面に出す**  
-   `ShowRequest` / `ShowResponse` — 中央・右ペインへの可視化（Base64 は表示だけ短縮）

@@ -1,6 +1,5 @@
 // ImageToImage.cs
-// カメラの今の1フレームと短い指示を Gemini に送り、変換後の絵を左の After に出すデモの本体。
-// 中央に Request、右に Response の生データを出し、通信の流れを追えるようにする。
+// カメラの今の1フレームと短い指示を Gemini に送り、変換後の絵を After に出すデモの本体。
 //
 // 上からの流れ:
 //   Start → APIキー読込・UI 初期化・WebCam 起動
@@ -19,10 +18,11 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
+using UnityEngine.Networking;
 using UnityEngine.UI;
 
 /// <summary>
-/// Gemini generateContent でカメラ1フレームを変換し、送受信の生データを可視化する。
+/// Gemini generateContent でカメラ1フレームを変換し、After に出す。
 /// </summary>
 public class ImageToImage : MonoBehaviour
 {
@@ -37,7 +37,7 @@ public class ImageToImage : MonoBehaviour
     public string defaultPrompt = "この写真を、はっきりしたイラストにしてください"; // 入力欄の初期指示
     public TMP_FontAsset uiFont; // 日本語 UI 用フォント（未設定だと欠ける）
 
-    // ===== インスペクタ: 左ペイン（Camera / After ＋入力） =====
+    // ===== インスペクタ: 体験 UI（Camera / After ＋入力） =====
 
     public RawImage webcamPreview; // WebCam のライブ表示
     public RawImage resultImage; // 変換後画像（After）
@@ -46,11 +46,6 @@ public class ImageToImage : MonoBehaviour
     public TMP_InputField inputField; // 指示テキスト
     public Button sendButton; // 変換ボタン
     public TMP_Text statusText; // 待機中 / 送信中 / 応答待ち などの状態
-
-    // ===== インスペクタ: 可視化（中央 Request / 右 Response） =====
-
-    public TMP_Text requestText; // URL・ヘッダ（キーはマスク）・リクエスト JSON
-    public TMP_Text responseText; // HTTP ステータス + 要約 + 短縮した生 JSON
 
     // ===== 内部状態 =====
 
@@ -63,18 +58,18 @@ public class ImageToImage : MonoBehaviour
     Sprite uiSprite; // 実行時に作る白いスプライト
 
     const float StatusBlinkSpeed = 6f; // 点滅の速さ（大きいほど速い）
-    const int DisplayBase64MaxChars = 96; // 画面では Base64 をこの長さまで
     const int WebcamRequestWidth = 1280; // WebCam 要求解像度（プレビュー用）
     const int WebcamRequestHeight = 720;
 
-    static readonly Color BackgroundColor = new Color(0.91f, 0.90f, 0.88f, 1f);
-    static readonly Color PaneColor = new Color(0.97f, 0.96f, 0.94f, 1f);
-    static readonly Color TitleColor = new Color(0.18f, 0.18f, 0.20f, 1f);
-    static readonly Color BodyTextColor = new Color(0.16f, 0.16f, 0.18f, 1f);
-    static readonly Color MutedTextColor = new Color(0.42f, 0.41f, 0.39f, 1f);
-    static readonly Color ButtonColor = new Color(0.22f, 0.28f, 0.38f, 1f);
-    static readonly Color ImageWellColor = new Color(0.86f, 0.85f, 0.82f, 1f);
-    static readonly Color InputColor = new Color(1f, 1f, 1f, 1f);
+    static readonly Color BackgroundColor = new Color(0.12f, 0.12f, 0.14f, 1f);
+    static readonly Color PaneColor = new Color(0.16f, 0.17f, 0.20f, 1f);
+    static readonly Color TitleColor = Color.white;
+    static readonly Color BodyTextColor = Color.white;
+    static readonly Color MutedTextColor = new Color(0.70f, 0.72f, 0.76f, 1f);
+    static readonly Color ButtonColor = new Color(0.25f, 0.55f, 0.90f, 1f);
+    static readonly Color ImageWellColor = new Color(0.08f, 0.09f, 0.11f, 1f);
+    static readonly Color InputColor = new Color(0.08f, 0.09f, 0.11f, 1f);
+    static readonly Color PlaceholderColor = new Color(1f, 1f, 1f, 0.35f);
 
     // ----- エントリポイント -----
 
@@ -93,16 +88,6 @@ public class ImageToImage : MonoBehaviour
         }
 
         SetStatus(hasCamera ? "待機中" : "カメラがありません", false);
-        if (requestText != null)
-        {
-            requestText.text = "（まだ送信していません）";
-        }
-
-        if (responseText != null)
-        {
-            responseText.text = "（まだ応答がありません）";
-        }
-
         SetSending(false);
     }
 
@@ -166,22 +151,20 @@ public class ImageToImage : MonoBehaviour
         }
 
         byte[] jpegBytes;
-        int width;
-        int height;
-        if (!TryCaptureJpeg(out jpegBytes, out width, out height))
+        if (!TryCaptureJpeg(out jpegBytes))
         {
             ShowError("カメラ画像を取れませんでした。カメラの接続と権限を確認してください。");
             return;
         }
 
-        StartCoroutine(SendImageCoroutine(prompt, jpegBytes, width, height));
+        StartCoroutine(SendImageCoroutine(prompt, jpegBytes));
     }
 
     // ----- 通信本体（コルーチン） -----
 
-    // 指示とカメラ JPEG を送り、変換画像を受け取って各ペインを更新する
+    // 指示とカメラ JPEG を送り、変換画像を After に出す
     // UnityWebRequest.SendWebRequest の完了まで yield するため、待ちのあいだ Status を点滅できる
-    IEnumerator SendImageCoroutine(string prompt, byte[] jpegBytes, int width, int height)
+    IEnumerator SendImageCoroutine(string prompt, byte[] jpegBytes)
     {
         SetSending(true);
 
@@ -191,7 +174,6 @@ public class ImageToImage : MonoBehaviour
                      + ":generateContent";
         string jpegBase64 = Convert.ToBase64String(jpegBytes);
         string requestJson = BuildRequestJson(prompt, jpegBase64);
-        ShowRequest(url, requestJson, width, height, jpegBytes.Length);
 
         SetStatus("送信中", false);
         byte[] bodyRaw = Encoding.UTF8.GetBytes(requestJson);
@@ -200,23 +182,21 @@ public class ImageToImage : MonoBehaviour
             request.uploadHandler = new UploadHandlerRaw(bodyRaw);
             request.downloadHandler = new DownloadHandlerBuffer();
             request.SetRequestHeader("Content-Type", "application/json; charset=utf-8");
-            // Docs と同じ認証ヘッダ。キー自体は Request ペインではマスク表示する
+            // Docs と同じ認証ヘッダ。キー自体は画面に出さない
             request.SetRequestHeader("x-goog-api-key", apiKey);
 
             SetStatus("応答待ち", true);
             yield return request.SendWebRequest();
 
-            long statusCode = request.responseCode;
             string responseBody = request.downloadHandler != null
                 ? request.downloadHandler.text
                 : string.Empty;
 
             SetStatus("応答解析中", false);
-            ShowResponse(statusCode, responseBody);
 
             if (request.result != UnityWebRequest.Result.Success)
             {
-                ShowError("HTTP エラー: " + statusCode + " / " + request.error);
+                ShowError("HTTP エラー: " + request.responseCode + " / " + request.error);
                 SetSending(false);
                 yield break;
             }
@@ -226,7 +206,7 @@ public class ImageToImage : MonoBehaviour
             string caption;
             if (!TryExtractInlineImage(responseBody, out mimeType, out imageBase64, out caption))
             {
-                ShowError("応答 JSON から画像を取り出せませんでした。Response ペインを確認してください。");
+                ShowError("応答から画像を取り出せませんでした。");
                 SetSending(false);
                 yield break;
             }
@@ -510,11 +490,9 @@ public class ImageToImage : MonoBehaviour
     }
 
     // WebCam の現フレームを長辺制限つき JPEG にする（4.VisionToSpeech と同じ手順）
-    bool TryCaptureJpeg(out byte[] jpegBytes, out int width, out int height)
+    bool TryCaptureJpeg(out byte[] jpegBytes)
     {
         jpegBytes = null;
-        width = 0;
-        height = 0;
 
         if (webCamTexture == null || !webCamTexture.isPlaying || webCamTexture.width < 16)
         {
@@ -538,8 +516,6 @@ public class ImageToImage : MonoBehaviour
             Destroy(src);
         }
 
-        width = sendTex.width;
-        height = sendTex.height;
         jpegBytes = sendTex.EncodeToJPG(Mathf.Clamp(jpegQuality, 1, 100));
         Destroy(sendTex);
         return jpegBytes != null && jpegBytes.Length > 0;
@@ -617,72 +593,10 @@ public class ImageToImage : MonoBehaviour
         statusText.color = color;
     }
 
-    // 中央ペイン: URL・マスク済みキー・カメラ JPEG の寸法・短縮した JSON
-    void ShowRequest(string url, string requestJson, int width, int height, int jpegBytes)
-    {
-        if (requestText == null)
-        {
-            return;
-        }
-
-        StringBuilder sb = new StringBuilder();
-        sb.AppendLine("POST " + url);
-        sb.AppendLine("Content-Type: application/json; charset=utf-8");
-        sb.AppendLine("x-goog-api-key: " + MaskApiKey(apiKey));
-        sb.AppendLine("camera JPEG: " + width + "x" + height + " " + jpegBytes + "B");
-        sb.AppendLine();
-        // 送信は全文。画面では長い Base64 を先に切ってから整形する
-        sb.Append(PrettyPrintJson(TruncateAllBase64ForDisplay(requestJson)));
-        requestText.text = sb.ToString();
-    }
-
-    // 右ペイン: HTTP 番号、mime / バイト数、短縮した JSON
-    void ShowResponse(long statusCode, string responseBody)
-    {
-        if (responseText == null)
-        {
-            return;
-        }
-
-        StringBuilder sb = new StringBuilder();
-        sb.AppendLine("HTTP " + statusCode);
-
-        string mimeType;
-        string imageBase64;
-        string caption;
-        bool hasImage = TryExtractInlineImage(responseBody, out mimeType, out imageBase64, out caption);
-        if (hasImage)
-        {
-            int byteLength = 0;
-            try
-            {
-                byteLength = Convert.FromBase64String(imageBase64).Length;
-            }
-            catch (Exception)
-            {
-                byteLength = 0;
-            }
-
-            sb.AppendLine("mimeType: " + mimeType);
-            sb.AppendLine("image bytes: " + byteLength);
-            sb.AppendLine("text part: " + (!string.IsNullOrEmpty(caption) ? "yes" : "no"));
-        }
-
-        sb.AppendLine();
-        sb.Append(string.IsNullOrEmpty(responseBody)
-            ? "(empty body)"
-            : PrettyPrintJson(TruncateAllBase64ForDisplay(responseBody)));
-        responseText.text = sb.ToString();
-    }
-
     void ShowError(string message)
     {
         Debug.LogError("[ImageToImage] " + message);
-        SetStatus("エラー", false);
-        if (responseText != null && !responseText.text.Contains(message))
-        {
-            responseText.text = responseText.text + "\n\n[Error]\n" + message;
-        }
+        SetStatus(message, false);
     }
 
     void SetCaption(string caption)
@@ -738,7 +652,7 @@ public class ImageToImage : MonoBehaviour
 
     // ----- 体験 UI（未配線なら Play 時に組む） -----
 
-    // 3分割（Camera/After / Request / Response）が無ければ、その場で作る
+    // Camera / After と入力が無ければ、その場で作る
     void EnsureUi()
     {
         EnsureEventSystem();
@@ -750,7 +664,7 @@ public class ImageToImage : MonoBehaviour
         }
 
         if (webcamPreview != null && resultImage != null && inputField != null && sendButton != null
-            && statusText != null && requestText != null && responseText != null)
+            && statusText != null)
         {
             return;
         }
@@ -782,58 +696,48 @@ public class ImageToImage : MonoBehaviour
         bg.raycastTarget = false;
 
         CreateTmp(root, "Title", "7.ImageToImage", 26, TitleColor, TextAlignmentOptions.MidlineLeft,
-            new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(24f, -16f), new Vector2(-24f, 48f), new Vector2(0f, 1f));
+            new Vector2(0f, 1f), new Vector2(0.45f, 1f), new Vector2(24f, -16f), new Vector2(-8f, 48f), new Vector2(0f, 1f));
+        statusText = CreateTmp(root, "Status", "待機中", 20, MutedTextColor, TextAlignmentOptions.MidlineRight,
+            new Vector2(0.45f, 1f), new Vector2(1f, 1f), new Vector2(8f, -16f), new Vector2(-24f, 48f), new Vector2(1f, 1f));
 
-        RectTransform left = CreatePane(root, "LeftPane", new Vector2(0f, 0f), new Vector2(0.34f, 1f),
-            new Vector2(16f, 16f), new Vector2(-8f, -72f));
-        RectTransform center = CreatePane(root, "CenterPane", new Vector2(0.34f, 0f), new Vector2(0.67f, 1f),
-            new Vector2(8f, 16f), new Vector2(-8f, -72f));
-        RectTransform right = CreatePane(root, "RightPane", new Vector2(0.67f, 0f), new Vector2(1f, 1f),
-            new Vector2(8f, 16f), new Vector2(-16f, -72f));
-
-        BuildLeftPane(left);
-        requestText = BuildLogPane(center, "Request");
-        responseText = BuildLogPane(right, "Response");
+        RectTransform main = CreatePane(root, "MainPane", Vector2.zero, Vector2.one,
+            new Vector2(16f, 16f), new Vector2(-16f, -72f));
+        BuildMainPane(main);
     }
 
-    void BuildLeftPane(RectTransform pane)
+    void BuildMainPane(RectTransform pane)
     {
-        CreateTmp(pane, "LeftTitle", "Camera / After", 20, TitleColor, TextAlignmentOptions.MidlineLeft,
-            new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(16f, -10f), new Vector2(-16f, 32f), new Vector2(0f, 1f));
-
         GameObject rowGo = new GameObject("ImageRow", typeof(RectTransform));
         rowGo.transform.SetParent(pane, false);
         RectTransform rowRt = rowGo.GetComponent<RectTransform>();
         rowRt.anchorMin = new Vector2(0f, 0f);
         rowRt.anchorMax = new Vector2(1f, 1f);
-        rowRt.offsetMin = new Vector2(16f, 168f);
-        rowRt.offsetMax = new Vector2(-16f, -48f);
+        rowRt.offsetMin = new Vector2(20f, 148f);
+        rowRt.offsetMax = new Vector2(-20f, -16f);
 
         RectTransform cameraWell = CreateImageWell(rowRt, "CameraWell", "Camera",
-            new Vector2(0f, 0f), new Vector2(0.5f, 1f), new Vector2(0f, 0f), new Vector2(-4f, 0f));
+            new Vector2(0f, 0f), new Vector2(0.5f, 1f), new Vector2(0f, 0f), new Vector2(-10f, 0f));
         webcamPreview = cameraWell.Find("Preview").GetComponent<RawImage>();
         webcamPreview.texture = null;
         webcamPreview.color = ImageWellColor;
 
         RectTransform afterWell = CreateImageWell(rowRt, "AfterWell", "After",
-            new Vector2(0.5f, 0f), new Vector2(1f, 1f), new Vector2(4f, 0f), new Vector2(0f, 0f));
+            new Vector2(0.5f, 0f), new Vector2(1f, 1f), new Vector2(10f, 0f), new Vector2(0f, 0f));
         resultImage = afterWell.Find("Preview").GetComponent<RawImage>();
         resultImage.texture = null;
         resultImage.color = ImageWellColor;
 
-        emptyHintText = CreateTmp(afterWell, "EmptyHint", "まだ画像がありません", 16, MutedTextColor,
+        emptyHintText = CreateTmp(afterWell, "EmptyHint", "まだ画像がありません", 18, MutedTextColor,
             TextAlignmentOptions.Center, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Vector2(0.5f, 0.5f));
-        emptyHintText.enableWordWrapping = true;
+        emptyHintText.textWrappingMode = TextWrappingModes.Normal;
 
         captionText = CreateTmp(pane, "Caption", string.Empty, 16, MutedTextColor, TextAlignmentOptions.TopLeft,
-            new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(16f, 124f), new Vector2(-16f, 36f), new Vector2(0f, 0f));
-        captionText.enableWordWrapping = true;
+            new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(20f, 116f), new Vector2(-20f, 28f), new Vector2(0f, 0f));
+        captionText.textWrappingMode = TextWrappingModes.Normal;
         captionText.overflowMode = TextOverflowModes.Ellipsis;
 
         inputField = CreatePromptInput(pane);
         sendButton = CreateSendButton(pane);
-        statusText = CreateTmp(pane, "Status", "待機中", 16, MutedTextColor, TextAlignmentOptions.MidlineLeft,
-            new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(132f, 16f), new Vector2(-16f, 36f), new Vector2(0f, 0f));
     }
 
     // Camera / After 用の枠。中にラベルと RawImage を置く
@@ -870,57 +774,6 @@ public class ImageToImage : MonoBehaviour
         return wellRt;
     }
 
-    TMP_Text BuildLogPane(RectTransform pane, string title)
-    {
-        CreateTmp(pane, title + "Title", title, 20, TitleColor, TextAlignmentOptions.MidlineLeft,
-            new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(16f, -10f), new Vector2(-16f, 32f), new Vector2(0f, 1f));
-
-        GameObject scrollGo = new GameObject(
-            title + "Scroll", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(ScrollRect), typeof(RectMask2D));
-        scrollGo.transform.SetParent(pane, false);
-        RectTransform scrollRt = scrollGo.GetComponent<RectTransform>();
-        scrollRt.anchorMin = Vector2.zero;
-        scrollRt.anchorMax = Vector2.one;
-        scrollRt.offsetMin = new Vector2(12f, 12f);
-        scrollRt.offsetMax = new Vector2(-12f, -44f);
-        Image scrollBg = scrollGo.GetComponent<Image>();
-        scrollBg.sprite = GetUiSprite();
-        scrollBg.color = InputColor;
-        scrollBg.raycastTarget = true;
-
-        GameObject contentGo = new GameObject(title + "Text", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI), typeof(ContentSizeFitter));
-        contentGo.transform.SetParent(scrollRt, false);
-        RectTransform contentRt = contentGo.GetComponent<RectTransform>();
-        contentRt.anchorMin = new Vector2(0f, 1f);
-        contentRt.anchorMax = new Vector2(1f, 1f);
-        contentRt.pivot = new Vector2(0.5f, 1f);
-        contentRt.anchoredPosition = Vector2.zero;
-        contentRt.sizeDelta = new Vector2(0f, 0f);
-        contentRt.offsetMin = new Vector2(10f, contentRt.offsetMin.y);
-        contentRt.offsetMax = new Vector2(-10f, contentRt.offsetMax.y);
-
-        TextMeshProUGUI tmp = contentGo.GetComponent<TextMeshProUGUI>();
-        ApplyFont(tmp);
-        tmp.fontSize = 15;
-        tmp.color = BodyTextColor;
-        tmp.alignment = TextAlignmentOptions.TopLeft;
-        tmp.enableWordWrapping = true;
-        tmp.overflowMode = TextOverflowModes.Overflow;
-        tmp.raycastTarget = false;
-
-        ContentSizeFitter fitter = contentGo.GetComponent<ContentSizeFitter>();
-        fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-        ScrollRect scroll = scrollGo.GetComponent<ScrollRect>();
-        scroll.content = contentRt;
-        scroll.viewport = scrollRt;
-        scroll.horizontal = false;
-        scroll.vertical = true;
-        scroll.movementType = ScrollRect.MovementType.Clamped;
-        return tmp;
-    }
-
     TMP_InputField CreatePromptInput(RectTransform parent)
     {
         GameObject go = new GameObject("PromptInput", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(TMP_InputField));
@@ -944,14 +797,14 @@ public class ImageToImage : MonoBehaviour
         viewportRt.offsetMax = new Vector2(-10f, -6f);
 
         TMP_Text placeholder = CreateTmp(viewportRt, "Placeholder", defaultPrompt, 16,
-            new Color(0.55f, 0.54f, 0.52f, 1f), TextAlignmentOptions.MidlineLeft,
+            PlaceholderColor, TextAlignmentOptions.MidlineLeft,
             Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Vector2(0.5f, 0.5f));
         placeholder.fontStyle = FontStyles.Italic;
         placeholder.raycastTarget = false;
 
         TMP_Text text = CreateTmp(viewportRt, "Text", string.Empty, 16, BodyTextColor, TextAlignmentOptions.MidlineLeft,
             Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Vector2(0.5f, 0.5f));
-        text.enableWordWrapping = true;
+        text.textWrappingMode = TextWrappingModes.Normal;
         text.overflowMode = TextOverflowModes.Overflow;
         text.raycastTarget = true;
 
@@ -1044,7 +897,7 @@ public class ImageToImage : MonoBehaviour
         tmp.color = color;
         tmp.alignment = align;
         tmp.raycastTarget = false;
-        tmp.enableWordWrapping = false;
+        tmp.textWrappingMode = TextWrappingModes.NoWrap;
         tmp.overflowMode = TextOverflowModes.Ellipsis;
         return tmp;
     }
@@ -1077,22 +930,7 @@ public class ImageToImage : MonoBehaviour
         return uiSprite;
     }
 
-    // ----- JSON / 表示ヘルパー -----
-
-    static string MaskApiKey(string key)
-    {
-        if (string.IsNullOrEmpty(key))
-        {
-            return "(none)";
-        }
-
-        if (key.Length <= 6)
-        {
-            return "******";
-        }
-
-        return key.Substring(0, 4) + "…" + new string('*', 8);
-    }
+    // ----- JSON ヘルパー -----
 
     static string EscapeJson(string value)
     {
@@ -1126,117 +964,6 @@ public class ImageToImage : MonoBehaviour
                     sb.Append(c);
                     break;
             }
-        }
-
-        return sb.ToString();
-    }
-
-    static string PrettyPrintJson(string json)
-    {
-        if (string.IsNullOrEmpty(json))
-        {
-            return string.Empty;
-        }
-
-        StringBuilder sb = new StringBuilder(json.Length + 32);
-        int indent = 0;
-        bool inString = false;
-        for (int i = 0; i < json.Length; i++)
-        {
-            char c = json[i];
-            if (c == '"' && (i == 0 || json[i - 1] != '\\'))
-            {
-                inString = !inString;
-                sb.Append(c);
-                continue;
-            }
-
-            if (inString)
-            {
-                sb.Append(c);
-                continue;
-            }
-
-            switch (c)
-            {
-                case '{':
-                case '[':
-                    sb.Append(c);
-                    sb.Append('\n');
-                    indent++;
-                    sb.Append(new string(' ', indent * 2));
-                    break;
-                case '}':
-                case ']':
-                    sb.Append('\n');
-                    indent = Mathf.Max(0, indent - 1);
-                    sb.Append(new string(' ', indent * 2));
-                    sb.Append(c);
-                    break;
-                case ',':
-                    sb.Append(c);
-                    sb.Append('\n');
-                    sb.Append(new string(' ', indent * 2));
-                    break;
-                case ':':
-                    sb.Append(": ");
-                    break;
-                default:
-                    if (!char.IsWhiteSpace(c))
-                    {
-                        sb.Append(c);
-                    }
-
-                    break;
-            }
-        }
-
-        return sb.ToString();
-    }
-
-    // 送受信 JSON 内の長い Base64 を、画面では先頭だけにする（送信自体は全文）
-    static string TruncateAllBase64ForDisplay(string json)
-    {
-        if (string.IsNullOrEmpty(json))
-        {
-            return json;
-        }
-
-        const string marker = "\"data\":\"";
-        StringBuilder sb = new StringBuilder(json.Length);
-        int searchFrom = 0;
-        while (searchFrom < json.Length)
-        {
-            int dataIndex = json.IndexOf(marker, searchFrom, StringComparison.Ordinal);
-            if (dataIndex < 0)
-            {
-                sb.Append(json.Substring(searchFrom));
-                break;
-            }
-
-            int valueStart = dataIndex + marker.Length;
-            int valueEnd = json.IndexOf('"', valueStart);
-            if (valueEnd < 0)
-            {
-                sb.Append(json.Substring(searchFrom));
-                break;
-            }
-
-            sb.Append(json.Substring(searchFrom, valueStart - searchFrom));
-            int length = valueEnd - valueStart;
-            if (length <= DisplayBase64MaxChars)
-            {
-                sb.Append(json.Substring(valueStart, length));
-            }
-            else
-            {
-                sb.Append(json.Substring(valueStart, DisplayBase64MaxChars));
-                sb.Append("…(");
-                sb.Append(length);
-                sb.Append(" chars total)");
-            }
-
-            searchFrom = valueEnd;
         }
 
         return sb.ToString();

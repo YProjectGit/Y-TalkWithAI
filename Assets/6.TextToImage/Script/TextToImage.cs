@@ -19,6 +19,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
+using UnityEngine.Networking;
 using UnityEngine.UI;
 
 /// <summary>
@@ -59,14 +60,15 @@ public class TextToImage : MonoBehaviour
     const float StatusBlinkSpeed = 6f; // 点滅の速さ（大きいほど速い）
     const int DisplayBase64MaxChars = 96; // 画面では Base64 をこの長さまで
 
-    static readonly Color BackgroundColor = new Color(0.91f, 0.90f, 0.88f, 1f);
-    static readonly Color PaneColor = new Color(0.97f, 0.96f, 0.94f, 1f);
-    static readonly Color TitleColor = new Color(0.18f, 0.18f, 0.20f, 1f);
-    static readonly Color BodyTextColor = new Color(0.16f, 0.16f, 0.18f, 1f);
-    static readonly Color MutedTextColor = new Color(0.42f, 0.41f, 0.39f, 1f);
-    static readonly Color ButtonColor = new Color(0.22f, 0.28f, 0.38f, 1f);
-    static readonly Color ImageWellColor = new Color(0.86f, 0.85f, 0.82f, 1f);
-    static readonly Color InputColor = new Color(1f, 1f, 1f, 1f);
+    static readonly Color BackgroundColor = new Color(0.12f, 0.12f, 0.14f, 1f);
+    static readonly Color PaneColor = new Color(0.16f, 0.17f, 0.20f, 1f);
+    static readonly Color TitleColor = Color.white;
+    static readonly Color BodyTextColor = Color.white;
+    static readonly Color MutedTextColor = new Color(0.70f, 0.72f, 0.76f, 1f);
+    static readonly Color ButtonColor = new Color(0.25f, 0.55f, 0.90f, 1f);
+    static readonly Color ImageWellColor = new Color(0.08f, 0.09f, 0.11f, 1f);
+    static readonly Color InputColor = new Color(0.08f, 0.09f, 0.11f, 1f);
+    static readonly Color PlaceholderColor = new Color(1f, 1f, 1f, 0.35f);
 
     // ----- エントリポイント -----
 
@@ -685,11 +687,11 @@ public class TextToImage : MonoBehaviour
 
         emptyHintText = CreateTmp(wellRt, "EmptyHint", "まだ画像がありません", 20, MutedTextColor,
             TextAlignmentOptions.Center, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Vector2(0.5f, 0.5f));
-        emptyHintText.enableWordWrapping = true;
+        emptyHintText.textWrappingMode = TextWrappingModes.Normal;
 
         captionText = CreateTmp(pane, "Caption", string.Empty, 16, MutedTextColor, TextAlignmentOptions.TopLeft,
             new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(16f, 124f), new Vector2(-16f, 36f), new Vector2(0f, 0f));
-        captionText.enableWordWrapping = true;
+        captionText.textWrappingMode = TextWrappingModes.Normal;
         captionText.overflowMode = TextOverflowModes.Ellipsis;
 
         inputField = CreatePromptInput(pane);
@@ -732,7 +734,7 @@ public class TextToImage : MonoBehaviour
         tmp.fontSize = 15;
         tmp.color = BodyTextColor;
         tmp.alignment = TextAlignmentOptions.TopLeft;
-        tmp.enableWordWrapping = true;
+        tmp.textWrappingMode = TextWrappingModes.Normal;
         tmp.overflowMode = TextOverflowModes.Overflow;
         tmp.raycastTarget = false;
 
@@ -772,14 +774,14 @@ public class TextToImage : MonoBehaviour
         viewportRt.offsetMax = new Vector2(-10f, -6f);
 
         TMP_Text placeholder = CreateTmp(viewportRt, "Placeholder", "赤い自転車が公園に停まっている、昼の写真", 16,
-            new Color(0.55f, 0.54f, 0.52f, 1f), TextAlignmentOptions.MidlineLeft,
+            PlaceholderColor, TextAlignmentOptions.MidlineLeft,
             Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Vector2(0.5f, 0.5f));
         placeholder.fontStyle = FontStyles.Italic;
         placeholder.raycastTarget = false;
 
         TMP_Text text = CreateTmp(viewportRt, "Text", string.Empty, 16, BodyTextColor, TextAlignmentOptions.MidlineLeft,
             Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Vector2(0.5f, 0.5f));
-        text.enableWordWrapping = true;
+        text.textWrappingMode = TextWrappingModes.Normal;
         text.overflowMode = TextOverflowModes.Overflow;
         text.raycastTarget = true;
 
@@ -872,7 +874,7 @@ public class TextToImage : MonoBehaviour
         tmp.color = color;
         tmp.alignment = align;
         tmp.raycastTarget = false;
-        tmp.enableWordWrapping = false;
+        tmp.textWrappingMode = TextWrappingModes.NoWrap;
         tmp.overflowMode = TextOverflowModes.Ellipsis;
         return tmp;
     }

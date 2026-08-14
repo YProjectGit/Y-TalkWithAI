@@ -690,7 +690,7 @@ public class ScreenToSpeech : MonoBehaviour
         CreatePad(root);
         captionText = CreateTmp(root, "Caption", string.Empty, 26, CaptionColor, TextAlignmentOptions.Center,
             new Vector2(0.12f, 0f), new Vector2(0.88f, 0f), new Vector2(0f, 28f), new Vector2(0f, 88f), new Vector2(0.5f, 0f));
-        captionText.enableWordWrapping = true;
+        captionText.textWrappingMode = TextWrappingModes.Normal;
     }
 
     void EnsureEventSystem()
@@ -789,7 +789,7 @@ public class ScreenToSpeech : MonoBehaviour
         tmp.color = color;
         tmp.alignment = align;
         tmp.raycastTarget = false;
-        tmp.enableWordWrapping = false;
+        tmp.textWrappingMode = TextWrappingModes.NoWrap;
         tmp.overflowMode = TextOverflowModes.Ellipsis;
         return tmp;
     }
