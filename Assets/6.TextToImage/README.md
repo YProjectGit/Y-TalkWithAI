@@ -1,49 +1,106 @@
 # 6.TextToImage
 
-> **現状**: フォルダと概要のみ。シーン・スクリプトは未実装です。  
-> シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
+シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
 
-## このデモで学べること（予定）
+---
+
+## このデモで学べること
 
 - **画像生成**  
-  テキスト（プロンプト）から画像を作る
-- **画像の受け取りと表示**  
-  返ってきた画像データを Unity 上で見せる
+  テキスト（プロンプト）から画像を1枚作る
+- **画像バイトの受け取りと表示**  
+  返ってきた画像データを `Texture2D` にして Unity 上で見せる
 - **画像という出力**  
   テキストや音声とは違う、ビジュアルな戻り値の扱い
 
-## 処理の骨格
+---
 
-```text
-ユーザー入力（テキスト／プロンプト）
-  → 画像生成（Image）
-  → 画面に表示（RawImage など）
-```
+## 事前準備
 
-`1A.TextToText` がテキストを返すのに対し、ここでは **絵を返す** のがポイントです。音声パイプライン（TTS）は使いません。
+Google AI Studio から Gemini の API にアクセスするための APIキーを取得し、`Assets/Common/APIKey.txt` に保管してください。  
+手順 → [Docs/gemini-ai-studio-setup.md](../../Docs/gemini-ai-studio-setup.md)  
+無料枠で 429 が出たら、有料への移り方と値段の目安 → [Docs/gemini-api-pricing.md](../../Docs/gemini-api-pricing.md)
 
-## 事前準備（実装後に使う想定）
+このデモは画像生成モデル（既定は `gemini-3.1-flash-image`）を使います。テキスト用の Lite とは別枠です。
 
-1. APIキーの取得と `Assets/Common/APIKey.txt` への保管  
-   → [Docs/gemini-ai-studio-setup.md](../../Docs/gemini-ai-studio-setup.md)
-2. 利用する画像生成モデル／エンドポイントがキーで使えること（実装時に確認）
+---
 
-## 予定するファイル構成
+## 動かし方
 
-実装時に、このフォルダへ次をそろえる想定です。
+Project ウィンドウで `Assets/6.TextToImage/TextToImage.unity` を開き、Play を押してください。
 
-| 種類 | 例 | 役割 |
-|------|-----|------|
-| シーン | `TextToImage.unity` | デモの入口 |
-| スクリプト | `TextToImage.cs` など | プロンプト送信〜画像受信〜表示 |
-| チュートリアル MD | 本 README（実装後に手順を追記） | 学生向け手順 |
+### 1. プロンプトから絵を作る
 
-## 主要スクリプトの読み方（実装後）
+1. 左ペイン下部に、たとえば「赤い自転車が公園に停まっている、昼の写真」と入れて **送信** を押してください（Enter でも送信できます。Shift+Enter で改行です）。
+2. 左に生成画像、中央に Request、右に Response が出ることを確認してください。
+3. 別のプロンプトをもう一度送り、左の画像が上書きされることを見てください。
 
-入口スクリプトを上から読む想定の流れです。
+### 2. Request で画像を返す設定を見る
 
-1. APIキー読込・UI 初期化
-2. プロンプト送信（リクエスト JSON 組み立て）
-3. 画像バイト列（または URL）の受信
-4. `Texture2D` 化して UI に表示
-5.（教材向け）Status / リクエスト / メタ情報の可視化
+1. 中央ペインの Request を開き、`generationConfig` の `"responseModalities"` に `"IMAGE"` が入っていることを確認してください。
+2. 同じ欄に `imageConfig`（`aspectRatio` / `imageSize`）があることも見てください。
+3. `x-goog-api-key` がマスクされていることを確認してください。
+
+### 3. Response で画像バイトを追う
+
+1. 右ペインの Response 先頭に、`HTTP 200` と `mimeType` / `image bytes` が出ることを確認してください。
+2. JSON 本文の `inlineData.data` が先頭だけになっていること（長い Base64 は省略）を見てください。
+3. 左の絵が、そのバイト列を `Texture2D` にしたものだと対応づけてください。
+
+教材デモでは APIキーをクライアントから直接使います。本番アプリでは ephemeral token などの短い資格情報を使うことが推奨されます。
+
+---
+
+## 画像生成とは？
+
+テキストの説明（プロンプト）から、新しい画像を作ることです。1A のチャットが「文を返す」なら、ここでは同じ `generateContent` で **絵を返して** もらいます。
+
+たとえ話で言うと、手紙の返事が作文ではなく **絵葉書** になるイメージです。送る側はこれまでどおり JSON ですが、返ってくる `parts` にテキストだけでなく、画像のバイト列（`inlineData`）が入ります。
+
+試し方: 左の絵と、中央 Request のプロンプト、右 Response の `mimeType` を見比べる。
+
+---
+
+## responseModalities とは？
+
+Gemini に「何の形で返してほしいか」を伝える設定です。1A では省略してテキストが返ります。このデモでは `generationConfig.responseModalities` に `"TEXT"` と `"IMAGE"` を載せ、画像を必須にします。
+
+テキスト part があれば、左の画像の下に短いキャプションとして出ます。会話の履歴は送りません。毎回、いま打ったプロンプトだけです。
+
+試し方: 中央 Request の `responseModalities` を見る。縦横比や解像度を変えたいときは、Play を止めて Inspector の `aspectRatio` / `imageSize` を変更する。
+
+---
+
+## inlineData（画像バイト）とは？
+
+JSON の中に、画像そのものを Base64 という文字の列で埋め込んだものです。3A の TTS が音声バイトを `inlineData` で受け取ったのと同じ入れ物で、中身が絵になっています。
+
+Unity ではその文字をバイト列に戻し、`Texture2D.LoadImage` で画像にして `RawImage` に載せます。右ペインでは長い Base64 を省略し、先頭とバイト数だけを出します（送受信そのものは全文です）。
+
+試し方: 右の `image bytes` と、省略された `data` の `chars total` を見る。左に絵が出ていることと対応させる。
+
+---
+
+## 主要クラス
+
+### TextToImage（[`TextToImage.cs`](Script/TextToImage.cs)）
+
+デモの本体です。上から、送信後の流れを追うとわかりやすいです。
+
+通信は **UnityWebRequest**（HTTP の送受信）と **コルーチン**（`IEnumerator` + `yield`）による **非同期処理** です。コルーチンは `Update` などのメインスレッドの処理とは独立した時間軸で進むので、応答待ちのあいだも画面が固まりません。
+
+1. **起動時の準備をする**  
+   `Start` — APIキー読込、3分割 UI、送信ボタン／Enter の購読
+2. **送信を始める**  
+   `OnSendClicked` → `StartCoroutine(SendImageCoroutine)` — 送信の入口
+3. **API と通信する**  
+   `SendImageCoroutine` — 通信本体  
+   - `BuildRequestJson` → `UnityWebRequest` で POST  
+   - `yield return request.SendWebRequest()` で応答待ち  
+   - Response 表示 → 画像抽出 → `Texture2D` 表示
+4. **リクエスト JSON を組み立てる**  
+   `BuildRequestJson` — いまのプロンプト1件と `responseModalities` / `imageConfig` を載せる
+5. **画像バイトを取り出す**  
+   `TryExtractInlineImage` — レスポンス JSON から `inlineData` とテキスト part を取り出す
+6. **送受信を画面に出す**  
+   `ShowRequest` / `ShowResponse` — 中央・右ペインへの可視化（Base64 は表示だけ短縮）
