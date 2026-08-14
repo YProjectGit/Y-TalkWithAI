@@ -23,7 +23,7 @@ public class SpeechToJSON : MonoBehaviour
 {
     // ===== インスペクタ: 設定 =====
 
-    public string modelName = "gemini-3.6-flash"; // 使う Gemini モデル名
+    public string modelName = "gemini-3.1-flash-lite"; // 使う Gemini モデル名
     public string apiKeyRelativePath = "Common/APIKey.txt"; // Assets/ からの相対パス
     public int sampleRate = 16000; // マイク録音のサンプルレート（Hz）
     public int maxRecordingSeconds = 30; // Space 押し話しの上限秒数

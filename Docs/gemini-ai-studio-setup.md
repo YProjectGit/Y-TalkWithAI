@@ -16,7 +16,7 @@
 
 > 使うのは **Google AI Studio だけ**です。Google Cloud Console / Vertex AI / gcloud は使いません。
 
-必要なもの: Google アカウント、ブラウザ。クレジットカードは不要です。
+必要なもの: Google アカウント、ブラウザ。最初はクレジットカード不要です。無料枠の回数に達したら [gemini-api-pricing.md](gemini-api-pricing.md) を見て有料に移ってください。
 
 ---
 
@@ -52,14 +52,14 @@
 
 ## ステップ4: キーが動くか確認する
 
-Unity に進む前に必ず確認します。モデルは **`gemini-3.6-flash`** を使います。
+Unity に進む前に必ず確認します。モデルは **`gemini-3.1-flash-lite`** を使います。
 
 ### Cursor などの AI Agent に任せる
 
 ステップ3まで終わっていれば、Agent に疎通確認を頼めます。チャットで次のように依頼してください。
 
 ```
-Assets/Common/APIKey.txt のキーが有効か、gemini-3.6-flash で疎通確認して。
+Assets/Common/APIKey.txt のキーが有効か、gemini-3.1-flash-lite で疎通確認して。
 ```
 
 Agent が API を呼び、日本語などの応答が返れば **成功** です。失敗したら理由（401 / 429 / 404 など）も聞いてください。
@@ -77,7 +77,7 @@ Agent が API を呼び、日本語などの応答が返れば **成功** です
 
 ```powershell
 $apiKey = "ここにキーを貼る"
-$uri = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent"
+$uri = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent"
 $body = '{"contents":[{"parts":[{"text":"Say hi in one word."}]}]}'
 Invoke-RestMethod -Uri $uri -Method Post -ContentType "application/json; charset=utf-8" -Headers @{ "x-goog-api-key" = $apiKey } -Body $body
 ```
@@ -97,7 +97,7 @@ Invoke-RestMethod -Uri $uri -Method Post -ContentType "application/json; charset
 7. ターミナルに貼り付け（`Command` + `V`）して `Enter`
 
 ```bash
-curl -s "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent" -H "x-goog-api-key: ここにキーを貼る" -H "Content-Type: application/json" -X POST -d '{"contents":[{"parts":[{"text":"Say hi in one word."}]}]}'
+curl -s "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent" -H "x-goog-api-key: ここにキーを貼る" -H "Content-Type: application/json" -X POST -d '{"contents":[{"parts":[{"text":"Say hi in one word."}]}]}'
 ```
 
 返答テキストを含む JSON が返れば **成功** です。
@@ -111,8 +111,8 @@ curl -s "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flas
 | 症状 | 確認 |
 |---|---|
 | `401` / `403` | キーの空白・改行。Key Type が `Auth` か。新しく作り直す |
-| `429` | 無料枠上限。少し待つ |
-| `404` | URL / モデル名が古くないか（`gemini-3.6-flash`） |
+| `429` | 無料枠上限。待つだけでは日次回数は回復しないことが多い。→ [gemini-api-pricing.md](gemini-api-pricing.md) |
+| `404` | URL / モデル名が古くないか（`gemini-3.1-flash-lite`） |
 | 応答が空 | JSON の入れ子（`contents` → `parts` → `text`） |
 | PowerShell で `-H` が認識されない | Mac 用の複数行 `curl` を貼っている。Windows 欄の例を使う |
 | PowerShell で JSON エラー | Windows 欄の `Invoke-RestMethod` 例を使う |

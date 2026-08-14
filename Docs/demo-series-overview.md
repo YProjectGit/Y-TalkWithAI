@@ -47,7 +47,7 @@
 [7]  Image ＋ Text ─────► Image Edit ───────────────► Image
 ```
 
-共通の前提（キー取得など）は [gemini-ai-studio-setup.md](gemini-ai-studio-setup.md) を参照します。
+共通の前提（キー取得など）は [gemini-ai-studio-setup.md](gemini-ai-studio-setup.md) を参照します。無料枠のあと有料に移るとき → [gemini-api-pricing.md](gemini-api-pricing.md)
 
 ---
 

@@ -1810,7 +1810,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d3225f3bc9986384497bddbb1164447f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TextToJSON
-  modelName: gemini-3.6-flash
+  modelName: gemini-3.1-flash-lite
   apiKeyRelativePath: Common/APIKey.txt
   cubeRenderer: {fileID: 1029627803}
   targetCamera: {fileID: 330585545}

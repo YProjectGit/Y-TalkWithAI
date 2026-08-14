@@ -3473,7 +3473,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f75d629708a83814eb2fdcf5f96982c7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TextToText
-  modelName: gemini-3.6-flash
+  modelName: gemini-3.1-flash-lite
   apiKeyRelativePath: Common/APIKey.txt
   systemInstructionRelativePath: Common/SystemInstruction.txt
   systemInstructionField: {fileID: 737174816}
@@ -6354,7 +6354,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 2025172528}
   m_HandleRect: {fileID: 2025172527}
   m_Direction: 2
-  m_Value: 1
+  m_Value: 0
   m_Size: 1
   m_NumberOfSteps: 0
   m_OnValueChanged:

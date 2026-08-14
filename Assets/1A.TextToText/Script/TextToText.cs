@@ -32,7 +32,7 @@ public class TextToText : MonoBehaviour
 {
     // ===== インスペクタ: 設定 =====
 
-    public string modelName = "gemini-3.6-flash"; // 使う Gemini モデル名（URL の一部になる）
+    public string modelName = "gemini-3.1-flash-lite"; // 使う Gemini モデル名（URL の一部になる）
     public string apiKeyRelativePath = "Common/APIKey.txt"; // Assets/ からの相対パス
     public string systemInstructionRelativePath = "Common/SystemInstruction.txt"; // Assets/ からの相対パス（事前指示）
 
