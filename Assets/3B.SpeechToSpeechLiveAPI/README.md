@@ -131,6 +131,6 @@ PCM とは、音を時刻ごとの振幅の数字列として表した音声デ�
 7. **受信 PCM を再生する**  
    `PlaybackPumpCoroutine` — キューから `AudioClip` 化して `AudioSource.Play`
 
-### ChatBubble（[`ChatBubble.cs`](../1A.TextToText/Script/ChatBubble.cs)）
+### ChatBubble（[`ChatBubble.cs`](../Common/Script/ChatBubble.cs)）
 
-左ペインの吹き出し1件分です（Prefab: [`Prefab/MessageBubble.prefab`](Prefab/MessageBubble.prefab)）。見た目用で、通信ロジックは持ちません。文面は Live の transcription 由来です。
+左ペインの吹き出し1件分です（Prefab: [`Prefab/MessageBubble.prefab`](Prefab/MessageBubble.prefab)）。見た目用のクラスで、`Assets/Common/Script/` のものを使います。通信ロジックは持ちません。文面は Live の transcription 由来です。

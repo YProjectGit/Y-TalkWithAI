@@ -8,7 +8,7 @@
 //     → リクエストJSON組み立て（generationConfig に schema）→ UnityWebRequest で POST
 //     → yield で応答待ち（このあいだ Status 点滅）→ 構造化 JSON 表示 → パース → 色を適用
 //
-// 初期フィールドは cubeColor / backgroundColor のみ（サイズ・回転は発展課題）。
+// 初期フィールドは cubeColor / backgroundColor のみ。
 
 using System;
 using System.Collections;

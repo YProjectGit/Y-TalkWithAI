@@ -106,6 +106,6 @@ REST で「画像理解 → TTS」と二段に分けるのではなく、**見�
 6. **受信 PCM を再生する**  
    `PlaybackPumpCoroutine` — キューから `AudioClip` 化して `AudioSource.Play`
 
-### ChatBubble（[`ChatBubble.cs`](../1A.TextToText/Script/ChatBubble.cs)）
+### ChatBubble（[`ChatBubble.cs`](../Common/Script/ChatBubble.cs)）
 
-左ペインの吹き出し1件分です（Prefab: [`Prefab/MessageBubble.prefab`](Prefab/MessageBubble.prefab)）。見た目用で、通信ロジックは持ちません。
+左ペインの吹き出し1件分です（Prefab: [`Prefab/MessageBubble.prefab`](Prefab/MessageBubble.prefab)）。見た目用のクラスで、`Assets/Common/Script/` のものを使います。通信ロジックは持ちません。

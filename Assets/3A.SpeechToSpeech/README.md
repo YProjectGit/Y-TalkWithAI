@@ -103,6 +103,6 @@ Microphone → AudioClip → WAV → Base64 → 1. Request（Audio）
 7. **5→6. GenerateContent（TTS）→ 再生**  
    同コルーチンの後半 — 返答テキストを TTS モデルへ POST し、PCM/WAV を `AudioClip` 化して `AudioSource.Play`
 
-### ChatBubble（[`ChatBubble.cs`](../1A.TextToText/Script/ChatBubble.cs)）
+### ChatBubble（[`ChatBubble.cs`](../Common/Script/ChatBubble.cs)）
 
-左ペインの吹き出し1件分です（Prefab: [`Prefab/MessageBubble.prefab`](Prefab/MessageBubble.prefab)）。見た目用のクラスで、1A と同じものを流用しています。通信ロジックは持ちません。
+左ペインの吹き出し1件分です（Prefab: [`Prefab/MessageBubble.prefab`](Prefab/MessageBubble.prefab)）。見た目用のクラスで、`Assets/Common/Script/` のものを使います。通信ロジックは持ちません。
