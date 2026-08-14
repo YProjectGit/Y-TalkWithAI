@@ -47,8 +47,6 @@ Project ウィンドウで `Assets/6.TextToImage/TextToImage.unity` を開き、
 2. JSON 本文の `inlineData.data` が先頭だけになっていること（長い Base64 は省略）を見てください。
 3. 左の絵が、そのバイト列を `Texture2D` にしたものだと対応づけてください。
 
-教材デモでは APIキーをクライアントから直接使います。本番アプリでは ephemeral token などの短い資格情報を使うことが推奨されます。
-
 ---
 
 ## 画像生成とは？
@@ -90,7 +88,7 @@ Unity ではその文字をバイト列に戻し、`Texture2D.LoadImage` で画�
 通信は **UnityWebRequest**（HTTP の送受信）と **コルーチン**（`IEnumerator` + `yield`）による **非同期処理** です。コルーチンは `Update` などのメインスレッドの処理とは独立した時間軸で進むので、応答待ちのあいだも画面が固まりません。
 
 1. **起動時の準備をする**  
-   `Start` — APIキー読込、3分割 UI、送信ボタン／Enter の購読
+   `Start` — APIキー読込、シーンの UI、送信ボタン／Enter の購読
 2. **送信を始める**  
    `OnSendClicked` → `StartCoroutine(SendImageCoroutine)` — 送信の入口
 3. **API と通信する**  

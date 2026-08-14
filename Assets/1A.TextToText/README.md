@@ -114,6 +114,6 @@ Web の API 呼び出しは、ざっくり「手紙のやりとり」に似て�
 6. **送受信を画面に出す**  
    `ShowRequest` / `ShowResponse` — 中央・右ペインへの可視化
 
-### ChatBubble（[`ChatBubble.cs`](Script/ChatBubble.cs)）
+### ChatBubble（[`ChatBubble.cs`](../Common/Script/ChatBubble.cs)）
 
-左ペインの吹き出し1件分です（Prefab: [`Prefab/MessageBubble.prefab`](Prefab/MessageBubble.prefab)）。`TextToText` が Prefab を `Instantiate` し、`SetMessage` で話者名・本文・背景色（user / assistant）を書き込みます。見た目の色分けだけを持つ小さなクラスで、通信ロジックは持ちません。
+左ペインの吹き出し1件分です（Prefab: [`Prefab/MessageBubble.prefab`](Prefab/MessageBubble.prefab)）。各デモが Prefab を `Instantiate` し、`SetMessage` で話者名・本文・背景色（user / assistant）を書き込みます。見た目の色分けだけを持つ小さなクラスで、通信ロジックは持ちません。`Assets/Common/Script/` に置き、吹き出し付きのデモから共有します。

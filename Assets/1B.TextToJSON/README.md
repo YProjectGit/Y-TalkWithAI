@@ -15,6 +15,14 @@
 
 ---
 
+## 事前準備
+
+Google AI Studio から Gemini の API にアクセスするための APIキーを取得し、`Assets/Common/APIKey.txt` に保管してください。  
+手順 → [Docs/gemini-ai-studio-setup.md](../../Docs/gemini-ai-studio-setup.md)  
+無料枠で 429 が出たら、有料への移り方と値段の目安 → [Docs/gemini-api-pricing.md](../../Docs/gemini-api-pricing.md)
+
+---
+
 ## 動かし方
 
 Project ウィンドウで `Assets/1B.TextToJSON/TextToJSON.unity` を開き、Play を押してください。
@@ -83,60 +91,6 @@ Gemini へのリクエストにこのスキーマを含めることで、モデ�
 
 ---
 
-## 発展課題
-
-教材の初期実装は **色（キューブ＋背景）だけ** です。スキーマとパース／反映の両方を直して、次を足してみてください。
-
-- **サイズ** … `scale` を受け取り、キューブの `localScale` へ反映する
-- **回転** … `rotationSpeed` を受け取り、毎フレーム回転させる
-
-片方だけ変えても、Response に値は出ても画面は動きません。通信まわり（`UnityWebRequest` など）は触らなくて構いません。
-
-### スキーマのつくり方（例: scale）
-
-`TextToJSON.cs` の `ResponseSchemaJson` に、プロパティと `required` を足します。
-
-```json
-"scale": {
-  "type": "NUMBER",
-  "description": "Uniform scale of the cube. Typical range 0.2 to 3."
-}
-```
-
-`required` にも `"scale"` を追加します。
-
-### プログラムでの対応（例: scale）
-
-1. **受け皿クラスを増やす**  
-   `StructuredColors` に `public float scale;` を足す
-2. **パース結果を反映する**  
-   `TryParseAndApply` で `data.scale` を読み、`cubeTransform.localScale = Vector3.one * data.scale;` のように書く
-
-回転なら、受け取った値をフィールドに保持し、`Update` で `Rotate` する、という流れになります。
-
-### エージェントへの指示例
-
-エージェントに頼むときは、「スキーマ」と「反映コード」の両方を明示するとよいです。
-
-```
-Assets/1B.TextToJSON/Script/TextToJSON.cs を改修してください。
-
-追加したいフィールド:
-- scale (NUMBER): キューブの均一スケール。0.2〜3 程度
-- rotationSpeed (NUMBER): Y 軸まわりの回転速度（度/秒）
-
-やること:
-1. ResponseSchemaJson に上記プロパティと required を追加する
-2. StructuredColors に対応するフィールドを追加する
-3. TryParseAndApply で scale を localScale に反映する
-4. rotationSpeed は保持し、Update で毎フレーム回転させる
-5. 通信まわりは変更しない
-
-既存の cubeColor / backgroundColor の挙動は維持してください。
-```
-
----
-
 ## 主要クラス
 
 ### TextToJSON（[`TextToJSON.cs`](Script/TextToJSON.cs)）
@@ -157,7 +111,7 @@ Assets/1B.TextToJSON/Script/TextToJSON.cs を改修してください。
 4. **リクエスト JSON を組み立てる**  
    `BuildRequestJson` — ユーザー入力と、返してほしい形（スキーマ）を載せる
 5. **構造化の返答を取り出す**  
-   `TryExtractJson` — レスポンスから構造化された JSON 本文を取り出す
+   `TryExtractStructuredJson` — レスポンスから構造化された JSON 本文を取り出す
 6. **パースして画面へ反映する**  
    `TryParseAndApply` — `cubeColor` / `backgroundColor` を読み、キューブとカメラ背景に書く  
    `ShowSchema` / `ShowResponse` — 中央・右ペインへの可視化

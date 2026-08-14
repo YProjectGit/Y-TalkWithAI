@@ -45,8 +45,6 @@ Project ウィンドウで `Assets/7.ImageToImage/ImageToImage.unity` を開き�
 1. カメラを動かすか指示を変えて、もう一度 **変換** を押してください。
 2. After が上書きされることを見てください。Camera のライブ映像は、待ちのあいだも動き続けます。
 
-教材デモでは APIキーをクライアントから直接使います。本番アプリでは ephemeral token などの短い資格情報を使うことが推奨されます。
-
 ---
 
 ## 参照画像とは？
@@ -88,7 +86,7 @@ Unity では WebCam の画素を `EncodeToJPG` して Base64 にします。返�
 通信は **UnityWebRequest**（HTTP の送受信）と **コルーチン**（`IEnumerator` + `yield`）による **非同期処理** です。コルーチンは `Update` などのメインスレッドの処理とは独立した時間軸で進むので、応答待ちのあいだもプレビューが動き続けます。
 
 1. **起動時の準備をする**  
-   `Start` — APIキー読込、体験 UI、WebCam 起動、変換ボタン／Enter の購読
+   `Start` — APIキー読込、シーンの UI、WebCam 起動、変換ボタン／Enter の購読
 2. **変換を始める**  
    `OnConvertClicked` → `TryCaptureJpeg` → `StartCoroutine(SendImageCoroutine)` — 送信の入口
 3. **API と通信する**  

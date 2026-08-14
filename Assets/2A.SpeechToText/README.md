@@ -101,6 +101,6 @@ Base64
 6. **3→4. GenerateContent（Text）**  
    同コルーチンの後半 — 認識テキストと会話履歴を POST し、返答を吹き出しへ
 
-### ChatBubble（[`ChatBubble.cs`](../1A.TextToText/Script/ChatBubble.cs)）
+### ChatBubble（[`ChatBubble.cs`](../Common/Script/ChatBubble.cs)）
 
-左ペインの吹き出し1件分です（Prefab: [`Prefab/MessageBubble.prefab`](Prefab/MessageBubble.prefab)）。見た目用のクラスで、1A と同じものを流用しています。通信ロジックは持ちません。
+左ペインの吹き出し1件分です（Prefab: [`Prefab/MessageBubble.prefab`](Prefab/MessageBubble.prefab)）。見た目用のクラスで、`Assets/Common/Script/` のものを使います。通信ロジックは持ちません。

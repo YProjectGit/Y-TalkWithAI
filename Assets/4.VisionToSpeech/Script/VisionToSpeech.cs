@@ -90,12 +90,14 @@ public class VisionToSpeech : MonoBehaviour
     int inboundChunkCount; // 受信チャンク数
     string outputTranscriptBuffer; // 出力 transcription の蓄積
     DateTime systemInstructionFileWriteTimeUtc; // SystemInstruction.txt 同期用
+    bool statusBlink; // 接続中 / 応答待ちのとき Status を点滅させる
     Stage currentStage = Stage.Connect; // 段階バー用
     TMP_Text streamModeButtonLabel; // ボタン上のラベル
     Image streamModeButtonImage; // ボタン色
     string lastSetupJsonForDisplay; // Setup ヘッダ用
 
     const int MaxLogChars = 8000; // ログ欄の上限
+    const float StatusBlinkSpeed = 6f; // 点滅の速さ（大きいほど速い）
     const int WebcamRequestWidth = 1280; // WebCam 要求解像度（プレビュー用）
     const int WebcamRequestHeight = 720;
     static readonly Color StreamButtonOffColor = new Color(0.25f, 0.55f, 0.9f, 1f);
@@ -120,7 +122,7 @@ public class VisionToSpeech : MonoBehaviour
         LoadSystemInstructionFromFile();
         if (systemInstructionField != null)
         {
-            systemInstructionField.onEndEdit.AddListener(_ => SaveSystemInstructionFromField());
+            systemInstructionField.onEndEdit.AddListener(OnSystemInstructionEndEdit);
         }
 
         EnsurePlaybackAudioSource();
@@ -152,6 +154,7 @@ public class VisionToSpeech : MonoBehaviour
     {
         DrainMainThreadActions();
         UpdateShutterInput();
+        UpdateStatusBlink();
     }
 
     // 終了時にソケットとカメラを解放する
@@ -995,12 +998,33 @@ public class VisionToSpeech : MonoBehaviour
         }
     }
 
-    void SetStatus(string text, bool blinkUnused)
+    // Status 欄を日本語で更新する。blink=true のとき点滅（接続中 / 応答待ち用）
+    void SetStatus(string statusJapanese, bool blink)
     {
-        if (statusText != null)
+        statusBlink = blink;
+        if (statusText == null)
         {
-            statusText.text = text;
+            return;
         }
+
+        statusText.text = statusJapanese;
+        Color color = statusText.color;
+        color.a = 1f;
+        statusText.color = color;
+    }
+
+    // 接続中・応答待ちのあいだだけアルファを上下させて点滅させる
+    void UpdateStatusBlink()
+    {
+        if (!statusBlink || statusText == null)
+        {
+            return;
+        }
+
+        float wave = (Mathf.Sin(Time.unscaledTime * StatusBlinkSpeed) + 1f) * 0.5f;
+        Color color = statusText.color;
+        color.a = Mathf.Lerp(0.25f, 1f, wave);
+        statusText.color = color;
     }
 
     void ShowError(string message)
@@ -1176,6 +1200,12 @@ public class VisionToSpeech : MonoBehaviour
 
         systemInstructionField.text = File.ReadAllText(path);
         systemInstructionFileWriteTimeUtc = File.GetLastWriteTimeUtc(path);
+    }
+
+    // InputField の編集確定時
+    void OnSystemInstructionEndEdit(string _)
+    {
+        SaveSystemInstructionFromField();
     }
 
     void SaveSystemInstructionFromField()

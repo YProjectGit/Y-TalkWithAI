@@ -92,6 +92,7 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
     string outputTranscriptBuffer; // 出力 transcription の蓄積
     bool playbackCoroutineRunning; // 再生コルーチン稼働中か
     DateTime systemInstructionFileWriteTimeUtc; // SystemInstruction.txt 同期用
+    bool statusBlink; // 接続中 / 応答待ちのとき Status を点滅させる
     Stage currentStage = Stage.Connect; // 段階バー用
     TMP_Text vadModeButtonLabel; // ボタン上のラベル（Start で取得）
     Image vadModeButtonImage; // ボタン色（ON/OFF 表示用）
@@ -99,6 +100,7 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
 
     const int MicClipSeconds = 2; // マイクのリングバッファ長さ（秒）
     const int MaxLogChars = 8000; // ログ欄の上限（古い先頭を捨てる）
+    const float StatusBlinkSpeed = 6f; // 点滅の速さ（大きいほど速い）
     static readonly Color VadButtonOffColor = new Color(0.25f, 0.55f, 0.9f, 1f); // 手動モード時のボタン色
     static readonly Color VadButtonOnColor = new Color(0.2f, 0.65f, 0.35f, 1f); // VAD 自動 ON 時
     const string WsEndpoint =
@@ -121,7 +123,7 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         LoadSystemInstructionFromFile();
         if (systemInstructionField != null)
         {
-            systemInstructionField.onEndEdit.AddListener(_ => SaveSystemInstructionFromField());
+            systemInstructionField.onEndEdit.AddListener(OnSystemInstructionEndEdit);
         }
 
         SetupMicrophone();
@@ -147,6 +149,7 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         DrainMainThreadActions();
         UpdatePushToTalk();
         PumpMicrophoneChunksIfStreaming();
+        UpdateStatusBlink();
     }
 
     // 終了時にソケットとマイクを解放する
@@ -1075,12 +1078,33 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         }
     }
 
-    void SetStatus(string text, bool blinkUnused)
+    // Status 欄を日本語で更新する。blink=true のとき点滅（接続中 / 応答待ち用）
+    void SetStatus(string statusJapanese, bool blink)
     {
-        if (statusText != null)
+        statusBlink = blink;
+        if (statusText == null)
         {
-            statusText.text = text;
+            return;
         }
+
+        statusText.text = statusJapanese;
+        Color color = statusText.color;
+        color.a = 1f;
+        statusText.color = color;
+    }
+
+    // 接続中・応答待ちのあいだだけアルファを上下させて点滅させる
+    void UpdateStatusBlink()
+    {
+        if (!statusBlink || statusText == null)
+        {
+            return;
+        }
+
+        float wave = (Mathf.Sin(Time.unscaledTime * StatusBlinkSpeed) + 1f) * 0.5f;
+        Color color = statusText.color;
+        color.a = Mathf.Lerp(0.25f, 1f, wave);
+        statusText.color = color;
     }
 
     void ShowError(string message)
@@ -1213,6 +1237,12 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
 
         systemInstructionField.text = File.ReadAllText(path);
         systemInstructionFileWriteTimeUtc = File.GetLastWriteTimeUtc(path);
+    }
+
+    // InputField の編集確定時
+    void OnSystemInstructionEndEdit(string _)
+    {
+        SaveSystemInstructionFromField();
     }
 
     void SaveSystemInstructionFromField()
