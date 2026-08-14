@@ -2,8 +2,7 @@
 
 音声・画像インタラクション・ワークショップの学習順と、各デモのパイプライン位置づけです。
 
-**実装済み**: `1A.TextToText` / `1B.TextToJSON` / `2A.SpeechToText` / `2B.SpeechToJSON` / `3A.SpeechToSpeech` / `3B.SpeechToSpeechLiveAPI` / `4.VisionToSpeech` / `5.ScreenToSpeech` / `6.TextToImage`  
-**プラン済み・未実装**: `7.ImageToImage`（6 のあと）
+**実装済み**: `1A.TextToText` / `1B.TextToJSON` / `2A.SpeechToText` / `2B.SpeechToJSON` / `3A.SpeechToSpeech` / `3B.SpeechToSpeechLiveAPI` / `4.VisionToSpeech` / `5.ScreenToSpeech` / `6.TextToImage` / `7.ImageToImage`
 
 ---
 
@@ -18,7 +17,7 @@
 `4` の実装プラン → [4-vision-to-speech.plan.md](4-vision-to-speech.plan.md)  
 `5` の実装プラン → [5-screen-to-speech.plan.md](5-screen-to-speech.plan.md)  
 `6` の実装プラン → [6-text-to-image.plan.md](6-text-to-image.plan.md)（実装済み）  
-`7` の実装プラン → [7-image-to-image.plan.md](7-image-to-image.plan.md)（次に実装）
+`7` の実装プラン → [7-image-to-image.plan.md](7-image-to-image.plan.md)（実装済み）
 
 ---
 
@@ -99,7 +98,7 @@
 - [x] `5.ScreenToSpeech` のシーン・スクリプト・本編 README
 - [x] `6.TextToImage` の実装プラン（REST 画像生成・UI イメージ）
 - [x] `6.TextToImage` のシーン・スクリプト・本編 README
-- [x] `7.ImageToImage` の実装プラン（カメラ1フレーム・REST 変換。実装は 6 のあと）
-- [ ] `7.ImageToImage` のシーン・スクリプト・本編 README
+- [x] `7.ImageToImage` の実装プラン（カメラ1フレーム・REST 変換）
+- [x] `7.ImageToImage` のシーン・スクリプト・本編 README
 
 詳細な手順は、実装が入ったタイミングで各デモ README を `1A.TextToText` 並みに厚くします。
