@@ -16,7 +16,7 @@
 | 通信 | REST ×2 | Live ×1 | **Live ×1** |
 | モデル依頼 | 構造化 JSON（答え） | なし（会話のみ） | **function call（動作）** |
 | 左 | 色が変わるキューブ | 吹き出し | **ω / size が漸近するキューブ** |
-| 可視化 | 発生順 1〜4 | 送信 / 受信 | **Setup / toolCall / toolResponse / transcription** |
+| 可視化 | 発生順 1〜4 | 送信 / 受信 | **Setup（SI + tools）/ toolCall / toolResponse / transcription** |
 
 ---
 
@@ -55,7 +55,7 @@ Space 押下〜解放
 2B の 3 分割と 4 欄を、握手が見える題名に差し替える。
 
 - 左: 3D キューブ、角速度 / サイズ（現在 → 目標）、Space、Status
-- 1. Setup: functionDeclarations
+- 1. Setup: systemInstruction の本文 + functionDeclarations
 - 2. toolCall: name / args
 - 3. 送信: PCM / toolResponse
 - 4. transcription: in / out

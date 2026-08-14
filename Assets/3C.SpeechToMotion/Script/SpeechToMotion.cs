@@ -57,7 +57,7 @@ public class SpeechToMotion : MonoBehaviour
 
     // ===== インスペクタ: 中央／右（発生順 1〜4） =====
 
-    public TMP_Text setupHeaderText; // 1. Setup（functionDeclarations）
+    public TMP_Text setupHeaderText; // 1. Setup（systemInstruction 本文 + functionDeclarations）
     public TMP_Text outboundLogText; // 3. 送信（PCM / toolResponse）
     public TMP_Text inboundLogText; // 2. toolCall（受信）
     public TMP_Text transcriptionText; // 4. transcription
@@ -324,10 +324,7 @@ public class SpeechToMotion : MonoBehaviour
         }
 
         string setupJson = BuildSetupJson();
-        if (setupHeaderText != null)
-        {
-            setupHeaderText.text = PrettyPrintJson(setupJson);
-        }
+        RefreshSetupPanel();
 
         Task sendSetup = SendTextAsync(setupJson);
         while (!sendSetup.IsCompleted)
@@ -1043,12 +1040,28 @@ public class SpeechToMotion : MonoBehaviour
 
     // ----- UI / ログ -----
 
+    // 1. Setup に、Gemini へ渡す事前指示と関数宣言を並べて出す
+    void RefreshSetupPanel()
+    {
+        if (setupHeaderText == null)
+        {
+            return;
+        }
+
+        string instruction = string.IsNullOrEmpty(systemInstruction)
+            ? "（空。Setup に載せない）"
+            : systemInstruction;
+
+        setupHeaderText.text =
+            "systemInstruction:\n"
+            + instruction
+            + "\n\nfunctionDeclarations:\n"
+            + PrettyPrintJson("[" + FunctionDeclarationJson + "]");
+    }
+
     void InitPanelTexts()
     {
-        if (setupHeaderText != null)
-        {
-            setupHeaderText.text = PrettyPrintJson("{\"functionDeclarations\":[" + FunctionDeclarationJson + "]}");
-        }
+        RefreshSetupPanel();
 
         if (outboundLogText != null)
         {

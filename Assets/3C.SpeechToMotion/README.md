@@ -31,7 +31,7 @@ Project ウィンドウで `Assets/3C.SpeechToMotion/SpeechToMotion.unity` を�
 ### 1. 接続と初期の回転を見る
 
 1. Status が「接続済み」になること、左のキューブがゆっくり回っていることを見てください。
-2. 中央上の **1. Setup** に `functionDeclarations` と `set_cube_motion` が出ていることを確認してください。
+2. 中央上の **1. Setup** に `systemInstruction`（事前指示の本文）と `functionDeclarations`（`set_cube_motion`）が出ていることを確認してください。
 3. 左の **角速度 / サイズ** 欄で、いまの値（ω）と目標値が同じ付近にあることを見てください。
 
 ### 2. Space で速さと大きさを変える
@@ -53,9 +53,9 @@ Project ウィンドウで `Assets/3C.SpeechToMotion/SpeechToMotion.unity` を�
 
 Function calling とは、モデルが自由文だけで答えるのではなく、**あらかじめ宣言した関数を「呼んでほしい」と依頼する**仕組みです。
 
-1B / 2B の構造化出力は、JSON が**答えそのもの**でした。こちらは JSON が**動作の依頼**で、クライアントが実行し、結果を会話に戻します。このデモでは Setup の `tools.functionDeclarations` に `set_cube_motion` を載せ、声の指示をその関数の引数にします。
+1B / 2B の構造化出力は、JSON が**答えそのもの**でした。こちらは JSON が**動作の依頼**で、クライアントが実行し、結果を会話に戻します。このデモでは Setup の `systemInstruction` で「いつこの関数を使うか」を伝え、`tools.functionDeclarations` に `set_cube_motion` の形を載せます。声の指示はその引数になります。
 
-試し方: 発話のあと、1. Setup の宣言と 2. toolCall の `name` / 引数が対応しているかを見比べる。
+試し方: 1. Setup の事前指示と関数宣言を読む。発話のあと、宣言と 2. toolCall の `name` / 引数が対応しているかを見比べる。
 
 ---
 
@@ -88,7 +88,7 @@ toolCall が決めるのは**目標**です。画面の値は毎フレーム、�
 通信は **ClientWebSocket**（双方向のソケット）です。受信はバックグラウンドのループで行い、UI・再生・キューブ更新だけメインスレッドのキュー経由で戻します。Space の押し話し検知は `Update` と **旧 Input Manager**（`Input.GetKeyDown` / `GetKeyUp`）です。
 
 1. **Live セッションに接続する**  
-   `ConnectLiveSessionCoroutine` — WSS 接続 → Setup（`tools` と AUDIO）→ `setupComplete` 待ち
+   `ConnectLiveSessionCoroutine` — WSS 接続 → Setup（`systemInstruction` と `tools` と AUDIO）→ `setupComplete` 待ち。1. Setup 欄は `RefreshSetupPanel` で事前指示の本文と関数宣言を出す
 2. **Space 押し話しを検知する**  
    `UpdatePushToTalk` — 押しているあいだ PCM 送信、離したら `activityEnd`
 3. **PCM チャンクを送る**  
