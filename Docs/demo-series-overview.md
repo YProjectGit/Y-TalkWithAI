@@ -2,17 +2,17 @@
 
 音声・画像インタラクション・ワークショップの学習順と、各デモのパイプライン位置づけです。
 
-対象デモ: `1A.TextToText` / `1B.TextToJSON` / `2A.SpeechToText` / `2C.SpeechToTextLocal` / `2D.SpeechToTextWhisper` / `2B.SpeechToJSON` / `3A.SpeechToSpeech` / `3B.SpeechToSpeechLiveAPI` / `4.VisionToSpeech` / `5.ScreenToSpeech` / `6.TextToImage` / `7.ImageToImage`
+対象デモ: `1A.TextToText` / `1B.TextToJSON` / `2A.SpeechToText` / `2C.SpeechToTextLocal` / `2D.SpeechToTextWhisper` / `2B.SpeechToJSON` / `3A.SpeechToSpeech` / `3B.SpeechToSpeechLiveAPI` / `3C.SpeechToMotion` / `4.VisionToSpeech` / `5.ScreenToSpeech` / `6.TextToImage` / `7.ImageToImage`
 
 ---
 
 ## 学習の三段
 
 1. **つながる / 形で動かす（テキスト入力）** … `1A` → `1B`
-2. **声で入る（マイク入力）** … `2A` → `2C`（sherpa）→ `2D`（whisper）→ `2B` → `3A`（REST で TTS）→ `3B`（Live API）
+2. **声で入る（マイク入力）** … `2A` → `2C`（sherpa）→ `2D`（whisper）→ `2B` → `3A`（REST で TTS）→ `3B`（Live API）→ `3C`（Live + function call）
 3. **見る・描く** … `4`〜`7`（映像・画像）
 
-入力モダリティごとに、**A = 自由テキスト出力 / B = JSON（構造化）出力** を揃えます（`3` は出力が音声になるため REST / Live の対比。`4`/`5` の映像→音声は Live API）。各デモの手順は、そのフォルダの README を見てください。
+入力モダリティごとに、**A = 自由テキスト出力 / B = JSON（構造化）出力** を揃えます（`3` は出力が音声になるため REST / Live の対比。`3C` は Live の途中で関数を呼ぶ。`4`/`5` の映像→音声は Live API）。各デモの手順は、そのフォルダの README を見てください。
 
 ---
 
@@ -28,6 +28,7 @@
 | 2B | [`Assets/2B.SpeechToJSON/`](../Assets/2B.SpeechToJSON/) | マイク音声 | STT → LLM（JSON） | UI / パラメータ |
 | 3A | [`Assets/3A.SpeechToSpeech/`](../Assets/3A.SpeechToSpeech/) | マイク音声 | STT → LLM → TTS（REST） | 音声 |
 | 3B | [`Assets/3B.SpeechToSpeechLiveAPI/`](../Assets/3B.SpeechToSpeechLiveAPI/) | マイク音声 | Live API（音声↔音声） | 音声 |
+| 3C | [`Assets/3C.SpeechToMotion/`](../Assets/3C.SpeechToMotion/) | マイク音声 | Live API（function call） | 音声 + 運動 |
 | 4 | [`Assets/4.VisionToSpeech/`](../Assets/4.VisionToSpeech/) | カメラ画像 | Live API（映像→音声） | 音声 |
 | 5 | [`Assets/5.ScreenToSpeech/`](../Assets/5.ScreenToSpeech/) | 描画パッド | Live API（映像→音声） | 音声 |
 | 6 | [`Assets/6.TextToImage/`](../Assets/6.TextToImage/) | テキスト | 画像生成 | 画像 |
@@ -42,6 +43,7 @@
 [2B] Mic ──► STT ────────► LLM (JSON) ────────────► UI / 数値など
 [3A] Mic ──► STT ─────► LLM ──► TTS ──────────────► Audio
 [3B] Mic ════════════► Live API ══════════════════► Audio
+[3C] Mic ════════════► Live API + tool ═══════════► Audio + 運動
 [4]  Camera ═════════► Live API ══════════════════► Audio
 [5]  Screen ═════════► Live API ══════════════════► Audio
 [6]  Text ──────────────► Image Gen ────────────────► Image
@@ -75,6 +77,7 @@
 | 2B.SpeechToJSON | 2A の入力＋1B の JSON 反映（組み合わせ） |
 | 3A.SpeechToSpeech | TTS と再生（REST の `generateContent` 三段。ここで声の出口が初出） |
 | 3B.SpeechToSpeechLiveAPI | Live API で音声→音声を一セッションにまとめる（送信／受信の可視化） |
+| 3C.SpeechToMotion | Live の function call で符号付き角速度とサイズを変え、目標へ漸近させる |
 | 4.VisionToSpeech | WebCam フレームを Live API へ（Space シャッター／連続送信）。声で返答 |
 | 5.ScreenToSpeech | ドローイングパッドの画面を Live へ。送信／受信欄は出さず、描きながら声で解釈する |
 | 6.TextToImage | 画像生成リクエスト、テクスチャ表示 |
