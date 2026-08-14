@@ -2,8 +2,8 @@
 
 音声・画像インタラクション・ワークショップの学習順と、各デモのパイプライン位置づけです。
 
-**実装済み**: `1A.TextToText` / `1B.TextToJSON` / `2A.SpeechToText` / `2B.SpeechToJSON` / `3A.SpeechToSpeech` / `3B.SpeechToSpeechLiveAPI` / `4.VisionToSpeech`  
-**概要のみ**（フォルダと README）: `5` 以降
+**実装済み**: `1A.TextToText` / `1B.TextToJSON` / `2A.SpeechToText` / `2B.SpeechToJSON` / `3A.SpeechToSpeech` / `3B.SpeechToSpeechLiveAPI` / `4.VisionToSpeech` / `5.ScreenToSpeech`  
+**概要のみ**（フォルダと README）: `6` 以降
 
 ---
 
@@ -94,6 +94,7 @@
 - [x] `4.VisionToSpeech` の実装プラン（Live API・UI イメージ）
 - [x] `4.VisionToSpeech` のシーン・スクリプト・本編 README
 - [x] `5.ScreenToSpeech` の実装プラン（描画パッド・体験 UI イメージ）
-- [ ] `5` 以降のシーン・スクリプト（実装は別タスク）
+- [x] `5.ScreenToSpeech` のシーン・スクリプト・本編 README
+- [ ] `6` 以降のシーン・スクリプト（実装は別タスク）
 
 詳細な手順は、実装が入ったタイミングで各デモ README を `1A.TextToText` 並みに厚くします。
