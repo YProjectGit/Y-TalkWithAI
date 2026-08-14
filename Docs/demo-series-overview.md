@@ -3,7 +3,7 @@
 音声・画像インタラクション・ワークショップの学習順と、各デモのパイプライン位置づけです。
 
 **実装済み**: `1A.TextToText` / `1B.TextToJSON` / `2A.SpeechToText` / `2B.SpeechToJSON` / `3A.SpeechToSpeech` / `3B.SpeechToSpeechLiveAPI` / `4.VisionToSpeech` / `5.ScreenToSpeech`  
-**概要のみ**（フォルダと README）: `6` 以降
+**プラン済み・未実装**: `6.TextToImage` → `7.ImageToImage`（この順で1本ずつ）
 
 ---
 
@@ -16,7 +16,9 @@
 入力モダリティごとに、**A = 自由テキスト出力 / B = JSON（構造化）出力** を揃えます（`3` は出力が音声になるため REST / Live の対比。`4`/`5` の映像→音声は Live API）。
 
 `4` の実装プラン → [4-vision-to-speech.plan.md](4-vision-to-speech.plan.md)  
-`5` の実装プラン → [5-screen-to-speech.plan.md](5-screen-to-speech.plan.md)
+`5` の実装プラン → [5-screen-to-speech.plan.md](5-screen-to-speech.plan.md)  
+`6` の実装プラン → [6-text-to-image.plan.md](6-text-to-image.plan.md)（次に実装）  
+`7` の実装プラン → [7-image-to-image.plan.md](7-image-to-image.plan.md)（6 のあと）
 
 ---
 
@@ -95,6 +97,9 @@
 - [x] `4.VisionToSpeech` のシーン・スクリプト・本編 README
 - [x] `5.ScreenToSpeech` の実装プラン（描画パッド・体験 UI イメージ）
 - [x] `5.ScreenToSpeech` のシーン・スクリプト・本編 README
-- [ ] `6` 以降のシーン・スクリプト（実装は別タスク）
+- [x] `6.TextToImage` の実装プラン（REST 画像生成・UI イメージ）
+- [x] `7.ImageToImage` の実装プラン（参照画像・Before/After。実装は 6 のあと）
+- [ ] `6.TextToImage` のシーン・スクリプト・本編 README
+- [ ] `7.ImageToImage` のシーン・スクリプト・本編 README
 
 詳細な手順は、実装が入ったタイミングで各デモ README を `1A.TextToText` 並みに厚くします。
