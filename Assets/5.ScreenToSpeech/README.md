@@ -1,50 +1,108 @@
 # 5.ScreenToSpeech
 
-> **現状**: フォルダと概要のみ。シーン・スクリプトは未実装です。  
-> シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)  
-> 姉妹プラン（4） → [Docs/4-vision-to-speech.plan.md](../../Docs/4-vision-to-speech.plan.md)
+シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
 
-## このデモで学べること（予定）
+---
 
-- **画面キャプチャ**  
-  カメラではなく、アプリ／ゲームの画面を入力画像にする
-- **Live API の映像入力**  
-  その画面フレームをセッションに渡し、内容への返答を声でもらう
-- **入力源の差し替え**  
-  `4.VisionToSpeech` と同じ Live 骨格で、見る対象だけを変える
+## このデモで学べること
 
-## 処理の骨格
+- **画面を入力にする**  
+  カメラではなく、アプリ内の絵（ドローイングパッド）を Live API に渡す
+- **描きながらの解釈**  
+  線が増えるたびに、いま見えている形への返答を声でもらう
+- **送信フレーム**  
+  動画ファイルではなく、キャンバスの JPEG を間欠的に送っていること
 
-```text
-画面キャプチャ（画像フレーム）
-  → Live API（JPEG フレーム → ネイティブ音声）
-  → スピーカー再生
-```
+---
 
-`4.VisionToSpeech` が **外の世界（WebCam）** を見るのに対し、ここでは **いま画面に出ているもの** を見るのがポイントです。通信は 4 と同じ Live API 想定です（REST の Vision→TTS は使いません）。
+## 事前準備
 
-## 事前準備（実装後に使う想定）
+1. Google AI Studio から Gemini の API にアクセスするための APIキーを取得し、`Assets/Common/APIKey.txt` に保管してください。  
+   手順 → [Docs/gemini-ai-studio-setup.md](../../Docs/gemini-ai-studio-setup.md)
+2. スピーカーまたはヘッドホンで再生音が聞こえる状態にしてください。
 
-1. APIキーの取得と `Assets/Common/APIKey.txt` への保管  
-   → [Docs/gemini-ai-studio-setup.md](../../Docs/gemini-ai-studio-setup.md)
-2. キャプチャ対象になる何かがシーン上にあること（UI・3D・色面など）
+---
 
-## 予定するファイル構成
+## 動かし方
 
-実装時に、このフォルダへ次をそろえる想定です。
+Project ウィンドウで `Assets/5.ScreenToSpeech/ScreenToSpeech.unity` を開き、Play を押してください。
 
-| 種類 | 例 | 役割 |
-|------|-----|------|
-| シーン | `ScreenToSpeech.unity` | デモの入口 |
-| スクリプト | `Script/ScreenToSpeech.cs` など | キャプチャ〜Live 送受信〜再生 |
-| チュートリアル MD | 本 README（実装後に手順を追記） | 学生向け手順 |
+### 1. 接続を待つ
 
-## 主要スクリプトの読み方（実装後）
+1. 画面中央に白い紙が出ること、上部の状態が「接続中…」から「描いてください」に変わることを見てください。
 
-入口スクリプトを上から読む想定の流れです。
+### 2. 描いて、声と字幕を聞く
 
-1. APIキー読込・キャプチャ対象の準備・Live 接続
-2. 画面／RenderTexture をフレーム化（縮小→JPEG）
-3. Space シャッターまたは連続送信で Live へ送る
-4. 受信 PCM の再生と transcription の表示
-5.（教材向け）送信／受信ログと Status の可視化
+1. 白い紙の上をマウスでドラッグして、なにか描いてください。
+2. 少し待つと、いまの絵への解釈が声で再生され、下部に同じ内容の字幕が出ることを確認してください。
+3. 線を足して、解釈が絵の変化に追いつくかを聞いてください。
+
+### 3. 消して、もう一度描く
+
+1. 右上の **消す** を押してください。紙が白紙に戻り、字幕も消えます。
+2. 別の形を描き、新しい解釈が声で返ることを確認してください。
+
+### 4. 声を変えてみる
+
+1. Play を止め、Hierarchy でデモ本体（`ScreenToSpeech`）を選び、Inspector の **Voice Name**（`voiceName`）を変更してください（初期値は `Kore`）。
+2. もう一度 Play を押し、描いて声の違いを聞いてください。
+
+声は接続時の Setup で一度だけ送るため、変更後は **Stop → Play** が必要です。  
+使える声の名前一覧 → [Gemini API: Text-to-speech（Voice options）](https://ai.google.dev/gemini-api/docs/speech-generation#voices)
+
+教材デモでは APIキーをクライアントから直接使います。本番アプリでは ephemeral token などの短い資格情報を使うことが推奨されます。
+
+---
+
+## 画面キャプチャとは？
+
+一般に画面キャプチャとは、カメラではなく **いま画面に出ている絵** を画像として取ることです。このデモでは OS のデスクトップ全体ではなく、アプリ内の **ドローイングパッド**（白い紙の Texture2D）を撮っています。
+
+4.VisionToSpeech が外の世界（WebCam）を見るのに対し、ここでは **自分で描いた線** が入力です。撮った画像は JPEG にして、4 と同じ Live API の `realtimeInput.video` で送ります。
+
+試し方: 家や顔など、形が分かりやすいものを描き、声と字幕が紙の内容に触れているかを聞く。
+
+---
+
+## 描きながらの解釈とは？
+
+描き終わってボタンを押すのではなく、**線が増えるたびに、いまの紙を見て声で返す** やり方です。送信の間隔はおよそ1秒で、前の返答が終わるまで次は送りません。空の紙は送りません。
+
+新しい解釈が始まるときは、前の声を止めてから話します。描き足すと「線」→「四角」→「家」のように、途中経過への実況が聞こえることがあります。
+
+試し方: 簡単な形から描き始め、線を足すたびに声がどう変わるかを聞く。**消す** のあとは、次に描くまで声は出ません。
+
+---
+
+## 送信フレームとは？
+
+送っているのは動画ファイルではなく、その瞬間の紙を写した **JPEG の静止画** です。Live の映像入力は最大おおよそ1 FPS なので、連続した動画ではなく間欠的なスナップショットです。送信前に長辺をだいたい768まで縮小します。
+
+4 のシャッター／ストリームトグルは置いていません。描くこと自体が送信のきっかけです。
+
+試し方: ゆっくり線を足し、解釈が「いま見えている紙」に対して返ってくることを確認する。
+
+---
+
+## 主要クラス
+
+### ScreenToSpeech（[`ScreenToSpeech.cs`](Script/ScreenToSpeech.cs)）
+
+デモの本体です。上から、接続〜自動送信〜受信〜再生の順に追うとわかりやすいです。
+
+通信は **ClientWebSocket** です。受信はバックグラウンドのループで行い、UI や `AudioSource` の更新だけメインスレッドのキュー経由で戻します。コルーチンは `Update` などのメインスレッド処理とは独立した時間軸で進むので、応答待ちのあいだも描き続けられます。
+
+1. **Live セッションに接続する**  
+   `ConnectLiveSessionCoroutine` — WSS 接続 → Setup JSON 送信 → `setupComplete` 待ち
+2. **描きながらフレームを送る**  
+   `InterpretLoopCoroutine` / `SendFrameTurnCoroutine` — dirty な紙を約1 FPS で `activityStart` → JPEG → 実況指示 → `activityEnd`
+3. **JPEG を用意する**  
+   `TryCaptureJpeg` — キャンバスの Texture2D を長辺768前後へ縮小して `EncodeToJPG`
+4. **サーバメッセージを振り分ける**  
+   `HandleServerMessage` — 音声は再生キュー、output transcription は字幕
+5. **受信 PCM を再生する**  
+   `PlaybackPumpCoroutine` — キューから `AudioClip` 化して `AudioSource.Play`
+
+### DrawingPad（[`DrawingPad.cs`](Script/DrawingPad.cs)）
+
+白い紙にマウスで線を描く部品です。通信は持ちません。`HasInk` と `IsDirty` だけを `ScreenToSpeech` に渡し、空の紙を送らない判断に使います。

@@ -2,8 +2,8 @@
 
 音声・画像インタラクション・ワークショップの学習順と、各デモのパイプライン位置づけです。
 
-**実装済み**: `1A.TextToText` / `1B.TextToJSON` / `2A.SpeechToText` / `2B.SpeechToJSON` / `3A.SpeechToSpeech` / `3B.SpeechToSpeechLiveAPI` / `4.VisionToSpeech`  
-**概要のみ**（フォルダと README）: `5` 以降
+**実装済み**: `1A.TextToText` / `1B.TextToJSON` / `2A.SpeechToText` / `2B.SpeechToJSON` / `3A.SpeechToSpeech` / `3B.SpeechToSpeechLiveAPI` / `4.VisionToSpeech` / `5.ScreenToSpeech`  
+**概要のみ**（フォルダと README）: `6` 以降
 
 ---
 
@@ -15,7 +15,8 @@
 
 入力モダリティごとに、**A = 自由テキスト出力 / B = JSON（構造化）出力** を揃えます（`3` は出力が音声になるため REST / Live の対比。`4`/`5` の映像→音声は Live API）。
 
-`4` の実装プラン → [4-vision-to-speech.plan.md](4-vision-to-speech.plan.md)
+`4` の実装プラン → [4-vision-to-speech.plan.md](4-vision-to-speech.plan.md)  
+`5` の実装プラン → [5-screen-to-speech.plan.md](5-screen-to-speech.plan.md)
 
 ---
 
@@ -30,7 +31,7 @@
 | 3A | [`Assets/3A.SpeechToSpeech/`](../Assets/3A.SpeechToSpeech/) | マイク音声 | STT → LLM → TTS（REST） | 音声 |
 | 3B | [`Assets/3B.SpeechToSpeechLiveAPI/`](../Assets/3B.SpeechToSpeechLiveAPI/) | マイク音声 | Live API（音声↔音声） | 音声 |
 | 4 | [`Assets/4.VisionToSpeech/`](../Assets/4.VisionToSpeech/) | カメラ画像 | Live API（映像→音声） | 音声 |
-| 5 | [`Assets/5.ScreenToSpeech/`](../Assets/5.ScreenToSpeech/) | 画面キャプチャ | Live API（映像→音声） | 音声 |
+| 5 | [`Assets/5.ScreenToSpeech/`](../Assets/5.ScreenToSpeech/) | 描画パッド | Live API（映像→音声） | 音声 |
 | 6 | [`Assets/6.TextToImage/`](../Assets/6.TextToImage/) | テキスト | 画像生成 | 画像 |
 | 7 | [`Assets/7.ImageToImage/`](../Assets/7.ImageToImage/) | 画像＋指示 | 画像変換 | 画像 |
 
@@ -74,7 +75,7 @@
 | 3A.SpeechToSpeech | TTS と再生（REST の `generateContent` 三段。ここで声の出口が初出） |
 | 3B.SpeechToSpeechLiveAPI | Live API で音声→音声を一セッションにまとめる（送信／受信の可視化） |
 | 4.VisionToSpeech | WebCam フレームを Live API へ（Space シャッター／連続送信）。声で返答 |
-| 5.ScreenToSpeech | 画面／RenderTexture のキャプチャを Live へ（入力源がカメラではなく画面） |
+| 5.ScreenToSpeech | ドローイングパッドの画面を Live へ。送信／受信欄は出さず、描きながら声で解釈する |
 | 6.TextToImage | 画像生成リクエスト、テクスチャ表示 |
 | 7.ImageToImage | 入力画像＋指示での変換、Before / After 表示 |
 
@@ -92,6 +93,8 @@
 - [x] `3B.SpeechToSpeechLiveAPI` のシーン・スクリプト・本編 README
 - [x] `4.VisionToSpeech` の実装プラン（Live API・UI イメージ）
 - [x] `4.VisionToSpeech` のシーン・スクリプト・本編 README
-- [ ] `5` 以降のシーン・スクリプト（実装は別タスク）
+- [x] `5.ScreenToSpeech` の実装プラン（描画パッド・体験 UI イメージ）
+- [x] `5.ScreenToSpeech` のシーン・スクリプト・本編 README
+- [ ] `6` 以降のシーン・スクリプト（実装は別タスク）
 
 詳細な手順は、実装が入ったタイミングで各デモ README を `1A.TextToText` 並みに厚くします。
