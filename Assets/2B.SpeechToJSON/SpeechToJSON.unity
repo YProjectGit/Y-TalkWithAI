@@ -5015,8 +5015,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u6587\u5b57\u8d77\u3053\u3057"
-    (JSON)"
+  m_text: "\u6587\u5b57\u8d77\u3053\u3057 (JSON)"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 124f16a11e613cd4ebc18e7a2bf87e90, type: 2}
   m_sharedMaterial: {fileID: -1564414408837547503, guid: 124f16a11e613cd4ebc18e7a2bf87e90, type: 2}
@@ -7198,8 +7197,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "構造化JSON"
-    (JSON)"
+  m_text: "構造化JSON (JSON)"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 124f16a11e613cd4ebc18e7a2bf87e90, type: 2}
   m_sharedMaterial: {fileID: -1564414408837547503, guid: 124f16a11e613cd4ebc18e7a2bf87e90, type: 2}

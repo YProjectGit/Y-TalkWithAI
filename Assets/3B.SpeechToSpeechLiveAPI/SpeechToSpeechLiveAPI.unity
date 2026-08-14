@@ -5736,7 +5736,6 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_text: "Space \u3092\u62bc\u3057\u3066\u3044\u308b\u3042\u3044\u3060\u9332\u97f3\uff08\u96e2\u3059\u3068\u9001\u4fe1\uff09"
-    \u306E contents \u306B user \u3068\u3057\u3066\u5165\u308B\uFF09"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 124f16a11e613cd4ebc18e7a2bf87e90, type: 2}
   m_sharedMaterial: {fileID: -1564414408837547503, guid: 124f16a11e613cd4ebc18e7a2bf87e90, type: 2}
@@ -9332,8 +9331,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "input / output transcript"
-    (JSON)"
+  m_text: "input / output transcript (JSON)"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 124f16a11e613cd4ebc18e7a2bf87e90, type: 2}
   m_sharedMaterial: {fileID: -1564414408837547503, guid: 124f16a11e613cd4ebc18e7a2bf87e90, type: 2}
@@ -11362,8 +11360,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "24kHz PCM / mime"
-    (JSON)"
+  m_text: "24kHz PCM / mime (JSON)"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 124f16a11e613cd4ebc18e7a2bf87e90, type: 2}
   m_sharedMaterial: {fileID: -1564414408837547503, guid: 124f16a11e613cd4ebc18e7a2bf87e90, type: 2}
