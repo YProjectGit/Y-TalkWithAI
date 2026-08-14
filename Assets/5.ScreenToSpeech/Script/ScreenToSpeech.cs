@@ -42,9 +42,8 @@ public class ScreenToSpeech : MonoBehaviour
         "あなたは、人がいま描いている絵を見る実況者です。紙に見えている線や形を、日本語で短くやさしく話してください。途中の線でも、いま見えているものから推測してよいです。まだほとんど描かれていないときは、無理に物語を作らず、見えていることだけを言ってください。返答は1〜2文にしてください。"; // Setup の事前指示（画面には出さない）
     public string framePromptText =
         "このキャンバスに描かれている絵を、日本語で短く実況してください。"; // フレームと一緒に送る指示
-    public TMP_FontAsset uiFont; // 日本語 UI 用フォント（未設定だと欠ける）
 
-    // ===== インスペクタ: 体験 UI（未配線なら Start で組む） =====
+    // ===== インスペクタ: 体験 UI =====
 
     public DrawingPad drawingPad; // 描画キャンバス
     public Button clearButton; // 紙を消す
@@ -65,17 +64,11 @@ public class ScreenToSpeech : MonoBehaviour
     bool isTurnBusy; // 1ターン送信中（二重送信防止）
     bool playbackCoroutineRunning; // 再生コルーチン稼働中か
     string outputTranscriptBuffer; // 出力 transcription の蓄積
-    Sprite uiSprite; // 実行時に作る白いスプライト
 
     const string WsEndpoint =
         "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent";
 
-    static readonly Color BackgroundColor = new Color(0.12f, 0.11f, 0.10f, 1f);
-    static readonly Color TitleColor = new Color(0.92f, 0.90f, 0.86f, 1f);
-    static readonly Color StatusColor = new Color(0.70f, 0.68f, 0.64f, 1f);
-    static readonly Color CaptionColor = new Color(0.93f, 0.91f, 0.86f, 1f);
-    static readonly Color ButtonColor = new Color(0.28f, 0.38f, 0.52f, 1f);
-    static readonly Color PadShadowColor = new Color(0.05f, 0.04f, 0.04f, 0.55f);
+    static readonly Color BackgroundColor = new Color(0.12f, 0.11f, 0.10f, 1f); // カメラ背景
 
     // ----- エントリポイント -----
 
@@ -83,7 +76,7 @@ public class ScreenToSpeech : MonoBehaviour
     void Start()
     {
         LoadApiKey();
-        EnsureExperienceUi();
+        EnsureRuntimeBasics();
         EnsurePlaybackAudioSource();
         WireClearButton();
         SetCaption(string.Empty);
@@ -104,15 +97,10 @@ public class ScreenToSpeech : MonoBehaviour
         DrainMainThreadActions();
     }
 
-    // 終了時にソケットと実行時スプライトを解放する
+    // 終了時にソケットを解放する
     void OnDestroy()
     {
         CloseSocket(true);
-        if (uiSprite != null)
-        {
-            Destroy(uiSprite);
-            uiSprite = null;
-        }
     }
 
     // ----- 接続（Setup） -----
@@ -634,65 +622,18 @@ public class ScreenToSpeech : MonoBehaviour
         isTurnBusy = false;
     }
 
-    // ----- 体験 UI（未配線なら Play 時に組む） -----
-
-    // 紙・消す・状態・字幕が無ければ、体験画面をその場で作る
-    void EnsureExperienceUi()
+    // EventSystem が無ければ足し、カメラ背景をシーンの色に合わせる
+    void EnsureRuntimeBasics()
     {
         EnsureEventSystem();
-
         if (Camera.main != null)
         {
             Camera.main.backgroundColor = BackgroundColor;
             Camera.main.clearFlags = CameraClearFlags.SolidColor;
         }
-
-        if (drawingPad != null && clearButton != null && statusText != null && captionText != null)
-        {
-            return;
-        }
-
-        Canvas canvas = FindFirstObjectByType<Canvas>();
-        if (canvas == null)
-        {
-            GameObject canvasGo = new GameObject("Canvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-            canvas = canvasGo.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            RectTransform canvasRt = canvasGo.GetComponent<RectTransform>();
-            canvasRt.anchorMin = Vector2.zero;
-            canvasRt.anchorMax = Vector2.one;
-            canvasRt.offsetMin = Vector2.zero;
-            canvasRt.offsetMax = Vector2.zero;
-            CanvasScaler scaler = canvasGo.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920f, 1080f);
-            scaler.matchWidthOrHeight = 0.5f;
-        }
-
-        RectTransform root = canvas.transform as RectTransform;
-        Image bg = canvas.GetComponent<Image>();
-        if (bg == null)
-        {
-            bg = canvas.gameObject.AddComponent<Image>();
-        }
-
-        bg.sprite = GetUiSprite();
-        bg.color = BackgroundColor;
-        bg.raycastTarget = false;
-
-        CreateTmp(root, "Title", "5.ScreenToSpeech", 28, TitleColor, TextAlignmentOptions.MidlineLeft,
-            new Vector2(0f, 1f), new Vector2(0.45f, 1f), new Vector2(32f, -20f), new Vector2(-16f, 56f), new Vector2(0f, 1f));
-
-        statusText = CreateTmp(root, "Status", "接続中…", 22, StatusColor, TextAlignmentOptions.MidlineRight,
-            new Vector2(0.45f, 1f), new Vector2(0.82f, 1f), new Vector2(8f, -20f), new Vector2(-8f, 56f), new Vector2(1f, 1f));
-
-        clearButton = CreateClearButton(root);
-        CreatePad(root);
-        captionText = CreateTmp(root, "Caption", string.Empty, 26, CaptionColor, TextAlignmentOptions.Center,
-            new Vector2(0.12f, 0f), new Vector2(0.88f, 0f), new Vector2(0f, 28f), new Vector2(0f, 88f), new Vector2(0.5f, 0f));
-        captionText.textWrappingMode = TextWrappingModes.Normal;
     }
 
+    // シーンに EventSystem が無いときだけ作る
     void EnsureEventSystem()
     {
         if (EventSystem.current != null)
@@ -703,107 +644,6 @@ public class ScreenToSpeech : MonoBehaviour
         GameObject es = new GameObject("EventSystem");
         es.AddComponent<EventSystem>();
         es.AddComponent<InputSystemUIInputModule>();
-    }
-
-    Button CreateClearButton(RectTransform parent)
-    {
-        GameObject go = new GameObject("ClearButton", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
-        go.transform.SetParent(parent, false);
-        RectTransform rt = go.GetComponent<RectTransform>();
-        rt.anchorMin = new Vector2(1f, 1f);
-        rt.anchorMax = new Vector2(1f, 1f);
-        rt.pivot = new Vector2(1f, 1f);
-        rt.sizeDelta = new Vector2(120f, 48f);
-        rt.anchoredPosition = new Vector2(-32f, -20f);
-
-        Image image = go.GetComponent<Image>();
-        image.sprite = GetUiSprite();
-        image.color = ButtonColor;
-
-        Button button = go.GetComponent<Button>();
-        CreateTmp(rt, "Label", "消す", 22, Color.white, TextAlignmentOptions.Center,
-            Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Vector2(0.5f, 0.5f));
-        return button;
-    }
-
-    void CreatePad(RectTransform parent)
-    {
-        GameObject shadowGo = new GameObject("PadShadow", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        shadowGo.transform.SetParent(parent, false);
-        RectTransform shadowRt = shadowGo.GetComponent<RectTransform>();
-        SetCenteredSquare(shadowRt, 736f, new Vector2(0f, 8f));
-        Image shadowImage = shadowGo.GetComponent<Image>();
-        shadowImage.sprite = GetUiSprite();
-        shadowImage.color = PadShadowColor;
-        shadowImage.raycastTarget = false;
-
-        GameObject padGo = new GameObject("DrawingPad", typeof(RectTransform), typeof(CanvasRenderer), typeof(RawImage), typeof(DrawingPad));
-        padGo.transform.SetParent(parent, false);
-        RectTransform padRt = padGo.GetComponent<RectTransform>();
-        SetCenteredSquare(padRt, 720f, new Vector2(0f, 16f));
-
-        drawingPad = padGo.GetComponent<DrawingPad>();
-        drawingPad.textureWidth = 768;
-        drawingPad.textureHeight = 768;
-    }
-
-    static void SetCenteredSquare(RectTransform rt, float size, Vector2 offset)
-    {
-        rt.anchorMin = new Vector2(0.5f, 0.5f);
-        rt.anchorMax = new Vector2(0.5f, 0.5f);
-        rt.pivot = new Vector2(0.5f, 0.5f);
-        rt.sizeDelta = new Vector2(size, size);
-        rt.anchoredPosition = offset;
-    }
-
-    TMP_Text CreateTmp(
-        RectTransform parent,
-        string name,
-        string text,
-        float fontSize,
-        Color color,
-        TextAlignmentOptions align,
-        Vector2 anchorMin,
-        Vector2 anchorMax,
-        Vector2 anchoredPos,
-        Vector2 sizeDelta,
-        Vector2 pivot)
-    {
-        GameObject go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
-        go.transform.SetParent(parent, false);
-        RectTransform rt = go.GetComponent<RectTransform>();
-        rt.anchorMin = anchorMin;
-        rt.anchorMax = anchorMax;
-        rt.pivot = pivot;
-        rt.anchoredPosition = anchoredPos;
-        rt.sizeDelta = sizeDelta;
-
-        TextMeshProUGUI tmp = go.GetComponent<TextMeshProUGUI>();
-        if (uiFont != null)
-        {
-            tmp.font = uiFont;
-        }
-
-        tmp.text = text;
-        tmp.fontSize = fontSize;
-        tmp.color = color;
-        tmp.alignment = align;
-        tmp.raycastTarget = false;
-        tmp.textWrappingMode = TextWrappingModes.NoWrap;
-        tmp.overflowMode = TextOverflowModes.Ellipsis;
-        return tmp;
-    }
-
-    Sprite GetUiSprite()
-    {
-        if (uiSprite != null)
-        {
-            return uiSprite;
-        }
-
-        Texture2D tex = Texture2D.whiteTexture;
-        uiSprite = Sprite.Create(tex, new Rect(0f, 0f, tex.width, tex.height), new Vector2(0.5f, 0.5f), 4f);
-        return uiSprite;
     }
 
     void EnsurePlaybackAudioSource()

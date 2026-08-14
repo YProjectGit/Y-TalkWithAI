@@ -53,8 +53,6 @@ Project ウィンドウで `Assets/4.VisionToSpeech/VisionToSpeech.unity` を開
 声は接続時の Setup で一度だけ送るため、変更後は **Stop → Play** が必要です。  
 使える声の名前一覧 → [Gemini API: Text-to-speech（Voice options）](https://ai.google.dev/gemini-api/docs/speech-generation#voices)
 
-教材デモでは APIキーをクライアントから直接使います。本番アプリでは ephemeral token などの短い資格情報を使うことが推奨されます。
-
 ---
 
 ## Live API の映像入力とは？

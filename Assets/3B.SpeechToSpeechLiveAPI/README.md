@@ -60,8 +60,6 @@ VAD は Setup 時の設定のため、切替のたびに Live セッションを
 声は接続時の Setup で一度だけ送るため、変更後は **Stop → Play** が必要です。設定の書き方 → [Live API: Change voice and language](https://ai.google.dev/gemini-api/docs/live-api/capabilities#change-voice-and-language)  
 使える声の名前一覧 → [Gemini API: Text-to-speech（Voice options）](https://ai.google.dev/gemini-api/docs/speech-generation#voices)
 
-教材デモでは APIキーをクライアントから直接使います。本番アプリでは ephemeral token などの短い資格情報を使うことが推奨されます。
-
 ---
 
 ## Live API（セッション）とは？

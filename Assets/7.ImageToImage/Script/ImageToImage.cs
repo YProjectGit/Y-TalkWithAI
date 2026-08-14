@@ -35,7 +35,6 @@ public class ImageToImage : MonoBehaviour
     public int maxSendLongSide = 768; // 送信 JPEG の長辺上限（4 と同じ推奨解像度）
     public int jpegQuality = 75; // EncodeToJPG の品質（1〜100）
     public string defaultPrompt = "この写真を、はっきりしたイラストにしてください"; // 入力欄の初期指示
-    public TMP_FontAsset uiFont; // 日本語 UI 用フォント（未設定だと欠ける）
 
     // ===== インスペクタ: 体験 UI（Camera / After ＋入力） =====
 
@@ -55,21 +54,13 @@ public class ImageToImage : MonoBehaviour
     bool hasCamera; // WebCam を起動できたか
     WebCamTexture webCamTexture; // プレビュー兼キャプチャ源
     Texture2D generatedTexture; // いま After に出している変換画像（再変換で差し替え）
-    Sprite uiSprite; // 実行時に作る白いスプライト
 
     const float StatusBlinkSpeed = 6f; // 点滅の速さ（大きいほど速い）
     const int WebcamRequestWidth = 1280; // WebCam 要求解像度（プレビュー用）
     const int WebcamRequestHeight = 720;
 
-    static readonly Color BackgroundColor = new Color(0.12f, 0.12f, 0.14f, 1f);
-    static readonly Color PaneColor = new Color(0.16f, 0.17f, 0.20f, 1f);
-    static readonly Color TitleColor = Color.white;
-    static readonly Color BodyTextColor = Color.white;
-    static readonly Color MutedTextColor = new Color(0.70f, 0.72f, 0.76f, 1f);
-    static readonly Color ButtonColor = new Color(0.25f, 0.55f, 0.90f, 1f);
-    static readonly Color ImageWellColor = new Color(0.08f, 0.09f, 0.11f, 1f);
-    static readonly Color InputColor = new Color(0.08f, 0.09f, 0.11f, 1f);
-    static readonly Color PlaceholderColor = new Color(1f, 1f, 1f, 0.35f);
+    static readonly Color BackgroundColor = new Color(0.12f, 0.12f, 0.14f, 1f); // カメラ背景
+    static readonly Color ImageWellColor = new Color(0.08f, 0.09f, 0.11f, 1f); // 画像が無いときの枠色
 
     // ----- エントリポイント -----
 
@@ -77,7 +68,7 @@ public class ImageToImage : MonoBehaviour
     void Start()
     {
         LoadApiKey();
-        EnsureUi();
+        EnsureRuntimeBasics();
         WireInput();
         ShowEmptyAfter();
         SetupWebcam();
@@ -97,16 +88,11 @@ public class ImageToImage : MonoBehaviour
         UpdateStatusBlink();
     }
 
-    // WebCam と実行時テクスチャを解放する
+    // WebCam と生成テクスチャを解放する
     void OnDestroy()
     {
         StopWebcam();
         ReleaseGeneratedTexture();
-        if (uiSprite != null)
-        {
-            Destroy(uiSprite);
-            uiSprite = null;
-        }
     }
 
     // 変換ボタン / Enter を購読する
@@ -650,212 +636,18 @@ public class ImageToImage : MonoBehaviour
         return inputField.text.Trim();
     }
 
-    // ----- 体験 UI（未配線なら Play 時に組む） -----
-
-    // Camera / After と入力が無ければ、その場で作る
-    void EnsureUi()
+    // EventSystem が無ければ足し、カメラ背景をシーンの色に合わせる
+    void EnsureRuntimeBasics()
     {
         EnsureEventSystem();
-
         if (Camera.main != null)
         {
             Camera.main.backgroundColor = BackgroundColor;
             Camera.main.clearFlags = CameraClearFlags.SolidColor;
         }
-
-        if (webcamPreview != null && resultImage != null && inputField != null && sendButton != null
-            && statusText != null)
-        {
-            return;
-        }
-
-        Canvas canvas = FindFirstObjectByType<Canvas>();
-        if (canvas == null)
-        {
-            GameObject canvasGo = new GameObject(
-                "Canvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-            canvas = canvasGo.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            RectTransform canvasRt = canvasGo.GetComponent<RectTransform>();
-            StretchFull(canvasRt);
-            CanvasScaler scaler = canvasGo.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920f, 1080f);
-            scaler.matchWidthOrHeight = 0.5f;
-        }
-
-        RectTransform root = canvas.transform as RectTransform;
-        Image bg = canvas.GetComponent<Image>();
-        if (bg == null)
-        {
-            bg = canvas.gameObject.AddComponent<Image>();
-        }
-
-        bg.sprite = GetUiSprite();
-        bg.color = BackgroundColor;
-        bg.raycastTarget = false;
-
-        CreateTmp(root, "Title", "7.ImageToImage", 26, TitleColor, TextAlignmentOptions.MidlineLeft,
-            new Vector2(0f, 1f), new Vector2(0.45f, 1f), new Vector2(24f, -16f), new Vector2(-8f, 48f), new Vector2(0f, 1f));
-        statusText = CreateTmp(root, "Status", "待機中", 20, MutedTextColor, TextAlignmentOptions.MidlineRight,
-            new Vector2(0.45f, 1f), new Vector2(1f, 1f), new Vector2(8f, -16f), new Vector2(-24f, 48f), new Vector2(1f, 1f));
-
-        RectTransform main = CreatePane(root, "MainPane", Vector2.zero, Vector2.one,
-            new Vector2(16f, 16f), new Vector2(-16f, -72f));
-        BuildMainPane(main);
     }
 
-    void BuildMainPane(RectTransform pane)
-    {
-        GameObject rowGo = new GameObject("ImageRow", typeof(RectTransform));
-        rowGo.transform.SetParent(pane, false);
-        RectTransform rowRt = rowGo.GetComponent<RectTransform>();
-        rowRt.anchorMin = new Vector2(0f, 0f);
-        rowRt.anchorMax = new Vector2(1f, 1f);
-        rowRt.offsetMin = new Vector2(20f, 148f);
-        rowRt.offsetMax = new Vector2(-20f, -16f);
-
-        RectTransform cameraWell = CreateImageWell(rowRt, "CameraWell", "Camera",
-            new Vector2(0f, 0f), new Vector2(0.5f, 1f), new Vector2(0f, 0f), new Vector2(-10f, 0f));
-        webcamPreview = cameraWell.Find("Preview").GetComponent<RawImage>();
-        webcamPreview.texture = null;
-        webcamPreview.color = ImageWellColor;
-
-        RectTransform afterWell = CreateImageWell(rowRt, "AfterWell", "After",
-            new Vector2(0.5f, 0f), new Vector2(1f, 1f), new Vector2(10f, 0f), new Vector2(0f, 0f));
-        resultImage = afterWell.Find("Preview").GetComponent<RawImage>();
-        resultImage.texture = null;
-        resultImage.color = ImageWellColor;
-
-        emptyHintText = CreateTmp(afterWell, "EmptyHint", "まだ画像がありません", 18, MutedTextColor,
-            TextAlignmentOptions.Center, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Vector2(0.5f, 0.5f));
-        emptyHintText.textWrappingMode = TextWrappingModes.Normal;
-
-        captionText = CreateTmp(pane, "Caption", string.Empty, 16, MutedTextColor, TextAlignmentOptions.TopLeft,
-            new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(20f, 116f), new Vector2(-20f, 28f), new Vector2(0f, 0f));
-        captionText.textWrappingMode = TextWrappingModes.Normal;
-        captionText.overflowMode = TextOverflowModes.Ellipsis;
-
-        inputField = CreatePromptInput(pane);
-        sendButton = CreateSendButton(pane);
-    }
-
-    // Camera / After 用の枠。中にラベルと RawImage を置く
-    RectTransform CreateImageWell(
-        RectTransform parent,
-        string name,
-        string label,
-        Vector2 anchorMin,
-        Vector2 anchorMax,
-        Vector2 offsetMin,
-        Vector2 offsetMax)
-    {
-        GameObject wellGo = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        wellGo.transform.SetParent(parent, false);
-        RectTransform wellRt = wellGo.GetComponent<RectTransform>();
-        wellRt.anchorMin = anchorMin;
-        wellRt.anchorMax = anchorMax;
-        wellRt.offsetMin = offsetMin;
-        wellRt.offsetMax = offsetMax;
-        Image well = wellGo.GetComponent<Image>();
-        well.sprite = GetUiSprite();
-        well.color = ImageWellColor;
-        well.raycastTarget = false;
-
-        CreateTmp(wellRt, "WellLabel", label, 14, TitleColor, TextAlignmentOptions.MidlineLeft,
-            new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(8f, -4f), new Vector2(-8f, 22f), new Vector2(0f, 1f));
-
-        GameObject imageGo = new GameObject("Preview", typeof(RectTransform), typeof(CanvasRenderer), typeof(RawImage));
-        imageGo.transform.SetParent(wellRt, false);
-        RectTransform imageRt = imageGo.GetComponent<RectTransform>();
-        StretchFull(imageRt);
-        imageRt.offsetMin = new Vector2(6f, 6f);
-        imageRt.offsetMax = new Vector2(-6f, -26f);
-        return wellRt;
-    }
-
-    TMP_InputField CreatePromptInput(RectTransform parent)
-    {
-        GameObject go = new GameObject("PromptInput", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(TMP_InputField));
-        go.transform.SetParent(parent, false);
-        RectTransform rt = go.GetComponent<RectTransform>();
-        rt.anchorMin = new Vector2(0f, 0f);
-        rt.anchorMax = new Vector2(1f, 0f);
-        rt.pivot = new Vector2(0.5f, 0f);
-        rt.anchoredPosition = new Vector2(0f, 60f);
-        rt.sizeDelta = new Vector2(-32f, 56f);
-
-        Image image = go.GetComponent<Image>();
-        image.sprite = GetUiSprite();
-        image.color = InputColor;
-
-        GameObject viewportGo = new GameObject("Text Area", typeof(RectTransform), typeof(RectMask2D));
-        viewportGo.transform.SetParent(go.transform, false);
-        RectTransform viewportRt = viewportGo.GetComponent<RectTransform>();
-        StretchFull(viewportRt);
-        viewportRt.offsetMin = new Vector2(10f, 6f);
-        viewportRt.offsetMax = new Vector2(-10f, -6f);
-
-        TMP_Text placeholder = CreateTmp(viewportRt, "Placeholder", defaultPrompt, 16,
-            PlaceholderColor, TextAlignmentOptions.MidlineLeft,
-            Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Vector2(0.5f, 0.5f));
-        placeholder.fontStyle = FontStyles.Italic;
-        placeholder.raycastTarget = false;
-
-        TMP_Text text = CreateTmp(viewportRt, "Text", string.Empty, 16, BodyTextColor, TextAlignmentOptions.MidlineLeft,
-            Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Vector2(0.5f, 0.5f));
-        text.textWrappingMode = TextWrappingModes.Normal;
-        text.overflowMode = TextOverflowModes.Overflow;
-        text.raycastTarget = true;
-
-        TMP_InputField field = go.GetComponent<TMP_InputField>();
-        field.textViewport = viewportRt;
-        field.textComponent = text;
-        field.placeholder = placeholder;
-        field.fontAsset = uiFont;
-        field.lineType = TMP_InputField.LineType.MultiLineSubmit;
-        field.lineLimit = 3;
-        field.pointSize = 16;
-        return field;
-    }
-
-    Button CreateSendButton(RectTransform parent)
-    {
-        GameObject go = new GameObject("ConvertButton", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
-        go.transform.SetParent(parent, false);
-        RectTransform rt = go.GetComponent<RectTransform>();
-        rt.anchorMin = new Vector2(0f, 0f);
-        rt.anchorMax = new Vector2(0f, 0f);
-        rt.pivot = new Vector2(0f, 0f);
-        rt.anchoredPosition = new Vector2(16f, 16f);
-        rt.sizeDelta = new Vector2(108f, 36f);
-
-        Image image = go.GetComponent<Image>();
-        image.sprite = GetUiSprite();
-        image.color = ButtonColor;
-
-        Button button = go.GetComponent<Button>();
-        CreateTmp(rt, "Label", "変換", 18, Color.white, TextAlignmentOptions.Center,
-            Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Vector2(0.5f, 0.5f));
-        return button;
-    }
-
-    RectTransform CreatePane(RectTransform parent, string name, Vector2 anchorMin, Vector2 anchorMax, Vector2 offsetMin, Vector2 offsetMax)
-    {
-        GameObject go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        go.transform.SetParent(parent, false);
-        RectTransform rt = go.GetComponent<RectTransform>();
-        rt.anchorMin = anchorMin;
-        rt.anchorMax = anchorMax;
-        rt.offsetMin = offsetMin;
-        rt.offsetMax = offsetMax;
-        Image image = go.GetComponent<Image>();
-        image.sprite = GetUiSprite();
-        image.color = PaneColor;
-        image.raycastTarget = false;
-        return rt;
-    }
-
+    // シーンに EventSystem が無いときだけ作る
     void EnsureEventSystem()
     {
         if (EventSystem.current != null)
@@ -866,68 +658,6 @@ public class ImageToImage : MonoBehaviour
         GameObject es = new GameObject("EventSystem");
         es.AddComponent<EventSystem>();
         es.AddComponent<InputSystemUIInputModule>();
-    }
-
-    TMP_Text CreateTmp(
-        RectTransform parent,
-        string name,
-        string text,
-        float fontSize,
-        Color color,
-        TextAlignmentOptions align,
-        Vector2 anchorMin,
-        Vector2 anchorMax,
-        Vector2 anchoredPos,
-        Vector2 sizeDelta,
-        Vector2 pivot)
-    {
-        GameObject go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
-        go.transform.SetParent(parent, false);
-        RectTransform rt = go.GetComponent<RectTransform>();
-        rt.anchorMin = anchorMin;
-        rt.anchorMax = anchorMax;
-        rt.pivot = pivot;
-        rt.anchoredPosition = anchoredPos;
-        rt.sizeDelta = sizeDelta;
-
-        TextMeshProUGUI tmp = go.GetComponent<TextMeshProUGUI>();
-        ApplyFont(tmp);
-        tmp.text = text;
-        tmp.fontSize = fontSize;
-        tmp.color = color;
-        tmp.alignment = align;
-        tmp.raycastTarget = false;
-        tmp.textWrappingMode = TextWrappingModes.NoWrap;
-        tmp.overflowMode = TextOverflowModes.Ellipsis;
-        return tmp;
-    }
-
-    void ApplyFont(TMP_Text tmp)
-    {
-        if (uiFont != null)
-        {
-            tmp.font = uiFont;
-        }
-    }
-
-    static void StretchFull(RectTransform rt)
-    {
-        rt.anchorMin = Vector2.zero;
-        rt.anchorMax = Vector2.one;
-        rt.offsetMin = Vector2.zero;
-        rt.offsetMax = Vector2.zero;
-    }
-
-    Sprite GetUiSprite()
-    {
-        if (uiSprite != null)
-        {
-            return uiSprite;
-        }
-
-        Texture2D tex = Texture2D.whiteTexture;
-        uiSprite = Sprite.Create(tex, new Rect(0f, 0f, tex.width, tex.height), new Vector2(0.5f, 0.5f), 4f);
-        return uiSprite;
     }
 
     // ----- JSON ヘルパー -----
