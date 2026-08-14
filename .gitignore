@@ -116,3 +116,6 @@ Assets/Common/APIKey.txt
 /Assets/2C.SpeechToTextLocal/Resource/Plugins/**/*.dylib
 /Assets/2C.SpeechToTextLocal/Resource/Plugins/**/*.so
 /Assets/2C.SpeechToTextLocal/Resource/Plugins/**/*.so.*
+
+# 2D whisper.unity の配布物（Docs/setup-whisper-unity.py で配置）
+/Assets/2D.SpeechToTextWhisper/Resource/models/*.bin
