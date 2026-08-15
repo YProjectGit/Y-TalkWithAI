@@ -1,8 +1,9 @@
 // GeminiKey.cs
 // APIキーの読み込みと、画面表示用のマスク、generateContent の URL 組み立て。
 //
-// キーは Assets/Common/APIKey.txt に置く（リポジトリにはコミットしない）。
+// キーは Assets/Common/APIKey.txt に置く（ダミーを本物のキー1行に置き換える）。
 // 取得手順は Docs/gemini-ai-studio-setup.md を参照。
+// ダミー文言のままでは未設定として扱う。
 //
 // ここは「読む」だけで、失敗をどう見せるか（Status 欄・Response 欄・ログの接頭辞）は
 // 各デモが決める。TryRead が false を返したら error にその理由が入る。
@@ -32,7 +33,7 @@ public static class GeminiKey
         }
 
         string raw = File.ReadAllText(path).Trim();
-        if (string.IsNullOrEmpty(raw))
+        if (string.IsNullOrEmpty(raw) || raw == "Paste Your APIKey Here…")
         {
             error = "APIキーが空です。Docs/gemini-ai-studio-setup.md を参照してください。（" + path + "）";
             return false;

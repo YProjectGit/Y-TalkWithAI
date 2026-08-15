@@ -108,7 +108,6 @@ InitTestScene*.unity*
 
 # AI agent tooling (local)
 .uloop/
-Assets/Common/APIKey.txt
 
 # 2C sherpa-onnx の配布物（Docs/setup-sherpa-onnx.py で配置）
 /Assets/2C.SpeechToTextLocal/Resource/models/*.onnx
