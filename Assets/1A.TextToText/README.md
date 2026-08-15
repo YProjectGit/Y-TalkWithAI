@@ -116,18 +116,15 @@ Web の API 呼び出しは「手紙のやりとり」に似ています。本�
 6. **送受信を画面に出す**  
    `ShowRequest` / `ShowResponse` — 中央・右ペインへの可視化
 
-### ChatBubble（[`ChatBubble.cs`](../Common/Script/ChatBubble.cs)）
-
-左ペインの吹き出し1件分です（Prefab: [`Prefab/MessageBubble.prefab`](Prefab/MessageBubble.prefab)）。各デモが Prefab を `Instantiate` し、`SetMessage` で話者名・本文・背景色（user / assistant）を書き込みます。見た目の色分けだけを持つ小さなクラスで、通信ロジックは持ちません。`Assets/Common/Script/` に置き、吹き出し付きのデモから共有します。
-
 ### 共通スクリプト（`Assets/Common/Script/`）
 
-このデモが使っている共通の道具です。どれも入力と出力だけの小さな関数なので、**上の流れを追うときに中身を読む必要はありません。**
+このデモが使っている共通の道具です。**上の流れを追うときに中身を読む必要はありません。**
 
 | ファイル | 中身 |
 |---|---|
 | [`GeminiJson`](../Common/Script/GeminiJson.cs) | JSON のエスケープ・整形・省略表示 |
 | [`GeminiKey`](../Common/Script/GeminiKey.cs) | APIキーの読込・マスク・generateContent の URL |
 | [`GeminiTextResponse`](../Common/Script/GeminiTextResponse.cs) | レスポンスから candidates[0] のテキストを取り出す |
+| [`ChatBubble`](../Common/Script/ChatBubble.cs) | 吹き出し1件分の見た目（Prefab: [`MessageBubble.prefab`](Prefab/MessageBubble.prefab)） |
 
-共通スクリプトは 13 デモすべてが使っています。挙動を変えたくなったら Common を直さず、そのファイルをこのデモの `Script/` にコピーしてクラス名を変えてください。
+これらは他のデモも使っています。挙動を変えたくなったら Common を直さず、そのファイルをこのデモの `Script/` にコピーしてクラス名を変えてください。

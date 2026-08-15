@@ -117,4 +117,4 @@ Project ウィンドウで `Assets/5.ScreenToSpeech/ScreenToSpeech.unity` を開
 | [`AudioCodec`](../Common/Script/AudioCodec.cs) | AudioClip ⇄ WAV / PCM16 の変換 |
 | [`TextureUtil`](../Common/Script/TextureUtil.cs) | テクスチャの縮小 |
 
-共通スクリプトは 13 デモすべてが使っています。挙動を変えたくなったら Common を直さず、そのファイルをこのデモの `Script/` にコピーしてクラス名を変えてください。
+これらは他のデモも使っています。挙動を変えたくなったら Common を直さず、そのファイルをこのデモの `Script/` にコピーしてクラス名を変えてください。

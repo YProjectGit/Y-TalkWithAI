@@ -109,4 +109,4 @@ Unity では WebCam の画素を `EncodeToJPG` して Base64 にします。返�
 | [`GeminiKey`](../Common/Script/GeminiKey.cs) | APIキーの読込・マスク・generateContent の URL |
 | [`TextureUtil`](../Common/Script/TextureUtil.cs) | テクスチャの縮小 |
 
-共通スクリプトは 13 デモすべてが使っています。挙動を変えたくなったら Common を直さず、そのファイルをこのデモの `Script/` にコピーしてクラス名を変えてください。
+これらは他のデモも使っています。挙動を変えたくなったら Common を直さず、そのファイルをこのデモの `Script/` にコピーしてクラス名を変えてください。

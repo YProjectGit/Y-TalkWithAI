@@ -129,13 +129,9 @@ PCM とは、音を時刻ごとの振幅の数字列として表した音声デ�
 7. **受信 PCM を再生する**  
    `PlaybackPumpCoroutine` — キューから `AudioClip` 化して `AudioSource.Play`
 
-### ChatBubble（[`ChatBubble.cs`](../Common/Script/ChatBubble.cs)）
-
-左ペインの吹き出し1件分です（Prefab: [`Prefab/MessageBubble.prefab`](Prefab/MessageBubble.prefab)）。見た目用のクラスで、`Assets/Common/Script/` のものを使います。通信ロジックは持ちません。文面は Live の transcription 由来です。
-
 ### 共通スクリプト（`Assets/Common/Script/`）
 
-このデモが使っている共通の道具です。どれも入力と出力だけの小さな関数なので、**上の流れを追うときに中身を読む必要はありません。**
+このデモが使っている共通の道具です。**上の流れを追うときに中身を読む必要はありません。**
 
 | ファイル | 中身 |
 |---|---|
@@ -143,5 +139,6 @@ PCM とは、音を時刻ごとの振幅の数字列として表した音声デ�
 | [`GeminiJsonScan`](../Common/Script/GeminiJsonScan.cs) | Live API の受信 JSON からキーを頼りに文字列を拾う |
 | [`GeminiKey`](../Common/Script/GeminiKey.cs) | APIキーの読込・マスク・generateContent の URL |
 | [`AudioCodec`](../Common/Script/AudioCodec.cs) | AudioClip ⇄ WAV / PCM16 の変換 |
+| [`ChatBubble`](../Common/Script/ChatBubble.cs) | 吹き出し1件分の見た目（Prefab: [`MessageBubble.prefab`](Prefab/MessageBubble.prefab)） |
 
-共通スクリプトは 13 デモすべてが使っています。挙動を変えたくなったら Common を直さず、そのファイルをこのデモの `Script/` にコピーしてクラス名を変えてください。
+これらは他のデモも使っています。挙動を変えたくなったら Common を直さず、そのファイルをこのデモの `Script/` にコピーしてクラス名を変えてください。
