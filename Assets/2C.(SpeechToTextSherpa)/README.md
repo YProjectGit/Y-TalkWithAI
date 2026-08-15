@@ -1,6 +1,6 @@
-# 2D.SpeechToTextWhisper
+# 2C.(SpeechToTextSherpa)
 
-2C と同じく、ローカルの音声認識エンジンで文字起こしを速くします。使うのは whisper.unity の Whisper で、多くの言語を1つのモデルで扱えます。
+文字起こしを、ローカルの音声認識エンジン sherpa-onnx で行います。クラウドとやり取りしないぶん、返事が返るまでが速くなります。
 
 シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
 
@@ -10,8 +10,8 @@
 
 - **ローカル STT（Speech-to-Text）**  
   音声の文字起こしを、クラウドではなく端末のエンジンで行い、待ち時間を減らす
-- **whisper.unity**  
-  多言語の音声認識モデル（Whisper）を、自分の PC 上で動かす
+- **sherpa-onnx**  
+  日本語の音声認識モデル（ReazonSpeech）を、自分の PC 上で動かす
 
 ---
 
@@ -19,15 +19,15 @@
 
 1. Google AI Studio から Gemini の API にアクセスするための APIキーを取得し、`Assets/Common/APIKey.txt` に保管してください（Chat 用。STT には使いません）。  
    手順 → [Docs/gemini-ai-studio-setup.md](../../Docs/gemini-ai-studio-setup.md)
-2. whisper.unity の ggml モデルを配置してください。  
-   手順 → [Docs/whisper-unity-setup.md](../../Docs/whisper-unity-setup.md)
+2. sherpa-onnx のモデルとネイティブライブラリを配置してください。  
+   手順 → [Docs/sherpa-onnx-setup.md](../../Docs/sherpa-onnx-setup.md)
 3. PC にマイクがつながり、Unity から使える状態にしてください（OS のマイク権限を含む）。
 
 ---
 
 ## 動かし方
 
-Project ウィンドウで `Assets/2D.SpeechToTextWhisper/SpeechToTextWhisper.unity` を開き、Play を押してください。
+Project ウィンドウで `Assets/2C.(SpeechToTextSherpa)/SpeechToTextLocal.unity` を開き、Play を押してください。
 
 ### 1. Space で日本語を話してみる
 
@@ -37,7 +37,7 @@ Project ウィンドウで `Assets/2D.SpeechToTextWhisper/SpeechToTextWhisper.un
 
 ### 2. 発生順（1〜4）で追う
 
-1. **1. Local STT（whisper.unity）** … 端末のモデル名・言語・サンプル数  
+1. **1. Local STT（sherpa-onnx）** … 端末のモデル名・ファイル・サンプル数  
 2. **2. Local STT 結果** … 認識テキストと経過 ms / RTF（音声の長さに対する処理時間の比。1 未満なら実時間より速い）  
 3. **3. Request - GenerateContent（Text）** … 認識テキストを会話として送る  
 4. **4. Response - GenerateContent（Text）** … チャットの返答が返る  
@@ -53,14 +53,14 @@ Project ウィンドウで `Assets/2D.SpeechToTextWhisper/SpeechToTextWhisper.un
 
 ねらいは速さです。2A は音声を送ってから文字が返るまで、クラウドとの往復を待ちます。ここは端末の中で完結するので、その待ちがなくなります。実際にどれくらいかかったかは、画面の 2. 欄に出る経過 ms と RTF が目安です（速さは PC の性能とモデルの大きさで変わります）。
 
-このデモでは、Space を離したあとの音声（`AudioClip` の float サンプル）を **whisper.unity** に渡します。2A のように WAV を Base64 にして `generateContent` に載せることはしません。
+このデモでは、Space を離したあとの音声（`AudioClip` の float サンプル）を **sherpa-onnx** に渡します。2A のように WAV を Base64 にして `generateContent` に載せることはしません。
 
 ```text
 Microphone.Start
   → AudioClip にサンプルが書き込まれる
 Microphone.End と切り出し
   → float の列（16 kHz）
-WhisperManager.GetTextAsync
+sherpa-onnx OfflineRecognizer
   → 認識テキスト
 Gemini generateContent（Text）
   → チャットの返答
@@ -70,11 +70,11 @@ Gemini generateContent（Text）
 
 ---
 
-## Whisper
+## sherpa-onnx
 
-Whisper は、音声を文字にする専用のモデルです。文章を考える LLM（Large Language Model）とは役割が違います。
+[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) は、音声認識のモデルを端末で動かすためのライブラリです。音声認識のモデルは音声を文字にするだけで、文章を考える LLM（Large Language Model）とは役割が違います。
 
-このデモでは [whisper.unity](https://github.com/Macoron/whisper.unity) 経由で、端末の whisper.cpp が多言語モデル（既定は `ggml-base.bin`）を動かします。言語は `ja` を指定しています。返答の文は、そのあと Gemini が作ります。画面の 1→2 が音声認識、3→4 が LLM です。
+このデモで動かす ReazonSpeech（Zipformer）は、日本語の文字起こしだけをします。返答の文は、そのあと Gemini が作ります。画面の 1→2 が音声認識、3→4 が LLM です。
 
 試し方: 2. の本文と左の You 吹き出しが一致しているか、4. の返答が会話になっているかを見る。
 
@@ -82,31 +82,31 @@ Whisper は、音声を文字にする専用のモデルです。文章を考え
 
 ## 主要クラス
 
-### SpeechToTextWhisper（[`SpeechToTextWhisper.cs`](Script/SpeechToTextWhisper.cs)）
+### SpeechToTextLocal（[`SpeechToTextLocal.cs`](Script/SpeechToTextLocal.cs)）
 
 デモの本体です。上から、録音〜ローカル認識〜Chat の流れを追うとわかりやすいです。
 
-Chat の通信は **UnityWebRequest** と **コルーチン** による **非同期処理** です。ローカル STT は `WhisperManager.GetTextAsync`（`Task`）をコルーチンから待ち、待っているあいだ画面は固まりません。Space の押し話し検知だけは `Update` で、**旧 Input Manager**（`Input.GetKeyDown` / `GetKeyUp`）を使います。
+Chat の通信は **UnityWebRequest** と **コルーチン** による **非同期処理** です。ローカル STT もコルーチンからスレッドプールに渡し、待っているあいだ画面は固まりません。Space の押し話し検知だけは `Update` で、**旧 Input Manager**（`Input.GetKeyDown` / `GetKeyUp`）を使います。
 
 1. **起動時の準備をする**  
-   `Start` — APIキー読込、事前指示、マイク確認、Whisper 初期化
+   `Start` — APIキー読込、事前指示、マイク確認、sherpa 初期化
 2. **Space 押し話しを検知する**  
    `UpdatePushToTalk` — 押しているあいだ録音、離したら認識へ
 3. **マイクで録音する**  
    `BeginRecording` / `EndRecordingAndSend` — `Microphone.Start` → `End` → float サンプル
 4. **1→2. ローカル STT**  
-   `RecognizeThenChatCoroutine` の前半 — `WhisperManager.GetTextAsync` で文字起こし
+   `RecognizeThenChatCoroutine` の前半 — `SherpaOfflineAsr.Recognize` で文字起こし
 5. **3→4. GenerateContent（Text）**  
    同コルーチンの後半 — 認識テキストと会話履歴を POST し、返答を吹き出しへ
 
-### WhisperManager（パッケージ `com.whisper.unity`）
+### SherpaOfflineAsr（[`SherpaOfflineAsr.cs`](Script/SherpaOfflineAsr.cs)）
 
-端末の認識エンジンです。ggml モデルの読み込みと、float サンプルからテキストを返すことだけを持ちます。Gemini 通信や吹き出しは持ちません。
+端末の認識エンジンです。モデルの読み込みと、float サンプルからテキストを返すことだけを持ちます。Gemini 通信や吹き出しは持ちません。
 
 1. **モデルを読み込む**  
-   `InitModel` — `whisperModelRelativePath` の ggml を読み、言語を `ja` にする
+   `TryInitialize` — encoder / decoder / joiner / tokens のパスを確認して `OfflineRecognizer` を作る
 2. **音声を文字にする**  
-   `GetTextAsync` — サンプル列とサンプルレートを渡し、本文を返す
+   `Recognize` — `AcceptWaveform` → `Decode` → 本文と経過 ms / RTF
 
 ### ChatBubble（[`ChatBubble.cs`](../Common/Script/ChatBubble.cs)）
 

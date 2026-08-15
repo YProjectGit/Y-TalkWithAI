@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# 2C.SpeechToTextLocal 用。ReazonSpeech モデルと sherpa-onnx ネイティブ lib を配置する。
+# 2C.(SpeechToTextSherpa) 用。ReazonSpeech モデルと sherpa-onnx ネイティブ lib を配置する。
 # リポジトリルートで: python3 Docs/setup-sherpa-onnx.py
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DEMO = ROOT / "Assets/2C.SpeechToTextLocal"
+DEMO = ROOT / "Assets/2C.(SpeechToTextSherpa)"
 MODELS = DEMO / "Resource/models"
 PLUGINS = DEMO / "Resource/Plugins"
 

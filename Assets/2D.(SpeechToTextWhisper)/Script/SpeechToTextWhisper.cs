@@ -38,7 +38,7 @@ public class SpeechToTextWhisper : MonoBehaviour
     public int sampleRate = 16000; // マイク録音のサンプルレート（Hz）
     public int maxRecordingSeconds = 30;
     public float minRecordingSeconds = 0.3f;
-    public string whisperModelRelativePath = "2D.SpeechToTextWhisper/Resource/models/ggml-base.bin"; // Assets/ からの相対パス
+    public string whisperModelRelativePath = "2D.(SpeechToTextWhisper)/Resource/models/ggml-base.bin"; // Assets/ からの相対パス
     public string whisperLanguage = "ja"; // Whisper に渡す言語コード。空や auto で自動判定
 
     // ===== インスペクタ: 左ペイン（チャット UI） =====

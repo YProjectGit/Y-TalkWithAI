@@ -1,4 +1,4 @@
-# whisper.unity の配置（2D.SpeechToTextWhisper）
+# whisper.unity の配置（2D.(SpeechToTextWhisper)）
 
 2D のローカル STT（Speech-to-Text）に使う ggml モデルを、自分の PC に置いてください。APIキーは不要です。ネイティブライブラリは UPM（Unity Package Manager）パッケージ `com.whisper.unity` に同梱されます。
 
@@ -34,7 +34,7 @@ python3 Docs/setup-whisper-unity.py
 
 | 種類 | パス |
 |------|------|
-| ggml モデル | `Assets/2D.SpeechToTextWhisper/Resource/models/ggml-base.bin` |
+| ggml モデル | `Assets/2D.(SpeechToTextWhisper)/Resource/models/ggml-base.bin` |
 
 既定は多言語の **base**（日本語向け。tiny より重いが精度が安定しやすい）です。
 
@@ -44,7 +44,7 @@ python3 Docs/setup-whisper-unity.py
 
 1. 次のファイルをダウンロードしてください。  
    https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin
-2. `Assets/2D.SpeechToTextWhisper/Resource/models/ggml-base.bin` として保存してください。
+2. `Assets/2D.(SpeechToTextWhisper)/Resource/models/ggml-base.bin` として保存してください。
 
 より精度を上げたいときは `ggml-small.bin` を同じフォルダに置き、インスペクタの `whisperModelRelativePath` を差し替えてください。英語専用（`.en`）のモデルは日本語には使えません。
 

@@ -1,4 +1,4 @@
-# sherpa-onnx の配置（2C.SpeechToTextLocal）
+# sherpa-onnx の配置（2C.(SpeechToTextSherpa)）
 
 2C のローカル STT（Speech-to-Text）に使うモデルとネイティブライブラリを、自分の PC に置いてください。APIキーは不要です。
 
@@ -22,10 +22,10 @@ python3 Docs/setup-sherpa-onnx.py
 
 | 種類 | パス |
 |------|------|
-| モデル 4 ファイル | `Assets/2C.SpeechToTextLocal/Resource/models/` |
-| Windows x64 | `Assets/2C.SpeechToTextLocal/Resource/Plugins/Windows/x86_64/` |
-| macOS arm64 | `Assets/2C.SpeechToTextLocal/Resource/Plugins/macOS/ARM64/` |
-| Linux x64 | `Assets/2C.SpeechToTextLocal/Resource/Plugins/Linux/x86_64/` |
+| モデル 4 ファイル | `Assets/2C.(SpeechToTextSherpa)/Resource/models/` |
+| Windows x64 | `Assets/2C.(SpeechToTextSherpa)/Resource/Plugins/Windows/x86_64/` |
+| macOS arm64 | `Assets/2C.(SpeechToTextSherpa)/Resource/Plugins/macOS/ARM64/` |
+| Linux x64 | `Assets/2C.(SpeechToTextSherpa)/Resource/Plugins/Linux/x86_64/` |
 
 バージョンは sherpa-onnx **v1.13.5**、モデルは `sherpa-onnx-zipformer-ja-reazonspeech-2024-08-01` の int8 です。
 
@@ -37,7 +37,7 @@ python3 Docs/setup-sherpa-onnx.py
 
 1. 次のアーカイブをダウンロードして展開してください。  
    https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-zipformer-ja-reazonspeech-2024-08-01.tar.bz2
-2. 次の 4 ファイルだけを `Assets/2C.SpeechToTextLocal/Resource/models/` にコピーしてください。
+2. 次の 4 ファイルだけを `Assets/2C.(SpeechToTextSherpa)/Resource/models/` にコピーしてください。
 
 | ファイル |
 |----------|

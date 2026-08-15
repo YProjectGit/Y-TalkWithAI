@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# 2D.SpeechToTextWhisper 用。whisper.cpp の ggml-base.bin を配置する。
+# 2D.(SpeechToTextWhisper) 用。whisper.cpp の ggml-base.bin を配置する。
 # リポジトリルートで: python3 Docs/setup-whisper-unity.py
 
 from __future__ import annotations
@@ -9,7 +9,7 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DEST_DIR = ROOT / "Assets/2D.SpeechToTextWhisper/Resource/models"
+DEST_DIR = ROOT / "Assets/2D.(SpeechToTextWhisper)/Resource/models"
 DEST = DEST_DIR / "ggml-base.bin"
 MODEL_URL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin"
 

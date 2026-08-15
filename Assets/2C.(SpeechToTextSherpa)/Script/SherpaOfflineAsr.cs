@@ -13,7 +13,7 @@ using UnityEngine;
 /// </summary>
 public class SherpaOfflineAsr
 {
-    public string modelDirectoryRelativePath = "2C.SpeechToTextLocal/Resource/models"; // Assets/ からの相対
+    public string modelDirectoryRelativePath = "2C.(SpeechToTextSherpa)/Resource/models"; // Assets/ からの相対
     public string encoderFileName = "encoder-epoch-99-avg-1.int8.onnx";
     public string decoderFileName = "decoder-epoch-99-avg-1.onnx";
     public string joinerFileName = "joiner-epoch-99-avg-1.int8.onnx";
