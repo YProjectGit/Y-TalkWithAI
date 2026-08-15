@@ -119,3 +119,7 @@ Assets/Common/APIKey.txt
 
 # 2D whisper.unity の配布物（Docs/setup-whisper-unity.py で配置）
 /Assets/2D.SpeechToTextWhisper/Resource/models/*.bin
+
+# Python
+__pycache__/
+*.py[cod]
