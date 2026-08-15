@@ -66,11 +66,11 @@ Gemini generateContent（Text）
 
 ---
 
-## 専用 ASR とは？
+## sherpa-onnx とは？
 
-ASR（Automatic Speech Recognition）は、音声を文字にする専用のモデルです。文章を考える LLM とは役割が違います。
+[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) は、音声認識のモデルを端末で動かすためのライブラリです。動かす対象は、音声を文字にする専用のモデル（ASR: Automatic Speech Recognition）で、文章を考える LLM とは役割が違います。
 
-このデモの ReazonSpeech（Zipformer）は日本語の文字起こしだけをします。返答の文は、そのあと Gemini が作ります。画面の 1→2 が ASR、3→4 が LLM です。
+このデモで動かす ReazonSpeech（Zipformer）は、日本語の文字起こしだけをします。返答の文は、そのあと Gemini が作ります。画面の 1→2 が ASR、3→4 が LLM です。
 
 試し方: 2. の本文と左の You 吹き出しが一致しているか、4. の返答が会話になっているかを見る。
 
