@@ -1,4 +1,4 @@
-# whisper.unity の配置（2D.(SpeechToTextWhisper)）
+# 2D の Whisper モデルを置く
 
 2D のローカル STT（Speech-to-Text）に使う ggml モデルを、自分の PC に置いてください。APIキーは不要です。ネイティブライブラリは UPM（Unity Package Manager）パッケージ `com.whisper.unity` に同梱されます。
 
