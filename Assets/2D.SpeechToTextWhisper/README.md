@@ -68,7 +68,7 @@ Gemini generateContent（Text）
 
 ## Whisper
 
-Whisper は、音声を文字にする専用のモデルです。文章を考える LLM とは役割が違います。
+Whisper は、音声を文字にする専用のモデルです。文章を考える LLM（Large Language Model）とは役割が違います。
 
 このデモでは [whisper.unity](https://github.com/Macoron/whisper.unity) 経由で、端末の whisper.cpp が多言語モデル（既定は `ggml-base.bin`）を動かします。言語は `ja` を指定しています。返答の文は、そのあと Gemini が作ります。画面の 1→2 が ASR、3→4 が LLM です。
 

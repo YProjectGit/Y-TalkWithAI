@@ -68,7 +68,7 @@ Gemini generateContent（Text）
 
 ## sherpa-onnx
 
-[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) は、音声認識のモデルを端末で動かすためのライブラリです。動かす対象は、音声を文字にする専用のモデル（ASR: Automatic Speech Recognition）で、文章を考える LLM とは役割が違います。
+[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) は、音声認識のモデルを端末で動かすためのライブラリです。動かす対象は、音声を文字にする専用のモデル（ASR: Automatic Speech Recognition）で、文章を考える LLM（Large Language Model）とは役割が違います。
 
 このデモで動かす ReazonSpeech（Zipformer）は、日本語の文字起こしだけをします。返答の文は、そのあと Gemini が作ります。画面の 1→2 が ASR、3→4 が LLM です。
 
