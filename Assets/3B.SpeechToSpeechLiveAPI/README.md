@@ -64,7 +64,7 @@ VAD は Setup 時の設定のため、切替のたびに Live セッションを
 
 Live API とは、HTTP の `generateContent` を何回も呼ぶのではなく、**WebSocket で1本のセッションを張り、音声をチャンクで双方向に流す**仕組みです。
 
-このデモでは Play 開始時に接続と Setup を行い、そのあと PCM を `realtimeInput` で送り、サーバからの PCM と transcription を受け取ります。声色は Setup の `speechConfig`（`voiceName`）で一度指定します。3A のように「文字起こし用」「チャット用」「TTS 用」とリクエストを分けません。
+このデモでは Play 開始時に接続と Setup を行い、そのあと PCM を `realtimeInput` で送り、サーバからの PCM と transcription を受け取ります。声色は Setup の `speechConfig`（`voiceName`）で一度指定します。3A のように「文字起こし用」「チャット用」「TTS（Text-to-Speech）用」とリクエストを分けません。
 
 試し方: 中央 Setup ヘッダと、Space 中に増える送信ログ、返答時の受信ログを見比べる。Inspector で声を変えて聞き比べる（手順は「動かし方」の節。変更後は Stop → Play）。
 
@@ -113,7 +113,7 @@ PCM とは、音を時刻ごとの振幅の数字列として表した音声デ�
 通信は **ClientWebSocket**（双方向のソケット）です。受信はバックグラウンドのループで行い、UI や `AudioSource` の更新だけメインスレッドのキュー経由で戻します。Space の押し話し検知は `Update` と **旧 Input Manager**（`Input.GetKeyDown` / `GetKeyUp`）です。VAD 自動中は Space を無視します。
 
 1. **Live セッションに接続する**  
-   `ConnectLiveSessionCoroutine` — WSS 接続 → Setup JSON 送信 → `setupComplete` 待ち
+   `ConnectLiveSessionCoroutine` — WSS（WebSocket Secure）接続 → Setup JSON 送信 → `setupComplete` 待ち
 2. **手動 / VAD 自動を切り替える**  
    `OnVadModeButtonClicked` → `ReconnectForVadModeCoroutine` — Setup の VAD 設定を載せ替えるため再接続
 3. **Space 押し話しを検知する（手動のみ）**  

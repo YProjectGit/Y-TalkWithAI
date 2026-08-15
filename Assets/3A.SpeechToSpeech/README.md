@@ -49,7 +49,7 @@ Project ウィンドウで `Assets/3A.SpeechToSpeech/SpeechToSpeech.unity` を�
 
 - **5** の欄の先頭に `ttsModel` / `voice` / `responseModalities` の設定行が出ている
 - **5** の本文の `responseModalities` に `AUDIO` が入っている
-- **6** の欄には MIME とバイト数の要約だけが出ている（音声本体は再生に回すため）
+- **6** の欄には MIME（データの種類を表す名前。ここでは音声の形式）とバイト数の要約だけが出ている（音声本体は再生に回すため）
 
 ### 3. 声を変えてみる
 
@@ -89,7 +89,7 @@ Microphone → AudioClip → WAV → Base64 → 1. Request（Audio）
 
 ### SpeechToSpeech（[`SpeechToSpeech.cs`](Script/SpeechToSpeech.cs)）
 
-デモの本体です。上から、録音〜STT〜Chat〜TTS〜再生の流れを追うとわかりやすいです。
+デモの本体です。上から、録音〜STT（Speech-to-Text）〜Chat〜TTS〜再生の流れを追うとわかりやすいです。
 
 通信は **UnityWebRequest**（HTTP の送受信）と **コルーチン**（`IEnumerator` + `yield`）による **非同期処理** です。コルーチンは `Update` などのメインスレッドの処理とは独立した時間軸で進むので、応答待ちのあいだも画面が固まりません。Space の押し話し検知だけは `Update` で、**旧 Input Manager**（`Input.GetKeyDown` / `GetKeyUp`）を使います。
 

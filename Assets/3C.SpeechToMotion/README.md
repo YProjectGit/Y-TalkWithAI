@@ -86,7 +86,7 @@ toolCall が決めるのは**目標**です。画面の値は毎フレーム、�
 通信は **ClientWebSocket**（双方向のソケット）です。受信はバックグラウンドのループで行い、UI・再生・キューブ更新だけメインスレッドのキュー経由で戻します。Space の押し話し検知は `Update` と **旧 Input Manager**（`Input.GetKeyDown` / `GetKeyUp`）です。
 
 1. **Live セッションに接続する**  
-   `ConnectLiveSessionCoroutine` — WSS 接続 → Setup（`systemInstruction` と `tools` と AUDIO）→ `setupComplete` 待ち。1. Setup 欄は `RefreshSetupPanel` で事前指示の本文と関数宣言を出す
+   `ConnectLiveSessionCoroutine` — WSS（WebSocket Secure）接続 → Setup（`systemInstruction` と `tools` と AUDIO）→ `setupComplete` 待ち。1. Setup 欄は `RefreshSetupPanel` で事前指示の本文と関数宣言を出す
 2. **Space 押し話しを検知する**  
    `UpdatePushToTalk` — 押しているあいだ PCM 送信、離したら `activityEnd`
 3. **PCM チャンクを送る**  

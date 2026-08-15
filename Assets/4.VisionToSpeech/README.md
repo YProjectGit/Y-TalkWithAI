@@ -57,7 +57,7 @@ Project ウィンドウで `Assets/4.VisionToSpeech/VisionToSpeech.unity` を開
 
 Live API は WebSocket で1本のセッションを張り、音声や画像をチャンクで双方向に流す仕組みです。このデモではマイクの代わりに **JPEG フレーム** を `realtimeInput.video` で送り、サーバから返る PCM を再生します。
 
-REST で「画像理解 → TTS」と二段に分けるのではなく、**見たものへの返答が最初から声**になります。3B が「声の Live」なら、4 は「目の Live」です。
+REST で「画像理解 → TTS（Text-to-Speech）」と二段に分けるのではなく、**見たものへの返答が最初から声**になります。3B が「声の Live」なら、4 は「目の Live」です。
 
 試し方: Space のあと中央ログに `+frame` と `activityStart` / `activityEnd` が出ること、右に `+audio` と transcription が出ることを見る。
 
@@ -90,7 +90,7 @@ REST で「画像理解 → TTS」と二段に分けるのではなく、**見�
 通信は **ClientWebSocket** です。受信はバックグラウンドのループで行い、UI や `AudioSource` の更新だけメインスレッドのキュー経由で戻します。Space のシャッター検知は `Update` と **旧 Input Manager**（`Input.GetKeyDown`）です。ストリーミング中は Space を無視します。
 
 1. **Live セッションに接続する**  
-   `ConnectLiveSessionCoroutine` — WSS 接続 → Setup JSON 送信 → `setupComplete` 待ち
+   `ConnectLiveSessionCoroutine` — WSS（WebSocket Secure）接続 → Setup JSON 送信 → `setupComplete` 待ち
 2. **Space シャッターで1フレーム送る**  
    `SendFrameTurnCoroutine` — `activityStart` → JPEG → 説明指示テキスト → `activityEnd`
 3. **ストリーミングを切り替える**  

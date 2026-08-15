@@ -28,7 +28,7 @@ APIキーを取った直後は **Free Tier** です。トークン代はかか�
 1. [Google AI Studio](https://aistudio.google.com) を開く
 2. **Usage & Billing**（使用状況と請求）→ **Rate limits**（レート制限）
 
-このワークショップでよく使う枠の目安です（2026年8月時点）。実際の上限はアカウントによって違うので、AI Studio の Rate limits 画面の数字を正としてください。
+このワークショップでよく使う枠の目安です（2026年8月時点）。実際の上限はアカウントによって違うので、AI Studio の Rate limits 画面の数字を正としてください。表の STT は Speech-to-Text（音声→テキスト）、TTS は Text-to-Speech（テキスト→音声）の略です。
 
 | モデル | よくある無料の1日回数 | この教材での使いどころ |
 |---|---|---|

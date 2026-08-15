@@ -1,6 +1,6 @@
 # whisper.unity の配置（2D.SpeechToTextWhisper）
 
-2D のローカル STT に使う ggml モデルを、自分の PC に置いてください。APIキーは不要です。ネイティブライブラリは UPM パッケージ `com.whisper.unity` に同梱されます。
+2D のローカル STT（Speech-to-Text）に使う ggml モデルを、自分の PC に置いてください。APIキーは不要です。ネイティブライブラリは UPM パッケージ `com.whisper.unity` に同梱されます。
 
 ライセンス: [whisper.unity](https://github.com/Macoron/whisper.unity) と [whisper.cpp](https://github.com/ggerganov/whisper.cpp)、[OpenAI Whisper](https://github.com/openai/whisper) は MIT です。
 

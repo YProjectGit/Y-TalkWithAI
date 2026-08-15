@@ -89,7 +89,7 @@ Project ウィンドウで `Assets/5.ScreenToSpeech/ScreenToSpeech.unity` を開
 通信は **ClientWebSocket** です。受信はバックグラウンドのループで行い、UI や `AudioSource` の更新だけメインスレッドのキュー経由で戻します。コルーチンは `Update` などのメインスレッド処理とは独立した時間軸で進むので、応答待ちのあいだも描き続けられます。
 
 1. **Live セッションに接続する**  
-   `ConnectLiveSessionCoroutine` — WSS 接続 → Setup JSON 送信 → `setupComplete` 待ち
+   `ConnectLiveSessionCoroutine` — WSS（WebSocket Secure）接続 → Setup JSON 送信 → `setupComplete` 待ち
 2. **描きながらフレームを送る**  
    `InterpretLoopCoroutine` / `SendFrameTurnCoroutine` — 描き足された紙をおよそ 1 FPS で `activityStart` → JPEG → 実況指示 → `activityEnd`
 3. **JPEG を用意する**  

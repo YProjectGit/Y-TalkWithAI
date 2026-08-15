@@ -1,6 +1,6 @@
 # sherpa-onnx の配置（2C.SpeechToTextLocal）
 
-2C のローカル STT に使うモデルとネイティブライブラリを、自分の PC に置いてください。APIキーは不要です。
+2C のローカル STT（Speech-to-Text）に使うモデルとネイティブライブラリを、自分の PC に置いてください。APIキーは不要です。
 
 ライセンス: [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) と [ReazonSpeech](https://research.reazon.jp/blog/2024-08-01-ReazonSpeech.html) は Apache 2.0 です。
 

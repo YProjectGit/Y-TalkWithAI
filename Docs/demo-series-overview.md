@@ -12,6 +12,8 @@
 2. **声で入る（マイク入力）** … `2A` → `2C`（sherpa）→ `2D`（whisper）→ `2B` → `3A`（REST で TTS）→ `3B`（Live API）→ `3C`（Live + function call）
 3. **見る・描く** … `4`〜`7`（映像・画像）
 
+STT は Speech-to-Text（音声→テキスト）、TTS は Text-to-Speech（テキスト→音声）の略です。
+
 入力モダリティごとに、**A = 自由テキスト出力 / B = JSON（構造化）出力** を揃えています。ただし `3` 以降は出力が音声になるため、A / B ではなく別の軸で並べます。
 
 - `3A` / `3B` … REST 三段と Live セッションの対比
