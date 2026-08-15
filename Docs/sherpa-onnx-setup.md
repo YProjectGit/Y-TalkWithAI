@@ -4,7 +4,7 @@
 
 ライセンス: [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) と [ReazonSpeech](https://research.reazon.jp/blog/2024-08-01-ReazonSpeech.html) は Apache 2.0 です。
 
-対応（初回）: **Windows x64** と **macOS arm64**。Linux x64 もスクリプトで置けますが、ワークショップでは未検証です。
+対応 OS: **Windows x64** と **macOS arm64**。Linux x64 もスクリプトで置けますが、ワークショップでは未検証です。
 
 ---
 
@@ -16,7 +16,7 @@
 python3 Docs/setup-sherpa-onnx.py
 ```
 
-終わったら Unity に戻し、Project ウィンドウを一度クリックしてから `SpeechToTextLocal` シーンを Play してください。
+終わったら Unity に戻し、Project ウィンドウを一度クリックしてください（置いたファイルが再インポートされます）。そのあと `SpeechToTextLocal` シーンを Play してください。
 
 置く場所:
 
@@ -67,4 +67,4 @@ Unity に戻したあと、必要なら各プラグインの Inspector で自分
 ## 置けたかの目安
 
 Play 直後の Status が「待機中（Space で録音）」になれば読み込み成功です。  
-「sherpa 未配置」や 1. 欄にパス案内が出るときは、上の 4 ファイルとネイティブ lib を見直してください。
+「sherpa 未配置」や、画面の 1. 欄にパス案内が出るときは、上の 4 ファイルとネイティブライブラリを見直してください。

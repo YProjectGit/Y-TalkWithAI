@@ -9,7 +9,7 @@
 - **Live API の映像入力**  
   カメラ画像をセッションに流し、見た内容への返答を声でもらう
 - **シャッターとストリーミング**  
-  Space の1枚送信と、トグルによる連続送信（約1 FPS）の違い
+  Space の1枚送信と、トグルによる連続送信（およそ 1 FPS）の違い
 - **送信フレーム**  
   動画ファイルではなく JPEG フレームを送っていること
 
@@ -69,7 +69,7 @@ REST で「画像理解 → TTS」と二段に分けるのではなく、**見�
 
 **シャッター**（初期）は Space でいまのカメラ画を1枚だけ送り、ターンを閉じます。送信ログに1回分の `+frame` が増えます。
 
-**ストリーミング**は同じ送信を約1秒間隔で繰り返します（Live の映像入力は最大おおよそ1 FPS）。ON のあいだ Space は使えません。送っているのは動画ファイルではなく、間欠的な JPEG です。送信前に長辺をだいたい768まで縮小します。
+**ストリーミング**は同じ送信をおよそ1秒間隔で繰り返します（Live の映像入力は最大でおよそ 1 FPS）。ON のあいだ Space は使えません。送っているのは動画ファイルではなく、間欠的な JPEG です。送信前に長辺を 768 前後まで縮小します。
 
 試し方: Stream を ON/OFF し、案内文と中央ログの増え方の違いを比べる。
 
@@ -96,9 +96,9 @@ REST で「画像理解 → TTS」と二段に分けるのではなく、**見�
 2. **Space シャッターで1フレーム送る**  
    `SendFrameTurnCoroutine` — `activityStart` → JPEG → 説明指示テキスト → `activityEnd`
 3. **ストリーミングを切り替える**  
-   `OnStreamModeButtonClicked` / `StreamLoopCoroutine` — 約1 FPS で同じ1ターン送信を繰り返す（再接続なし）
+   `OnStreamModeButtonClicked` / `StreamLoopCoroutine` — およそ 1 FPS で同じ1ターン送信を繰り返す（再接続なし）
 4. **JPEG を用意する**  
-   `TryCaptureJpeg` — WebCam から取得し、長辺768前後へ縮小して `EncodeToJPG`
+   `TryCaptureJpeg` — WebCam から取得し、長辺を 768 前後まで縮小して `EncodeToJPG`
 5. **サーバメッセージを振り分ける**  
    `HandleServerMessage` — 音声は再生キュー、output transcription はログと吹き出し
 6. **受信 PCM を再生する**  

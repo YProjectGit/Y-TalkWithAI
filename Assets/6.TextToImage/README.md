@@ -21,7 +21,7 @@ Google AI Studio から Gemini の API にアクセスするための APIキー�
 手順 → [Docs/gemini-ai-studio-setup.md](../../Docs/gemini-ai-studio-setup.md)  
 無料枠で 429 が出たら、有料への移り方と値段の目安 → [Docs/gemini-api-pricing.md](../../Docs/gemini-api-pricing.md)
 
-このデモは画像生成モデル（既定は `gemini-3.1-flash-image`）を使います。テキスト用の Lite とは別枠です。
+このデモは画像生成モデル（既定は `gemini-3.1-flash-image`）を使います。無料枠も課金も、テキスト用の Lite とは別に数えます。
 
 ---
 
@@ -61,7 +61,7 @@ Project ウィンドウで `Assets/6.TextToImage/TextToImage.unity` を開き、
 
 ## responseModalities とは？
 
-Gemini に「何の形で返してほしいか」を伝える設定です。1A では省略してテキストが返ります。このデモでは `generationConfig.responseModalities` に `"TEXT"` と `"IMAGE"` を載せ、画像を必須にします。
+Gemini に「何の形で返してほしいか」を伝える設定です。1A では指定を省略しているので、テキストが返ります。このデモでは `generationConfig.responseModalities` に `"TEXT"` と `"IMAGE"` を載せ、画像を必須にします。
 
 テキスト part があれば、左の画像の下に短いキャプションとして出ます。会話の履歴は送りません。毎回、いま打ったプロンプトだけです。
 

@@ -38,7 +38,7 @@ Project ウィンドウで `Assets/2C.SpeechToTextLocal/SpeechToTextLocal.unity`
 ### 2. 発生順（1〜4）で追う
 
 1. **1. Local STT（sherpa-onnx）** … 端末のモデル名・ファイル・サンプル数  
-2. **2. Local STT 結果** … 認識テキストと経過ms / RTF  
+2. **2. Local STT 結果** … 認識テキストと経過 ms / RTF（音声の長さに対する処理時間の比。1 未満なら実時間より速い）  
 3. **3. Request - GenerateContent（Text）** … 認識テキストを会話として送る  
 4. **4. Response - GenerateContent（Text）** … チャットの返答が返る  
 
@@ -64,7 +64,7 @@ Gemini generateContent（Text）
   → チャットの返答
 ```
 
-試し方: 同じ発話のあと、1. 欄にモデル名があること、2. 欄に経過ms と本文が出ること、3. 欄の JSON に `inlineData` が無いことを見る。
+試し方: 同じ発話のあと、1. 欄にモデル名があること、2. 欄に経過 ms と本文が出ること、3. 欄の JSON に `inlineData` が無いことを見る。
 
 ---
 
@@ -104,7 +104,7 @@ Chat の通信は **UnityWebRequest** と **コルーチン** による **非同
 1. **モデルを読み込む**  
    `TryInitialize` — encoder / decoder / joiner / tokens のパスを確認して `OfflineRecognizer` を作る
 2. **音声を文字にする**  
-   `Recognize` — `AcceptWaveform` → `Decode` → 本文と経過ms / RTF
+   `Recognize` — `AcceptWaveform` → `Decode` → 本文と経過 ms / RTF
 
 ### ChatBubble（[`ChatBubble.cs`](../Common/Script/ChatBubble.cs)）
 

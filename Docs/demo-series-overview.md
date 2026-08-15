@@ -1,6 +1,6 @@
 # デモシリーズ全体構成（概要）
 
-音声・画像インタラクション・ワークショップの学習順と、各デモのパイプライン位置づけです。
+音声・画像インタラクション・ワークショップの学習順と、各デモがパイプラインのどこにあたるかをまとめます。
 
 対象デモ: `1A.TextToText` / `1B.TextToJSON` / `2A.SpeechToText` / `2C.SpeechToTextLocal` / `2D.SpeechToTextWhisper` / `2B.SpeechToJSON` / `3A.SpeechToSpeech` / `3B.SpeechToSpeechLiveAPI` / `3C.SpeechToMotion` / `4.VisionToSpeech` / `5.ScreenToSpeech` / `6.TextToImage` / `7.ImageToImage`
 
@@ -12,11 +12,19 @@
 2. **声で入る（マイク入力）** … `2A` → `2C`（sherpa）→ `2D`（whisper）→ `2B` → `3A`（REST で TTS）→ `3B`（Live API）→ `3C`（Live + function call）
 3. **見る・描く** … `4`〜`7`（映像・画像）
 
-入力モダリティごとに、**A = 自由テキスト出力 / B = JSON（構造化）出力** を揃えます（`3` は出力が音声になるため REST / Live の対比。`3C` は Live の途中で関数を呼ぶ。`4`/`5` の映像→音声は Live API）。各デモの手順は、そのフォルダの README を見てください。
+入力モダリティごとに、**A = 自由テキスト出力 / B = JSON（構造化）出力** を揃えています。ただし `3` 以降は出力が音声になるため、A / B ではなく別の軸で並べます。
+
+- `3A` / `3B` … REST 三段と Live セッションの対比
+- `3C` … Live の途中で関数を呼ぶ
+- `4` / `5` … 映像→音声。どちらも Live API
+
+各デモの手順は、そのフォルダの README を見てください。
 
 ---
 
-## 学習の進め方
+## デモ一覧（入力と出力）
+
+並びは番号順ではなく、上から学習していく順です。
 
 | # | フォルダ | 入力 | 処理の骨格 | 出力 |
 |---|----------|------|------------|------|
@@ -50,7 +58,7 @@
 [7]  Camera ＋ Text ────► Image Edit ───────────────► Image
 ```
 
-共通の前提（キー取得など）は [gemini-ai-studio-setup.md](gemini-ai-studio-setup.md) を参照します。無料枠のあと有料に移るとき → [gemini-api-pricing.md](gemini-api-pricing.md)
+共通の前提（キー取得など）は [gemini-ai-studio-setup.md](gemini-ai-studio-setup.md) を参照してください。無料枠のあと有料に移るとき → [gemini-api-pricing.md](gemini-api-pricing.md)
 
 ---
 
@@ -60,7 +68,7 @@
 
 - **1 デモ = 1 フォルダ**（シーン・メインスクリプト・README をセット）
 - **フォルダ名は `Assets/{番号}.{題名}/`**（例: `1A.TextToText`。番号と題名のあいだはピリオドのみ、スペースなし）
-- **パイプラインを隠さない** — Status / 中間結果（テキスト・JSON）を見える化する（TextToText と同じ考え方。`5` と `7` は体験画面のため送信／受信欄を出さない）
+- **パイプラインを隠さない** — Status / 中間結果（テキスト・JSON）を見える化する（`1A` と同じ考え方。`5` と `7` は体験画面のため送信／受信欄を出さない）
 - **API キーは `Assets/Common/APIKey.txt`**（リポジトリにはコミットしない）
 - **共通基盤への寄せすぎはしない** — コピーして改変しやすい短い流れを優先
 
@@ -70,6 +78,7 @@
 
 | デモ | 前の段階から増える主な要素 |
 |------|------------------------------|
+| 1A.TextToText | （出発点）テキストの送受信、会話コンテキスト、System Instruction |
 | 1B.TextToJSON | 決まった形（JSON）での返答、パース、UI / パラメータへの反映 |
 | 2A.SpeechToText | マイク録音、音声→テキスト（STT）。出力は 1A と同型のテキスト |
 | 2C.SpeechToTextLocal | STT だけ sherpa-onnx（端末）。Chat は 2A と同じ Gemini |

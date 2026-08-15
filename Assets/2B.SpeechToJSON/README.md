@@ -30,7 +30,7 @@ Project ウィンドウで `Assets/2B.SpeechToJSON/SpeechToJSON.unity` を開き
 ### 1. Space で色を変えてみる
 
 1. **Space を押したまま**、たとえば「キューブは夕焼けのオレンジ、背景は夜の紺」と話し、**離してください**。
-2. Status が録音 → 音声変換 → 1. Request → 3. Request と進むことを見てください。
+2. Status が「録音中」→「音声データ変換中」→「1. Request」→「3. Request」と進むことを見てください。
 3. 左の **3D キューブの色** と **背景色** が変わること、認識テキスト欄に文字起こしが出ることを確認してください。
 
 ### 2. 発生順（1〜4）で Request / Response を追う
@@ -79,4 +79,4 @@ Project ウィンドウで `Assets/2B.SpeechToJSON/SpeechToJSON.unity` を開き
 5. **1→2. GenerateContent（Audio）**  
    `SendSpeechPipelineCoroutine` の前半 — 音声付き JSON を POST し、文字起こしを認識テキスト欄へ
 6. **3→4. GenerateContent（Text）**  
-   同コルーチンの後半 — スキーマ付きで構造化 JSON を受け取り、色へ反映  
+   同コルーチンの後半 — スキーマ付きで構造化 JSON を受け取り、色へ反映

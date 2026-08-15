@@ -45,13 +45,18 @@ Project ウィンドウで `Assets/3A.SpeechToSpeech/SpeechToSpeech.unity` を�
 5. **5. Request - GenerateContent（TTS）** … その返答テキストを TTS モデルへ送る  
 6. **6. Response - GenerateContent（TTS）** … 音声バイトが返り、再生に使う  
 
-5 の欄の先頭に `ttsModel` / `voice` / `responseModalities` の設定行が出ること、本文に `responseModalities` に `AUDIO` があること、6 の欄では MIME とバイト数など要約だけが出ることを確認してください（音声本体は再生に回します）。
+次の3点を確認してください。
+
+- **5** の欄の先頭に `ttsModel` / `voice` / `responseModalities` の設定行が出ている
+- **5** の本文の `responseModalities` に `AUDIO` が入っている
+- **6** の欄には MIME とバイト数の要約だけが出ている（音声本体は再生に回すため）
 
 ### 3. 声を変えてみる
 
 1. Hierarchy でデモ本体（`SpeechToSpeech`）を選び、Inspector の **Tts Voice Name**（`ttsVoiceName`）を変更してください（初期値は `Kore`）。
-2. Play し直し、**5. Request** 欄先頭の `voice:` が新しい名前になっていることを確認してから、Space で話してください（次の TTS リクエストから反映されます）。
+2. Space で話し、**5. Request** 欄先頭の `voice:` が新しい名前になっていることを確認してください。
 
+声はリクエストのたびに送るので、Play 中に変えてもそのまま次の TTS から反映されます（Live API を使う 3B / 4 / 5 とは違い、Stop → Play は要りません）。  
 使える声の名前一覧 → [Gemini API: Text-to-speech（Voice options）](https://ai.google.dev/gemini-api/docs/speech-generation#voices)
 
 ---
@@ -74,7 +79,7 @@ Project ウィンドウで `Assets/3A.SpeechToSpeech/SpeechToSpeech.unity` を�
 Microphone → AudioClip → WAV → Base64 → 1. Request（Audio）
 ```
 
-出口側（5→6）では逆方向に近いことが起きます。API から来た PCM（または WAV）を `AudioClip` にして `AudioSource` で再生します。
+出口側（5→6）では逆向きの変換が起きます。API から来た PCM（または WAV）を `AudioClip` にして `AudioSource` で再生します。
 
 試し方: Status に「再生中」が出るタイミングと、6. Response の `mimeType` / `audio bytes` を見比べる。
 

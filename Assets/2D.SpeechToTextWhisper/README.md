@@ -38,7 +38,7 @@ Project ウィンドウで `Assets/2D.SpeechToTextWhisper/SpeechToTextWhisper.un
 ### 2. 発生順（1〜4）で追う
 
 1. **1. Local STT（whisper.unity）** … 端末のモデル名・言語・サンプル数  
-2. **2. Local STT 結果** … 認識テキストと経過ms / RTF  
+2. **2. Local STT 結果** … 認識テキストと経過 ms / RTF（音声の長さに対する処理時間の比。1 未満なら実時間より速い）  
 3. **3. Request - GenerateContent（Text）** … 認識テキストを会話として送る  
 4. **4. Response - GenerateContent（Text）** … チャットの返答が返る  
 
@@ -64,7 +64,7 @@ Gemini generateContent（Text）
   → チャットの返答
 ```
 
-試し方: 同じ発話のあと、1. 欄にモデル名があること、2. 欄に経過ms と本文が出ること、3. 欄の JSON に `inlineData` が無いことを見る。
+試し方: 同じ発話のあと、1. 欄にモデル名があること、2. 欄に経過 ms と本文が出ること、3. 欄の JSON に `inlineData` が無いことを見る。
 
 ---
 

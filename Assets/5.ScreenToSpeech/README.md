@@ -21,6 +21,8 @@
    手順 → [Docs/gemini-ai-studio-setup.md](../../Docs/gemini-ai-studio-setup.md)
 2. スピーカーまたはヘッドホンで再生音が聞こえる状態にしてください。
 
+入力は画面に描いた絵だけなので、マイクとカメラは使いません。
+
 ---
 
 ## 動かし方
@@ -64,7 +66,7 @@ Project ウィンドウで `Assets/5.ScreenToSpeech/ScreenToSpeech.unity` を開
 
 ## 描きながらの解釈とは？
 
-描き終わってボタンを押すのではなく、**線が増えるたびに、いまの紙を見て声で返す** やり方です。送信の間隔はおよそ1秒で、前の返答が終わるまで次は送りません。空の紙は送りません。
+描き終わってボタンを押すのではなく、**線が増えるたびに、いまの紙を見て声で返す** やり方です。送信の間隔はおよそ1秒。前の返答が終わるまで次は送らず、白紙のままなら何も送りません。
 
 新しい解釈が始まるときは、前の声を止めてから話します。描き足すと「線」→「四角」→「家」のように、途中経過への実況が聞こえることがあります。
 
@@ -74,7 +76,7 @@ Project ウィンドウで `Assets/5.ScreenToSpeech/ScreenToSpeech.unity` を開
 
 ## 送信フレームとは？
 
-送っているのは動画ファイルではなく、その瞬間の紙を写した **JPEG の静止画** です。Live の映像入力は最大おおよそ1 FPS なので、連続した動画ではなく間欠的なスナップショットです。送信前に長辺をだいたい768まで縮小します。
+送っているのは動画ファイルではなく、その瞬間の紙を写した **JPEG の静止画** です。Live の映像入力は最大でおよそ 1 FPS なので、連続した動画ではなく間欠的なスナップショットになります。送信前に長辺を 768 前後まで縮小します。
 
 4 のシャッター／ストリームトグルは置いていません。描くこと自体が送信のきっかけです。
 
@@ -93,9 +95,9 @@ Project ウィンドウで `Assets/5.ScreenToSpeech/ScreenToSpeech.unity` を開
 1. **Live セッションに接続する**  
    `ConnectLiveSessionCoroutine` — WSS 接続 → Setup JSON 送信 → `setupComplete` 待ち
 2. **描きながらフレームを送る**  
-   `InterpretLoopCoroutine` / `SendFrameTurnCoroutine` — dirty な紙を約1 FPS で `activityStart` → JPEG → 実況指示 → `activityEnd`
+   `InterpretLoopCoroutine` / `SendFrameTurnCoroutine` — 描き足された紙をおよそ 1 FPS で `activityStart` → JPEG → 実況指示 → `activityEnd`
 3. **JPEG を用意する**  
-   `TryCaptureJpeg` — キャンバスの Texture2D を長辺768前後へ縮小して `EncodeToJPG`
+   `TryCaptureJpeg` — キャンバスの Texture2D を長辺 768 前後まで縮小して `EncodeToJPG`
 4. **サーバメッセージを振り分ける**  
    `HandleServerMessage` — 音声は再生キュー、output transcription は字幕
 5. **受信 PCM を再生する**  

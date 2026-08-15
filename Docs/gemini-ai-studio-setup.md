@@ -1,6 +1,6 @@
 # Google AI Studio セットアップ手順
 
-音声インタラクション・ワークショップ用 / Gemini Developer API を Unity から使うための準備  
+音声・画像インタラクション・ワークショップ用 / Gemini Developer API を Unity から使うための準備  
 （最終確認: 2026年8月）
 
 ---
@@ -48,7 +48,9 @@
 
 キーを他人に見せないこと（SNS・チャット・スクリーンショット・公開リポジトリ禁止）。漏らしたら AI Studio で削除し、作り直す。
 
-このワークショップでは、キーを Unity クライアント（`Assets/Common/APIKey.txt`）から直接送ります。学習用の最短経路です。本番のアプリでは、キーを端末や配布ビルドに入れず、自前のサーバが短い寿命の仮の資格情報（ephemeral token）を発行し、クライアントはそのトークンだけを Gemini に渡すことが推奨されます。
+このワークショップでは、キーを Unity クライアント（`Assets/Common/APIKey.txt`）から直接送ります。学習用の最短経路です。
+
+本番のアプリではこの形にしません。キーは端末にも配布ビルドにも入れず、自前のサーバが短い寿命の仮の資格情報（ephemeral token）を発行し、クライアントはそのトークンだけを Gemini に渡す形が推奨されます。
 
 ---
 
@@ -104,7 +106,7 @@ curl -s "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flas
 
 返答テキストを含む JSON が返れば **成功** です。
 
-コマンドが不安な場合は、左メニューの **Playground** で話しかけて返事が返るか確認しても構いません（キー疎通の確実な確認は上のコマンドです）。
+コマンドの実行に不安がある場合は、左メニューの **Playground** で話しかけて返事が返るか確認しても構いません（キー疎通を確実に確かめられるのは上のコマンドです）。
 
 ---
 
@@ -116,5 +118,5 @@ curl -s "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flas
 | `429` | 無料枠上限。待つだけでは日次回数は回復しないことが多い。→ [gemini-api-pricing.md](gemini-api-pricing.md) |
 | `404` | URL / モデル名が古くないか（`gemini-3.1-flash-lite`） |
 | 応答が空 | JSON の入れ子（`contents` → `parts` → `text`） |
-| PowerShell で `-H` が認識されない | Mac 用の複数行 `curl` を貼っている。Windows 欄の例を使う |
+| PowerShell で `-H` が認識されない | Mac 用の `curl` を貼っている。Windows 欄の例を使う |
 | PowerShell で JSON エラー | Windows 欄の `Invoke-RestMethod` 例を使う |
