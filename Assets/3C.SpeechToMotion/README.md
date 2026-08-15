@@ -1,5 +1,7 @@
 # 3C.SpeechToMotion
 
+会話の途中で、Gemini Live API がアプリの機能を呼び出します。会話がそのまま、アプリの操作になります。
+
 シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
 
 ---

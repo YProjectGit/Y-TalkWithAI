@@ -1,5 +1,7 @@
 # 2A.SpeechToText
 
+入力を文字から声に広げます。Gemini が声を文字にしてくれるので、キーボードを使わないやり取りが作れます。
+
 シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
 
 ---

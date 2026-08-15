@@ -1,5 +1,7 @@
 # 1B.TextToJSON
 
+自然言語ではなく、フォーマット化されたデータで返事を返します。プログラムがそのまま解釈できる形になるので、多様なインタラクションを実現できます。
+
 シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
 
 ---

@@ -1,5 +1,7 @@
 # 1A.TextToText
 
+Gemini とテキストだけをやり取りする、いちばん基本の形です。送った内容と返ってきた内容をそのまま見ることで、AI との対話がどう成り立っているかをつかめます。
+
 シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
 
 ---

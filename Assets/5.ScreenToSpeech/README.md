@@ -1,5 +1,7 @@
 # 5.ScreenToSpeech
 
+映像の入力元を、カメラからアプリ自身が描く画面に替えます。アプリの中で起きていることを、そのまま AI に見せられます。
+
 シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
 
 ---

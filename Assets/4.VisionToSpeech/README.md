@@ -1,5 +1,7 @@
 # 4.VisionToSpeech
 
+Gemini Live API に送る入力を、音声から映像へ広げます。カメラが捉えたものについて話せるようになります。
+
 シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
 
 ---

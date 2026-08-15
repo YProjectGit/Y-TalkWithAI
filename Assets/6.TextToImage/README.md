@@ -1,5 +1,7 @@
 # 6.TextToImage
 
+返事をテキストや音声ではなく、画像として受け取ります。Gemini の画像生成モデルで、言葉から絵を作れます。
+
 シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
 
 ---

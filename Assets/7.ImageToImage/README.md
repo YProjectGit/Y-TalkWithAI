@@ -1,5 +1,7 @@
 # 7.ImageToImage
 
+画像生成に元画像を添え、テキストと画像を一緒に送ります。ゼロから作るのではなく、いまあるものを変える形の生成ができます。
+
 シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
 
 ---

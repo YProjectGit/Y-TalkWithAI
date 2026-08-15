@@ -1,5 +1,7 @@
 # 2C.SpeechToTextLocal
 
+文字起こしを、ローカルの音声認識エンジン sherpa-onnx で行います。クラウドとやり取りしないぶん、返事が返るまでが速くなります。
+
 シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
 
 ---
@@ -7,7 +9,7 @@
 ## このデモで学べること
 
 - **ローカル STT（Speech-to-Text）**  
-  音声の文字起こしを、クラウドではなく端末のエンジンで行う
+  音声の文字起こしを、クラウドではなく端末のエンジンで行い、待ち時間を減らす
 - **sherpa-onnx**  
   日本語の音声認識モデル（ReazonSpeech）を、自分の PC 上で動かす
 
@@ -49,6 +51,8 @@ Project ウィンドウで `Assets/2C.SpeechToTextLocal/SpeechToTextLocal.unity`
 
 音声をテキストに変換する処理を、インターネット上の API ではなく、自分の PC 上のエンジンで行うことです。
 
+ねらいは速さです。2A は音声を送ってから文字が返るまで、クラウドとの往復を待ちます。ここは端末の中で完結するので、その待ちがなくなります。実際にどれくらいかかったかは、画面の 2. 欄に出る経過 ms と RTF が目安です（速さは PC の性能とモデルの大きさで変わります）。
+
 このデモでは、Space を離したあとの音声（`AudioClip` の float サンプル）を **sherpa-onnx** に渡します。2A のように WAV を Base64 にして `generateContent` に載せることはしません。
 
 ```text
@@ -62,7 +66,7 @@ Gemini generateContent（Text）
   → チャットの返答
 ```
 
-試し方: 同じ発話のあと、1. 欄にモデル名があること、2. 欄に経過 ms と本文が出ること、3. 欄の JSON に `inlineData` が無いことを見る。
+試し方: 2A と同じ文を話し、文字が出るまでの速さを比べる。1. 欄にモデル名があること、2. 欄に経過 ms と本文が出ること、3. 欄の JSON に `inlineData` が無いことを見る。
 
 ---
 
