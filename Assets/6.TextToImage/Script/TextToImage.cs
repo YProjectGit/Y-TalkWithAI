@@ -13,7 +13,6 @@
 
 using System;
 using System.Collections;
-using System.IO;
 using System.Text;
 using TMPro;
 using UnityEngine;
@@ -215,7 +214,7 @@ public class TextToImage : MonoBehaviour
     {
         StringBuilder sb = new StringBuilder();
         sb.Append("{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"");
-        sb.Append(EscapeJson(prompt));
+        sb.Append(GeminiJson.Escape(prompt));
         sb.Append("\"}]}],\"generationConfig\":{");
         sb.Append("\"responseModalities\":[\"TEXT\",\"IMAGE\"]");
 
@@ -227,7 +226,7 @@ public class TextToImage : MonoBehaviour
             if (!string.IsNullOrEmpty(aspectRatio))
             {
                 sb.Append("\"aspectRatio\":\"");
-                sb.Append(EscapeJson(aspectRatio));
+                sb.Append(GeminiJson.Escape(aspectRatio));
                 sb.Append('"');
                 wrote = true;
             }
@@ -240,7 +239,7 @@ public class TextToImage : MonoBehaviour
                 }
 
                 sb.Append("\"imageSize\":\"");
-                sb.Append(EscapeJson(imageSize));
+                sb.Append(GeminiJson.Escape(imageSize));
                 sb.Append('"');
             }
 
@@ -419,24 +418,14 @@ public class TextToImage : MonoBehaviour
     // Assets/Common/APIKey.txt を1行読む（リポジトリにはコミットしない）
     void LoadApiKey()
     {
-        string path = Path.Combine(Application.dataPath, apiKeyRelativePath);
-        if (!File.Exists(path))
+        string error;
+        if (!GeminiKey.TryRead(apiKeyRelativePath, out apiKey, out error))
         {
-            Debug.LogError("[TextToImage] APIキーファイルがありません: " + path);
-            apiKey = null;
+            Debug.LogError("[TextToImage] " + error);
             return;
         }
 
-        apiKey = File.ReadAllText(path).Trim();
-        if (string.IsNullOrEmpty(apiKey))
-        {
-            Debug.LogError("[TextToImage] APIキーが空です: " + path);
-            apiKey = null;
-        }
-        else
-        {
-            Debug.Log("[TextToImage] APIキーを読み込みました（長さ " + apiKey.Length + "）。キー自体はログに出しません。");
-        }
+        Debug.Log("[TextToImage] APIキーを読み込みました（長さ " + apiKey.Length + "）。キー自体はログに出しません。");
     }
 
     // ----- UI 更新 -----
@@ -478,9 +467,9 @@ public class TextToImage : MonoBehaviour
         StringBuilder sb = new StringBuilder();
         sb.AppendLine("POST " + url);
         sb.AppendLine("Content-Type: application/json; charset=utf-8");
-        sb.AppendLine("x-goog-api-key: " + MaskApiKey(apiKey));
+        sb.AppendLine("x-goog-api-key: " + GeminiKey.Mask(apiKey));
         sb.AppendLine();
-        sb.Append(PrettyPrintJson(requestJson));
+        sb.Append(GeminiJson.PrettyPrint(requestJson));
         requestText.text = sb.ToString();
     }
 
@@ -519,7 +508,7 @@ public class TextToImage : MonoBehaviour
         sb.AppendLine();
         sb.Append(string.IsNullOrEmpty(responseBody)
             ? "(empty body)"
-            : PrettyPrintJson(TruncateAllBase64ForDisplay(responseBody)));
+            : GeminiJson.PrettyPrint(TruncateAllBase64ForDisplay(responseBody)));
         responseText.text = sb.ToString();
     }
 
@@ -609,121 +598,6 @@ public class TextToImage : MonoBehaviour
     }
 
     // ----- JSON / 表示ヘルパー -----
-
-    static string MaskApiKey(string key)
-    {
-        if (string.IsNullOrEmpty(key))
-        {
-            return "(none)";
-        }
-
-        if (key.Length <= 6)
-        {
-            return "******";
-        }
-
-        return key.Substring(0, 4) + "…" + new string('*', 8);
-    }
-
-    static string EscapeJson(string value)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            return string.Empty;
-        }
-
-        StringBuilder sb = new StringBuilder(value.Length + 8);
-        for (int i = 0; i < value.Length; i++)
-        {
-            char c = value[i];
-            switch (c)
-            {
-                case '\\':
-                    sb.Append("\\\\");
-                    break;
-                case '"':
-                    sb.Append("\\\"");
-                    break;
-                case '\n':
-                    sb.Append("\\n");
-                    break;
-                case '\r':
-                    sb.Append("\\r");
-                    break;
-                case '\t':
-                    sb.Append("\\t");
-                    break;
-                default:
-                    sb.Append(c);
-                    break;
-            }
-        }
-
-        return sb.ToString();
-    }
-
-    static string PrettyPrintJson(string json)
-    {
-        if (string.IsNullOrEmpty(json))
-        {
-            return string.Empty;
-        }
-
-        StringBuilder sb = new StringBuilder(json.Length + 32);
-        int indent = 0;
-        bool inString = false;
-        for (int i = 0; i < json.Length; i++)
-        {
-            char c = json[i];
-            if (c == '"' && (i == 0 || json[i - 1] != '\\'))
-            {
-                inString = !inString;
-                sb.Append(c);
-                continue;
-            }
-
-            if (inString)
-            {
-                sb.Append(c);
-                continue;
-            }
-
-            switch (c)
-            {
-                case '{':
-                case '[':
-                    sb.Append(c);
-                    sb.Append('\n');
-                    indent++;
-                    sb.Append(new string(' ', indent * 2));
-                    break;
-                case '}':
-                case ']':
-                    sb.Append('\n');
-                    indent = Mathf.Max(0, indent - 1);
-                    sb.Append(new string(' ', indent * 2));
-                    sb.Append(c);
-                    break;
-                case ',':
-                    sb.Append(c);
-                    sb.Append('\n');
-                    sb.Append(new string(' ', indent * 2));
-                    break;
-                case ':':
-                    sb.Append(": ");
-                    break;
-                default:
-                    if (!char.IsWhiteSpace(c))
-                    {
-                        sb.Append(c);
-                    }
-
-                    break;
-            }
-        }
-
-        return sb.ToString();
-    }
 
     // 応答 JSON 内の長い Base64 を、画面では先頭だけにする（送信自体は全文）
     static string TruncateAllBase64ForDisplay(string json)

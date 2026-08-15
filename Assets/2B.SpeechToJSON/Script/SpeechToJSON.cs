@@ -18,7 +18,6 @@
 
 using System;
 using System.Collections;
-using System.IO;
 using System.Text;
 using TMPro;
 using UnityEngine;
@@ -312,7 +311,7 @@ public class SpeechToJSON : MonoBehaviour
             return;
         }
 
-        AudioClip trimmedClip = TrimClip(recordingClip, positionSamples);
+        AudioClip trimmedClip = AudioCodec.TrimClip(recordingClip, positionSamples);
         recordingClip = null;
         if (trimmedClip == null)
         {
@@ -321,7 +320,7 @@ public class SpeechToJSON : MonoBehaviour
         }
 
         SetStatus("音声データ変換中", false);
-        byte[] wavBytes = ConvertAudioClipToWav(trimmedClip);
+        byte[] wavBytes = AudioCodec.ClipToWav(trimmedClip);
         Destroy(trimmedClip);
         if (wavBytes == null || wavBytes.Length == 0)
         {
@@ -333,79 +332,6 @@ public class SpeechToJSON : MonoBehaviour
         StartCoroutine(SendSpeechPipelineCoroutine(audioBase64, wavBytes.Length, elapsed));
     }
 
-    // Microphone が書き込んだ先頭 positionSamples だけを新しい AudioClip にコピーする
-    AudioClip TrimClip(AudioClip source, int positionSamples)
-    {
-        if (source == null || positionSamples <= 0)
-        {
-            return null;
-        }
-
-        int channels = source.channels;
-        int copySamples = Mathf.Min(positionSamples, source.samples);
-        float[] data = new float[copySamples * channels];
-        if (!source.GetData(data, 0))
-        {
-            return null;
-        }
-
-        AudioClip trimmed = AudioClip.Create(
-            "RecordingTrimmed",
-            copySamples,
-            channels,
-            source.frequency,
-            false);
-        trimmed.SetData(data, 0);
-        return trimmed;
-    }
-
-    // AudioClip → WAV（ヘッダ + 16-bit PCM）。Gemini inlineData 用のバイト列を作る
-    byte[] ConvertAudioClipToWav(AudioClip clip)
-    {
-        if (clip == null)
-        {
-            return null;
-        }
-
-        int sampleCount = clip.samples * clip.channels;
-        float[] samples = new float[sampleCount];
-        clip.GetData(samples, 0);
-
-        short[] pcm = new short[sampleCount];
-        for (int i = 0; i < sampleCount; i++)
-        {
-            float clamped = Mathf.Clamp(samples[i], -1f, 1f);
-            pcm[i] = (short)Mathf.RoundToInt(clamped * short.MaxValue);
-        }
-
-        int byteRate = clip.frequency * clip.channels * 2;
-        int dataSize = pcm.Length * 2;
-        using (MemoryStream stream = new MemoryStream(44 + dataSize))
-        using (BinaryWriter writer = new BinaryWriter(stream))
-        {
-            // RIFF / WAVE ヘッダ（PCM）
-            writer.Write(Encoding.ASCII.GetBytes("RIFF"));
-            writer.Write(36 + dataSize);
-            writer.Write(Encoding.ASCII.GetBytes("WAVE"));
-            writer.Write(Encoding.ASCII.GetBytes("fmt "));
-            writer.Write(16);
-            writer.Write((ushort)1); // PCM
-            writer.Write((ushort)clip.channels);
-            writer.Write(clip.frequency);
-            writer.Write(byteRate);
-            writer.Write((ushort)(clip.channels * 2));
-            writer.Write((ushort)16);
-            writer.Write(Encoding.ASCII.GetBytes("data"));
-            writer.Write(dataSize);
-            for (int i = 0; i < pcm.Length; i++)
-            {
-                writer.Write(pcm[i]);
-            }
-
-            return stream.ToArray();
-        }
-    }
-
     // ----- 通信: 1→2 Audio / 3→4 Text(JSON) -----
 
     // 音声 Base64 を STT し、認識テキストで構造化 JSON を取る一連の流れ
@@ -415,7 +341,7 @@ public class SpeechToJSON : MonoBehaviour
         SetPanelPlaceholder(textRequestText, "（Audio 完了後に表示）");
         SetPanelPlaceholder(textResponseText, "（Audio 完了後に表示）");
 
-        string url = BuildGenerateContentUrl();
+        string url = GeminiKey.BuildGenerateContentUrl(modelName);
 
         // 1→2 Audio（文字起こし）
         string sttRequestJson = BuildSttRequestJson(audioBase64);
@@ -423,12 +349,12 @@ public class SpeechToJSON : MonoBehaviour
             audioRequestText,
             "audio/wav bytes=" + wavByteLength
             + " / ~" + audioSeconds.ToString("0.0") + "s\n\n"
-            + FormatHttpRequestForDisplay(url, sttRequestJson));
+            + HttpDisplay.FormatRequest(url, sttRequestJson, apiKey, DisplayBase64MaxChars));
 
         SetStatus("1. Request 送信中", false);
         HttpResult sttResult = new HttpResult();
         yield return StartCoroutine(PostJsonCoroutine(url, sttRequestJson, sttResult));
-        SetPanelPlaceholder(audioResponseText, FormatHttpResponseForDisplay(sttResult.statusCode, sttResult.body));
+        SetPanelPlaceholder(audioResponseText, HttpDisplay.FormatResponse(sttResult.statusCode, sttResult.body));
 
         if (!sttResult.ok)
         {
@@ -460,7 +386,7 @@ public class SpeechToJSON : MonoBehaviour
 
         // 3→4 Text（スキーマ付き構造化出力）
         string structuredRequestJson = BuildStructuredRequestJson(transcript);
-        SetPanelPlaceholder(textRequestText, FormatHttpRequestForDisplay(url, structuredRequestJson));
+        SetPanelPlaceholder(textRequestText, HttpDisplay.FormatRequest(url, structuredRequestJson, apiKey, DisplayBase64MaxChars));
 
         SetStatus("3. Request 送信中", false);
         HttpResult jsonResult = new HttpResult();
@@ -469,7 +395,7 @@ public class SpeechToJSON : MonoBehaviour
         string structuredJson;
         if (!TryExtractText(jsonResult.body, out structuredJson))
         {
-            SetPanelPlaceholder(textResponseText, FormatHttpResponseForDisplay(jsonResult.statusCode, jsonResult.body));
+            SetPanelPlaceholder(textResponseText, HttpDisplay.FormatResponse(jsonResult.statusCode, jsonResult.body));
             ShowError(
                 jsonResult.ok
                     ? "構造化 JSON を取り出せませんでした。4. Response を確認してください。"
@@ -481,7 +407,7 @@ public class SpeechToJSON : MonoBehaviour
 
         SetPanelPlaceholder(
             textResponseText,
-            "HTTP " + jsonResult.statusCode + "\n\n" + PrettyPrintJson(structuredJson));
+            "HTTP " + jsonResult.statusCode + "\n\n" + GeminiJson.PrettyPrint(structuredJson));
 
         if (!jsonResult.ok)
         {
@@ -499,14 +425,6 @@ public class SpeechToJSON : MonoBehaviour
 
         SetStatus("完了（Space で録音）", false);
         isSending = false;
-    }
-
-    // generateContent の URL を組み立てる
-    string BuildGenerateContentUrl()
-    {
-        return "https://generativelanguage.googleapis.com/v1beta/models/"
-               + modelName
-               + ":generateContent";
     }
 
     // JSON を POST し、結果を result に書き込む
@@ -534,7 +452,7 @@ public class SpeechToJSON : MonoBehaviour
         StringBuilder sb = new StringBuilder();
         sb.Append("{\"contents\":[{\"role\":\"user\",\"parts\":[");
         sb.Append("{\"text\":\"");
-        sb.Append(EscapeJson(SttPromptText));
+        sb.Append(GeminiJson.Escape(SttPromptText));
         sb.Append("\"},");
         sb.Append("{\"inlineData\":{\"mimeType\":\"audio/wav\",\"data\":\"");
         sb.Append(audioBase64);
@@ -549,7 +467,7 @@ public class SpeechToJSON : MonoBehaviour
         StringBuilder sb = new StringBuilder();
         sb.Append('{');
         sb.Append("\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"");
-        sb.Append(EscapeJson(userText));
+        sb.Append(GeminiJson.Escape(userText));
         sb.Append("\"}]}],");
         sb.Append("\"generationConfig\":{");
         sb.Append("\"responseMimeType\":\"application/json\",");
@@ -787,28 +705,16 @@ public class SpeechToJSON : MonoBehaviour
     // Assets/Common/APIKey.txt を1行読む（リポジトリにはコミットしない）
     void LoadApiKey()
     {
-        string path = Path.Combine(Application.dataPath, apiKeyRelativePath);
-        if (!File.Exists(path))
+        string error;
+        if (!GeminiKey.TryRead(apiKeyRelativePath, out apiKey, out error))
         {
-            Debug.LogError("[SpeechToJSON] APIキーファイルがありません: " + path);
-            apiKey = null;
+            Debug.LogError("[SpeechToJSON] " + error);
             SetStatus("エラー", false);
-            SetPanelPlaceholder(audioResponseText, "APIキーファイルが見つかりません:\n" + path);
+            SetPanelPlaceholder(audioResponseText, error);
             return;
         }
 
-        apiKey = File.ReadAllText(path).Trim();
-        if (string.IsNullOrEmpty(apiKey))
-        {
-            Debug.LogError("[SpeechToJSON] APIキーが空です: " + path);
-            apiKey = null;
-            SetStatus("エラー", false);
-            SetPanelPlaceholder(audioResponseText, "APIキーが空です。Docs/gemini-ai-studio-setup.md を参照してください。");
-        }
-        else
-        {
-            Debug.Log("[SpeechToJSON] APIキーを読み込みました（長さ " + apiKey.Length + "）。キー自体はログに出しません。");
-        }
+        Debug.Log("[SpeechToJSON] APIキーを読み込みました（長さ " + apiKey.Length + "）。キー自体はログに出しません。");
     }
 
     // Status 欄の Value を日本語で更新する（タイトルはシーン側の固定文言）
@@ -859,179 +765,5 @@ public class SpeechToJSON : MonoBehaviour
         {
             responsePanel.text = responsePanel.text + "\n\n[Error]\n" + message;
         }
-    }
-
-    // 中央ペイン用: URL / マスク済みヘッダ / JSON（長い Base64 は表示だけ短縮）
-    string FormatHttpRequestForDisplay(string url, string requestJson)
-    {
-        StringBuilder sb = new StringBuilder();
-        sb.AppendLine("POST " + url);
-        sb.AppendLine("Content-Type: application/json; charset=utf-8");
-        sb.AppendLine("x-goog-api-key: " + MaskApiKey(apiKey));
-        sb.AppendLine();
-        sb.Append(PrettyPrintJson(TruncateBase64ForDisplay(requestJson)));
-        return sb.ToString();
-    }
-
-    // レスポンス欄用: HTTP ステータス + 生 JSON
-    string FormatHttpResponseForDisplay(long statusCode, string responseBody)
-    {
-        StringBuilder sb = new StringBuilder();
-        sb.AppendLine("HTTP " + statusCode);
-        sb.AppendLine();
-        sb.Append(string.IsNullOrEmpty(responseBody) ? "(empty body)" : PrettyPrintJson(responseBody));
-        return sb.ToString();
-    }
-
-    // inlineData.data の長い Base64 を、画面では先頭だけにして読みやすくする（送信自体は全文）
-    static string TruncateBase64ForDisplay(string requestJson)
-    {
-        if (string.IsNullOrEmpty(requestJson))
-        {
-            return requestJson;
-        }
-
-        const string marker = "\"data\":\"";
-        int dataIndex = requestJson.IndexOf(marker, StringComparison.Ordinal);
-        if (dataIndex < 0)
-        {
-            return requestJson;
-        }
-
-        int valueStart = dataIndex + marker.Length;
-        int valueEnd = requestJson.IndexOf('"', valueStart);
-        if (valueEnd < 0)
-        {
-            return requestJson;
-        }
-
-        int length = valueEnd - valueStart;
-        if (length <= DisplayBase64MaxChars)
-        {
-            return requestJson;
-        }
-
-        string head = requestJson.Substring(valueStart, DisplayBase64MaxChars);
-        return requestJson.Substring(0, valueStart)
-               + head + "…(" + length + " chars total)"
-               + requestJson.Substring(valueEnd);
-    }
-
-    // 画面表示用にキーを伏せる（先頭数文字だけ残す）
-    static string MaskApiKey(string key)
-    {
-        if (string.IsNullOrEmpty(key))
-        {
-            return "(none)";
-        }
-
-        if (key.Length <= 6)
-        {
-            return "******";
-        }
-
-        return key.Substring(0, 4) + "…" + new string('*', 8);
-    }
-
-    // JSON 文字列用の最低限のエスケープ
-    static string EscapeJson(string value)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            return string.Empty;
-        }
-
-        StringBuilder sb = new StringBuilder(value.Length + 8);
-        for (int i = 0; i < value.Length; i++)
-        {
-            char c = value[i];
-            switch (c)
-            {
-                case '\\':
-                    sb.Append("\\\\");
-                    break;
-                case '"':
-                    sb.Append("\\\"");
-                    break;
-                case '\n':
-                    sb.Append("\\n");
-                    break;
-                case '\r':
-                    sb.Append("\\r");
-                    break;
-                case '\t':
-                    sb.Append("\\t");
-                    break;
-                default:
-                    sb.Append(c);
-                    break;
-            }
-        }
-
-        return sb.ToString();
-    }
-
-    // インデントを軽く付けて読みやすくする（厳密なパーサではない）
-    static string PrettyPrintJson(string json)
-    {
-        if (string.IsNullOrEmpty(json))
-        {
-            return string.Empty;
-        }
-
-        StringBuilder sb = new StringBuilder(json.Length + 32);
-        int indent = 0;
-        bool inString = false;
-        for (int i = 0; i < json.Length; i++)
-        {
-            char c = json[i];
-            if (c == '"' && (i == 0 || json[i - 1] != '\\'))
-            {
-                inString = !inString;
-                sb.Append(c);
-                continue;
-            }
-
-            if (inString)
-            {
-                sb.Append(c);
-                continue;
-            }
-
-            switch (c)
-            {
-                case '{':
-                case '[':
-                    sb.Append(c);
-                    sb.Append('\n');
-                    indent++;
-                    sb.Append(new string(' ', indent * 2));
-                    break;
-                case '}':
-                case ']':
-                    sb.Append('\n');
-                    indent = Mathf.Max(0, indent - 1);
-                    sb.Append(new string(' ', indent * 2));
-                    sb.Append(c);
-                    break;
-                case ',':
-                    sb.Append(c);
-                    sb.Append('\n');
-                    sb.Append(new string(' ', indent * 2));
-                    break;
-                case ':':
-                    sb.Append(": ");
-                    break;
-                default:
-                    if (!char.IsWhiteSpace(c))
-                    {
-                        sb.Append(c);
-                    }
-
-                    break;
-            }
-        }
-
-        return sb.ToString();
     }
 }

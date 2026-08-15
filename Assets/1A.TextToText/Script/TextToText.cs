@@ -206,7 +206,7 @@ public class TextToText : MonoBehaviour
 
             // 5) candidates[0].content.parts[0].text を取り出してチャットに追加
             string assistantText;
-            if (!TryExtractAssistantText(responseBody, out assistantText))
+            if (!GeminiTextResponse.TryExtractText(responseBody, "[TextToText]", out assistantText))
             {
                 ShowError("応答 JSON からテキストを取り出せませんでした。Response ペインを確認してください。");
                 RemoveLastTurnIfUser();
@@ -244,7 +244,7 @@ public class TextToText : MonoBehaviour
         if (!string.IsNullOrEmpty(instruction))
         {
             sb.Append("\"systemInstruction\":{\"parts\":[{\"text\":\"");
-            sb.Append(EscapeJson(instruction));
+            sb.Append(GeminiJson.Escape(instruction));
             sb.Append("\"}]},");
         }
 
@@ -265,9 +265,9 @@ public class TextToText : MonoBehaviour
 
             ChatTurn turn = turns[i];
             sb.Append("{\"role\":\"");
-            sb.Append(EscapeJson(turn.role));
+            sb.Append(GeminiJson.Escape(turn.role));
             sb.Append("\",\"parts\":[{\"text\":\"");
-            sb.Append(EscapeJson(turn.text));
+            sb.Append(GeminiJson.Escape(turn.text));
             sb.Append("\"}]}");
         }
 
@@ -292,68 +292,6 @@ public class TextToText : MonoBehaviour
         return systemInstructionField.text != null
             ? systemInstructionField.text.Trim()
             : string.Empty;
-    }
-
-    // ----- レスポンス解析 -----
-
-    // JsonUtility で入れ子 DTO に載せ、最初の候補テキストを返す
-    bool TryExtractAssistantText(string responseBody, out string assistantText)
-    {
-        assistantText = null;
-        if (string.IsNullOrEmpty(responseBody))
-        {
-            return false;
-        }
-
-        GeminiResponse parsed = null;
-        try
-        {
-            parsed = JsonUtility.FromJson<GeminiResponse>(responseBody);
-        }
-        catch (Exception e)
-        {
-            Debug.LogError("[TextToText] JSON 解析失敗: " + e.Message);
-            return false;
-        }
-
-        if (parsed == null || parsed.candidates == null || parsed.candidates.Length == 0)
-        {
-            return false;
-        }
-
-        GeminiCandidate first = parsed.candidates[0];
-        if (first == null || first.content == null || first.content.parts == null || first.content.parts.Length == 0)
-        {
-            return false;
-        }
-
-        assistantText = first.content.parts[0].text;
-        return !string.IsNullOrEmpty(assistantText);
-    }
-
-    // JsonUtility 用のレスポンス型（必要なフィールドだけ）
-    [Serializable]
-    class GeminiResponse
-    {
-        public GeminiCandidate[] candidates;
-    }
-
-    [Serializable]
-    class GeminiCandidate
-    {
-        public GeminiContent content;
-    }
-
-    [Serializable]
-    class GeminiContent
-    {
-        public GeminiPart[] parts;
-    }
-
-    [Serializable]
-    class GeminiPart
-    {
-        public string text;
     }
 
     // ----- systemInstruction ファイル同期 -----
@@ -479,35 +417,20 @@ public class TextToText : MonoBehaviour
     // Assets/Common/APIKey.txt を1行読む（リポジトリにはコミットしない）
     void LoadApiKey()
     {
-        string path = Path.Combine(Application.dataPath, apiKeyRelativePath);
-        if (!File.Exists(path))
+        string error;
+        if (!GeminiKey.TryRead(apiKeyRelativePath, out apiKey, out error))
         {
-            Debug.LogError("[TextToText] APIキーファイルがありません: " + path);
-            apiKey = null;
+            Debug.LogError("[TextToText] " + error);
             SetStatus("エラー", false);
             if (responseText != null)
             {
-                responseText.text = "APIキーファイルが見つかりません:\n" + path;
+                responseText.text = error;
             }
 
             return;
         }
 
-        apiKey = File.ReadAllText(path).Trim();
-        if (string.IsNullOrEmpty(apiKey))
-        {
-            Debug.LogError("[TextToText] APIキーが空です: " + path);
-            apiKey = null;
-            SetStatus("エラー", false);
-            if (responseText != null)
-            {
-                responseText.text = "APIキーが空です。Docs/gemini-ai-studio-setup.md を参照してください。";
-            }
-        }
-        else
-        {
-            Debug.Log("[TextToText] APIキーを読み込みました（長さ " + apiKey.Length + "）。キー自体はログに出しません。");
-        }
+        Debug.Log("[TextToText] APIキーを読み込みました（長さ " + apiKey.Length + "）。キー自体はログに出しません。");
     }
 
     // ----- UI 更新 -----
@@ -553,9 +476,9 @@ public class TextToText : MonoBehaviour
         StringBuilder sb = new StringBuilder();
         sb.AppendLine("POST " + url);
         sb.AppendLine("Content-Type: application/json; charset=utf-8");
-        sb.AppendLine("x-goog-api-key: " + MaskApiKey(apiKey));
+        sb.AppendLine("x-goog-api-key: " + GeminiKey.Mask(apiKey));
         sb.AppendLine();
-        sb.Append(PrettyPrintJson(requestJson));
+        sb.Append(GeminiJson.PrettyPrint(requestJson));
         requestText.text = sb.ToString();
     }
 
@@ -570,7 +493,7 @@ public class TextToText : MonoBehaviour
         StringBuilder sb = new StringBuilder();
         sb.AppendLine("HTTP " + statusCode);
         sb.AppendLine();
-        sb.Append(string.IsNullOrEmpty(responseBody) ? "(empty body)" : PrettyPrintJson(responseBody));
+        sb.Append(string.IsNullOrEmpty(responseBody) ? "(empty body)" : GeminiJson.PrettyPrint(responseBody));
         responseText.text = sb.ToString();
     }
 
@@ -636,125 +559,5 @@ public class TextToText : MonoBehaviour
         {
             sendContextToggle.interactable = !sending;
         }
-    }
-
-    // ----- JSON / 表示ヘルパー -----
-
-    // 画面表示用にキーを伏せる（先頭数文字だけ残す）
-    static string MaskApiKey(string key)
-    {
-        if (string.IsNullOrEmpty(key))
-        {
-            return "(none)";
-        }
-
-        if (key.Length <= 6)
-        {
-            return "******";
-        }
-
-        return key.Substring(0, 4) + "…" + new string('*', 8);
-    }
-
-    // JSON 文字列用の最低限のエスケープ
-    static string EscapeJson(string value)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            return string.Empty;
-        }
-
-        StringBuilder sb = new StringBuilder(value.Length + 8);
-        for (int i = 0; i < value.Length; i++)
-        {
-            char c = value[i];
-            switch (c)
-            {
-                case '\\':
-                    sb.Append("\\\\");
-                    break;
-                case '"':
-                    sb.Append("\\\"");
-                    break;
-                case '\n':
-                    sb.Append("\\n");
-                    break;
-                case '\r':
-                    sb.Append("\\r");
-                    break;
-                case '\t':
-                    sb.Append("\\t");
-                    break;
-                default:
-                    sb.Append(c);
-                    break;
-            }
-        }
-
-        return sb.ToString();
-    }
-
-    // インデントを軽く付けて読みやすくする（厳密なパーサではない）
-    static string PrettyPrintJson(string json)
-    {
-        if (string.IsNullOrEmpty(json))
-        {
-            return string.Empty;
-        }
-
-        StringBuilder sb = new StringBuilder(json.Length + 32);
-        int indent = 0;
-        bool inString = false;
-        for (int i = 0; i < json.Length; i++)
-        {
-            char c = json[i];
-            if (c == '"' && (i == 0 || json[i - 1] != '\\'))
-            {
-                inString = !inString;
-                sb.Append(c);
-                continue;
-            }
-
-            if (inString)
-            {
-                sb.Append(c);
-                continue;
-            }
-
-            switch (c)
-            {
-                case '{':
-                case '[':
-                    sb.Append(c);
-                    sb.Append('\n');
-                    indent++;
-                    sb.Append(new string(' ', indent * 2));
-                    break;
-                case '}':
-                case ']':
-                    sb.Append('\n');
-                    indent = Mathf.Max(0, indent - 1);
-                    sb.Append(new string(' ', indent * 2));
-                    sb.Append(c);
-                    break;
-                case ',':
-                    sb.Append(c);
-                    sb.Append('\n');
-                    sb.Append(new string(' ', indent * 2));
-                    break;
-                case ':':
-                    sb.Append(": ");
-                    break;
-                default:
-                    if (!char.IsWhiteSpace(c))
-                    {
-                        sb.Append(c);
-                    }
-
-                    break;
-            }
-        }
-
-        return sb.ToString();
     }
 }

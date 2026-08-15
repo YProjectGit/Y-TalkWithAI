@@ -12,7 +12,6 @@
 
 using System;
 using System.Collections;
-using System.IO;
 using System.Text;
 using TMPro;
 using UnityEngine;
@@ -434,7 +433,7 @@ public class TextToJSON : MonoBehaviour
         StringBuilder sb = new StringBuilder();
         sb.Append('{');
         sb.Append("\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"");
-        sb.Append(EscapeJson(userText));
+        sb.Append(GeminiJson.Escape(userText));
         sb.Append("\"}]}],");
         sb.Append("\"generationConfig\":{");
         sb.Append("\"responseMimeType\":\"application/json\",");
@@ -547,35 +546,20 @@ public class TextToJSON : MonoBehaviour
     // Assets/Common/APIKey.txt を1行読む（リポジトリにはコミットしない）
     void LoadApiKey()
     {
-        string path = Path.Combine(Application.dataPath, apiKeyRelativePath);
-        if (!File.Exists(path))
+        string error;
+        if (!GeminiKey.TryRead(apiKeyRelativePath, out apiKey, out error))
         {
-            Debug.LogError("[TextToJSON] APIキーファイルがありません: " + path);
-            apiKey = null;
+            Debug.LogError("[TextToJSON] " + error);
             SetStatus("エラー", false);
             if (responseText != null)
             {
-                responseText.text = "APIキーファイルが見つかりません:\n" + path;
+                responseText.text = error;
             }
 
             return;
         }
 
-        apiKey = File.ReadAllText(path).Trim();
-        if (string.IsNullOrEmpty(apiKey))
-        {
-            Debug.LogError("[TextToJSON] APIキーが空です: " + path);
-            apiKey = null;
-            SetStatus("エラー", false);
-            if (responseText != null)
-            {
-                responseText.text = "APIキーが空です。Docs/gemini-ai-studio-setup.md を参照してください。";
-            }
-        }
-        else
-        {
-            Debug.Log("[TextToJSON] APIキーを読み込みました（長さ " + apiKey.Length + "）。キー自体はログに出しません。");
-        }
+        Debug.Log("[TextToJSON] APIキーを読み込みました（長さ " + apiKey.Length + "）。キー自体はログに出しません。");
     }
 
     // ----- UI 更新 -----
@@ -618,7 +602,7 @@ public class TextToJSON : MonoBehaviour
             return;
         }
 
-        schemaText.text = PrettyPrintJson(ResponseSchemaJson);
+        schemaText.text = GeminiJson.PrettyPrint(ResponseSchemaJson);
     }
 
     // 右ペイン Response: HTTP ステータス + 構造化 JSON（取れなければ生ボディ）
@@ -634,11 +618,11 @@ public class TextToJSON : MonoBehaviour
         sb.AppendLine();
         if (!string.IsNullOrEmpty(structuredJson))
         {
-            sb.Append(PrettyPrintJson(structuredJson));
+            sb.Append(GeminiJson.PrettyPrint(structuredJson));
         }
         else
         {
-            sb.Append(string.IsNullOrEmpty(responseBody) ? "(empty body)" : PrettyPrintJson(responseBody));
+            sb.Append(string.IsNullOrEmpty(responseBody) ? "(empty body)" : GeminiJson.PrettyPrint(responseBody));
         }
 
         responseText.text = sb.ToString();
@@ -675,109 +659,5 @@ public class TextToJSON : MonoBehaviour
         {
             inputField.interactable = !sending;
         }
-    }
-
-    // ----- JSON / 表示ヘルパー -----
-
-    // JSON 文字列用の最低限のエスケープ
-    static string EscapeJson(string value)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            return string.Empty;
-        }
-
-        StringBuilder sb = new StringBuilder(value.Length + 8);
-        for (int i = 0; i < value.Length; i++)
-        {
-            char c = value[i];
-            switch (c)
-            {
-                case '\\':
-                    sb.Append("\\\\");
-                    break;
-                case '"':
-                    sb.Append("\\\"");
-                    break;
-                case '\n':
-                    sb.Append("\\n");
-                    break;
-                case '\r':
-                    sb.Append("\\r");
-                    break;
-                case '\t':
-                    sb.Append("\\t");
-                    break;
-                default:
-                    sb.Append(c);
-                    break;
-            }
-        }
-
-        return sb.ToString();
-    }
-
-    // インデントを軽く付けて読みやすくする（厳密なパーサではない）
-    static string PrettyPrintJson(string json)
-    {
-        if (string.IsNullOrEmpty(json))
-        {
-            return string.Empty;
-        }
-
-        StringBuilder sb = new StringBuilder(json.Length + 32);
-        int indent = 0;
-        bool inString = false;
-        for (int i = 0; i < json.Length; i++)
-        {
-            char c = json[i];
-            if (c == '"' && (i == 0 || json[i - 1] != '\\'))
-            {
-                inString = !inString;
-                sb.Append(c);
-                continue;
-            }
-
-            if (inString)
-            {
-                sb.Append(c);
-                continue;
-            }
-
-            switch (c)
-            {
-                case '{':
-                case '[':
-                    sb.Append(c);
-                    sb.Append('\n');
-                    indent++;
-                    sb.Append(new string(' ', indent * 2));
-                    break;
-                case '}':
-                case ']':
-                    sb.Append('\n');
-                    indent = Mathf.Max(0, indent - 1);
-                    sb.Append(new string(' ', indent * 2));
-                    sb.Append(c);
-                    break;
-                case ',':
-                    sb.Append(c);
-                    sb.Append('\n');
-                    sb.Append(new string(' ', indent * 2));
-                    break;
-                case ':':
-                    sb.Append(": ");
-                    break;
-                default:
-                    if (!char.IsWhiteSpace(c))
-                    {
-                        sb.Append(c);
-                    }
-
-                    break;
-            }
-        }
-
-        return sb.ToString();
     }
 }

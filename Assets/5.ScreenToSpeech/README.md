@@ -104,3 +104,17 @@ Project ウィンドウで `Assets/5.ScreenToSpeech/ScreenToSpeech.unity` を開
 ### DrawingPad（[`DrawingPad.cs`](Script/DrawingPad.cs)）
 
 白い紙にマウスで線を描く部品です。通信は持ちません。`HasInk` と `IsDirty` だけを `ScreenToSpeech` に渡し、空の紙を送らない判断に使います。
+
+### 共通スクリプト（`Assets/Common/Script/`）
+
+このデモが使っている共通の道具です。どれも入力と出力だけの小さな関数なので、**上の流れを追うときに中身を読む必要はありません。**
+
+| ファイル | 中身 |
+|---|---|
+| [`GeminiJson`](../Common/Script/GeminiJson.cs) | JSON のエスケープ・整形・省略表示 |
+| [`GeminiJsonScan`](../Common/Script/GeminiJsonScan.cs) | Live API の受信 JSON からキーを頼りに文字列を拾う |
+| [`GeminiKey`](../Common/Script/GeminiKey.cs) | APIキーの読込・マスク・generateContent の URL |
+| [`AudioCodec`](../Common/Script/AudioCodec.cs) | AudioClip ⇄ WAV / PCM16 の変換 |
+| [`TextureUtil`](../Common/Script/TextureUtil.cs) | テクスチャの縮小 |
+
+共通スクリプトは 13 デモすべてが使っています。挙動を変えたくなったら Common を直さず、そのファイルをこのデモの `Script/` にコピーしてクラス名を変えてください。

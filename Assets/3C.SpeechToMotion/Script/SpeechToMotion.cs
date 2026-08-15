@@ -365,7 +365,7 @@ public class SpeechToMotion : MonoBehaviour
         StringBuilder sb = new StringBuilder(1024);
         sb.Append("{\"setup\":{");
         sb.Append("\"model\":\"models/");
-        sb.Append(EscapeJson(modelName));
+        sb.Append(GeminiJson.Escape(modelName));
         sb.Append("\",");
         sb.Append("\"realtimeInputConfig\":{\"automaticActivityDetection\":{\"disabled\":true}},");
         sb.Append("\"inputAudioTranscription\":{},");
@@ -374,7 +374,7 @@ public class SpeechToMotion : MonoBehaviour
         if (!string.IsNullOrEmpty(systemInstruction))
         {
             sb.Append("\"systemInstruction\":{\"parts\":[{\"text\":\"");
-            sb.Append(EscapeJson(systemInstruction));
+            sb.Append(GeminiJson.Escape(systemInstruction));
             sb.Append("\"}]},");
         }
 
@@ -385,7 +385,7 @@ public class SpeechToMotion : MonoBehaviour
         sb.Append("\"generationConfig\":{");
         sb.Append("\"responseModalities\":[\"AUDIO\"],");
         sb.Append("\"speechConfig\":{\"voiceConfig\":{\"prebuiltVoiceConfig\":{\"voiceName\":\"");
-        sb.Append(EscapeJson(voiceName));
+        sb.Append(GeminiJson.Escape(voiceName));
         sb.Append("\"}}}");
         sb.Append('}');
         sb.Append("}}");
@@ -551,7 +551,7 @@ public class SpeechToMotion : MonoBehaviour
         }
 
         lastMicSamplePos = pos;
-        byte[] pcm = FloatsToPcm16(floats);
+        byte[] pcm = AudioCodec.FloatsToPcm16(floats);
         if (pcm.Length == 0)
         {
             return;
@@ -667,7 +667,7 @@ public class SpeechToMotion : MonoBehaviour
 
         if (json.IndexOf("\"inputTranscription\"", StringComparison.Ordinal) >= 0)
         {
-            string t = ExtractNestedTextAfterKey(json, "inputTranscription");
+            string t = GeminiJsonScan.NestedTextAfterKey(json, "inputTranscription");
             if (!string.IsNullOrEmpty(t))
             {
                 EnqueueMain(() => OnInputTranscription(t));
@@ -676,7 +676,7 @@ public class SpeechToMotion : MonoBehaviour
 
         if (json.IndexOf("\"outputTranscription\"", StringComparison.Ordinal) >= 0)
         {
-            string t = ExtractNestedTextAfterKey(json, "outputTranscription");
+            string t = GeminiJsonScan.NestedTextAfterKey(json, "outputTranscription");
             if (!string.IsNullOrEmpty(t))
             {
                 EnqueueMain(() => OnOutputTranscription(t));
@@ -700,7 +700,7 @@ public class SpeechToMotion : MonoBehaviour
     {
         if (inboundLogText != null)
         {
-            inboundLogText.text = PrettyPrintJson(TruncateForDisplay(json, 1200));
+            inboundLogText.text = GeminiJson.PrettyPrint(GeminiJson.Truncate(json, 1200));
         }
 
         List<string> responses = new List<string>();
@@ -713,9 +713,9 @@ public class SpeechToMotion : MonoBehaviour
                 break;
             }
 
-            string name = ExtractJsonStringFieldFrom(json, nameKey);
+            string name = GeminiJsonScan.StringFieldFrom(json, nameKey);
             int idKey = IndexOfJsonKey(json, "id", Mathf.Max(0, nameKey - 80));
-            string id = idKey >= 0 ? ExtractJsonStringFieldFrom(json, idKey) : string.Empty;
+            string id = idKey >= 0 ? GeminiJsonScan.StringFieldFrom(json, idKey) : string.Empty;
             string argsJson = ExtractArgsObjectNear(json, nameKey);
             searchFrom = nameKey + 6;
 
@@ -745,12 +745,12 @@ public class SpeechToMotion : MonoBehaviour
     {
         StringBuilder sb = new StringBuilder(256);
         sb.Append("{\"id\":\"");
-        sb.Append(EscapeJson(id ?? string.Empty));
+        sb.Append(GeminiJson.Escape(id ?? string.Empty));
         sb.Append("\",\"name\":\"");
-        sb.Append(EscapeJson(name ?? string.Empty));
+        sb.Append(GeminiJson.Escape(name ?? string.Empty));
         sb.Append("\",\"response\":{");
         sb.Append("\"result\":\"");
-        sb.Append(EscapeJson(result));
+        sb.Append(GeminiJson.Escape(result));
         sb.Append("\",\"angularVelocity\":");
         sb.Append(targetAngularVelocity.ToString("0.###"));
         sb.Append(",\"size\":");
@@ -888,7 +888,7 @@ public class SpeechToMotion : MonoBehaviour
             }
 
             EnsurePlaybackAudioSource();
-            AudioClip clip = Pcm16ToClip(pcm, playbackSampleRate);
+            AudioClip clip = AudioCodec.Pcm16ToClip(pcm, playbackSampleRate);
             if (clip == null)
             {
                 continue;
@@ -1056,7 +1056,7 @@ public class SpeechToMotion : MonoBehaviour
             "systemInstruction:\n"
             + instruction
             + "\n\nfunctionDeclarations:\n"
-            + PrettyPrintJson("[" + FunctionDeclarationJson + "]");
+            + GeminiJson.PrettyPrint("[" + FunctionDeclarationJson + "]");
     }
 
     void InitPanelTexts()
@@ -1192,57 +1192,15 @@ public class SpeechToMotion : MonoBehaviour
         playbackAudioSource.playOnAwake = false;
     }
 
-    static byte[] FloatsToPcm16(float[] samples)
-    {
-        byte[] pcm = new byte[samples.Length * 2];
-        for (int i = 0; i < samples.Length; i++)
-        {
-            float clamped = Mathf.Clamp(samples[i], -1f, 1f);
-            short s = (short)Mathf.RoundToInt(clamped * short.MaxValue);
-            pcm[i * 2] = (byte)(s & 0xff);
-            pcm[i * 2 + 1] = (byte)((s >> 8) & 0xff);
-        }
-
-        return pcm;
-    }
-
-    static AudioClip Pcm16ToClip(byte[] pcm, int rate)
-    {
-        if (pcm == null || pcm.Length < 2 || rate <= 0)
-        {
-            return null;
-        }
-
-        int sampleCount = pcm.Length / 2;
-        float[] samples = new float[sampleCount];
-        for (int i = 0; i < sampleCount; i++)
-        {
-            short s = (short)(pcm[i * 2] | (pcm[i * 2 + 1] << 8));
-            samples[i] = s / 32768f;
-        }
-
-        AudioClip clip = AudioClip.Create("LivePcm", sampleCount, 1, rate, false);
-        clip.SetData(samples, 0);
-        return clip;
-    }
-
     // ----- 設定ファイル -----
 
     void LoadApiKey()
     {
-        string path = Path.Combine(Application.dataPath, apiKeyRelativePath);
-        if (!File.Exists(path))
+        string error;
+        if (!GeminiKey.TryRead(apiKeyRelativePath, out apiKey, out error))
         {
-            apiKey = null;
-            Debug.LogError("[SpeechToMotion] APIキーがありません: " + path);
+            Debug.LogError("[SpeechToMotion] " + error);
             return;
-        }
-
-        apiKey = File.ReadAllText(path).Trim();
-        if (string.IsNullOrEmpty(apiKey))
-        {
-            apiKey = null;
-            Debug.LogError("[SpeechToMotion] APIキーが空です。");
         }
     }
 
@@ -1338,78 +1296,6 @@ public class SpeechToMotion : MonoBehaviour
         return json.IndexOf("\"" + key + "\"", start, StringComparison.Ordinal);
     }
 
-    static string ExtractNestedTextAfterKey(string json, string objectKey)
-    {
-        int keyIndex = json.IndexOf("\"" + objectKey + "\"", StringComparison.Ordinal);
-        if (keyIndex < 0)
-        {
-            return null;
-        }
-
-        int textKey = json.IndexOf("\"text\"", keyIndex, StringComparison.Ordinal);
-        if (textKey < 0)
-        {
-            return null;
-        }
-
-        return ExtractJsonStringFieldFrom(json, textKey);
-    }
-
-    static string ExtractJsonStringFieldFrom(string json, int keyIndex)
-    {
-        int colon = json.IndexOf(':', keyIndex);
-        if (colon < 0)
-        {
-            return null;
-        }
-
-        int firstQuote = json.IndexOf('"', colon + 1);
-        if (firstQuote < 0)
-        {
-            return null;
-        }
-
-        int i = firstQuote + 1;
-        StringBuilder sb = new StringBuilder();
-        while (i < json.Length)
-        {
-            char c = json[i];
-            if (c == '\\' && i + 1 < json.Length)
-            {
-                char n = json[i + 1];
-                if (n == 'n')
-                {
-                    sb.Append('\n');
-                }
-                else if (n == '"')
-                {
-                    sb.Append('"');
-                }
-                else if (n == '\\')
-                {
-                    sb.Append('\\');
-                }
-                else
-                {
-                    sb.Append(n);
-                }
-
-                i += 2;
-                continue;
-            }
-
-            if (c == '"')
-            {
-                break;
-            }
-
-            sb.Append(c);
-            i++;
-        }
-
-        return sb.ToString();
-    }
-
     static bool TryExtractJsonNumber(string json, string key, out float value)
     {
         value = 0f;
@@ -1502,115 +1388,5 @@ public class SpeechToMotion : MonoBehaviour
         }
 
         return null;
-    }
-
-    static string EscapeJson(string value)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            return string.Empty;
-        }
-
-        StringBuilder sb = new StringBuilder(value.Length + 8);
-        for (int i = 0; i < value.Length; i++)
-        {
-            char c = value[i];
-            switch (c)
-            {
-                case '\\':
-                    sb.Append("\\\\");
-                    break;
-                case '"':
-                    sb.Append("\\\"");
-                    break;
-                case '\n':
-                    sb.Append("\\n");
-                    break;
-                case '\r':
-                    sb.Append("\\r");
-                    break;
-                case '\t':
-                    sb.Append("\\t");
-                    break;
-                default:
-                    sb.Append(c);
-                    break;
-            }
-        }
-
-        return sb.ToString();
-    }
-
-    static string TruncateForDisplay(string value, int maxChars)
-    {
-        if (string.IsNullOrEmpty(value) || value.Length <= maxChars)
-        {
-            return value;
-        }
-
-        return value.Substring(0, maxChars) + "…(" + value.Length + " chars)";
-    }
-
-    static string PrettyPrintJson(string json)
-    {
-        if (string.IsNullOrEmpty(json))
-        {
-            return string.Empty;
-        }
-
-        StringBuilder sb = new StringBuilder(json.Length + 32);
-        int indent = 0;
-        bool inString = false;
-        for (int i = 0; i < json.Length; i++)
-        {
-            char c = json[i];
-            if (c == '"' && (i == 0 || json[i - 1] != '\\'))
-            {
-                inString = !inString;
-                sb.Append(c);
-                continue;
-            }
-
-            if (inString)
-            {
-                sb.Append(c);
-                continue;
-            }
-
-            switch (c)
-            {
-                case '{':
-                case '[':
-                    sb.Append(c);
-                    sb.Append('\n');
-                    indent++;
-                    sb.Append(new string(' ', indent * 2));
-                    break;
-                case '}':
-                case ']':
-                    sb.Append('\n');
-                    indent = Mathf.Max(0, indent - 1);
-                    sb.Append(new string(' ', indent * 2));
-                    sb.Append(c);
-                    break;
-                case ',':
-                    sb.Append(c);
-                    sb.Append('\n');
-                    sb.Append(new string(' ', indent * 2));
-                    break;
-                case ':':
-                    sb.Append(": ");
-                    break;
-                default:
-                    if (!char.IsWhiteSpace(c))
-                    {
-                        sb.Append(c);
-                    }
-
-                    break;
-            }
-        }
-
-        return sb.ToString();
     }
 }

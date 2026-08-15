@@ -263,7 +263,7 @@ public class SpeechToSpeech : MonoBehaviour
         // 送信直前に事前指示をファイルと同期（Chat で使う）
         SyncSystemInstructionBeforeSend();
 
-        AudioClip trimmedClip = TrimClip(recordingClip, positionSamples);
+        AudioClip trimmedClip = AudioCodec.TrimClip(recordingClip, positionSamples);
         recordingClip = null;
         if (trimmedClip == null)
         {
@@ -273,7 +273,7 @@ public class SpeechToSpeech : MonoBehaviour
 
         // float サンプル → 16-bit PCM WAV バイト列（ここが「音声データ」になる）
         SetStatus("音声データ変換中", false);
-        byte[] wavBytes = ConvertAudioClipToWav(trimmedClip);
+        byte[] wavBytes = AudioCodec.ClipToWav(trimmedClip);
         Destroy(trimmedClip);
 
         if (wavBytes == null || wavBytes.Length == 0)
@@ -284,80 +284,6 @@ public class SpeechToSpeech : MonoBehaviour
 
         string audioBase64 = Convert.ToBase64String(wavBytes);
         StartCoroutine(SendSpeechPipelineCoroutine(audioBase64, wavBytes.Length, elapsed));
-    }
-
-    // Microphone が書き込んだ先頭 positionSamples だけを新しい AudioClip にコピーする
-    AudioClip TrimClip(AudioClip source, int positionSamples)
-    {
-        if (source == null || positionSamples <= 0)
-        {
-            return null;
-        }
-
-        int channels = source.channels;
-        int copySamples = Mathf.Min(positionSamples, source.samples);
-        float[] data = new float[copySamples * channels];
-        if (!source.GetData(data, 0))
-        {
-            return null;
-        }
-
-        AudioClip trimmed = AudioClip.Create(
-            "RecordingTrimmed",
-            copySamples,
-            channels,
-            source.frequency,
-            false);
-        trimmed.SetData(data, 0);
-        return trimmed;
-    }
-
-    // AudioClip → WAV（ヘッダ + 16-bit PCM）。Gemini inlineData 用のバイト列を作る
-    byte[] ConvertAudioClipToWav(AudioClip clip)
-    {
-        if (clip == null)
-        {
-            return null;
-        }
-
-        int sampleCount = clip.samples * clip.channels;
-        float[] samples = new float[sampleCount];
-        clip.GetData(samples, 0);
-
-        short[] pcm = new short[sampleCount];
-        for (int i = 0; i < sampleCount; i++)
-        {
-            float clamped = Mathf.Clamp(samples[i], -1f, 1f);
-            pcm[i] = (short)Mathf.RoundToInt(clamped * short.MaxValue);
-        }
-
-        int byteRate = clip.frequency * clip.channels * 2;
-        int dataSize = pcm.Length * 2;
-        using (MemoryStream stream = new MemoryStream(44 + dataSize))
-        using (BinaryWriter writer = new BinaryWriter(stream))
-        {
-            // RIFF / WAVE ヘッダ（PCM）
-            writer.Write(Encoding.ASCII.GetBytes("RIFF"));
-            writer.Write(36 + dataSize);
-            writer.Write(Encoding.ASCII.GetBytes("WAVE"));
-            writer.Write(Encoding.ASCII.GetBytes("fmt "));
-            writer.Write(16);
-            writer.Write((ushort)1); // PCM
-            writer.Write((ushort)clip.channels);
-            writer.Write(clip.frequency);
-            writer.Write(byteRate);
-            writer.Write((ushort)(clip.channels * 2));
-            writer.Write((ushort)16);
-            writer.Write(Encoding.ASCII.GetBytes("data"));
-            writer.Write(dataSize);
-
-            for (int i = 0; i < pcm.Length; i++)
-            {
-                writer.Write(pcm[i]);
-            }
-
-            return stream.ToArray();
-        }
     }
 
     // ----- 通信本体（STT → Chat） -----
@@ -373,7 +299,7 @@ public class SpeechToSpeech : MonoBehaviour
         SetPanelPlaceholder(ttsRequestText, BuildTtsSettingsSummary() + "\n\n（Chat 完了後に表示）");
         SetPanelPlaceholder(ttsResponseText, "（Chat 完了後に表示）");
 
-        string url = BuildGenerateContentUrl();
+        string url = GeminiKey.BuildGenerateContentUrl(modelName);
 
         // --- 1) STT: 音声 inlineData を送り、文字起こしテキストだけ受け取る ---
         string sttRequestJson = BuildSttRequestJson(audioBase64);
@@ -382,7 +308,7 @@ public class SpeechToSpeech : MonoBehaviour
             sttRequestText.text =
                 "audio/wav bytes=" + wavByteLength
                 + " / ~" + audioSeconds.ToString("0.0") + "s\n\n"
-                + FormatHttpRequestForDisplay(url, sttRequestJson);
+                + HttpDisplay.FormatRequest(url, sttRequestJson, apiKey, DisplayBase64MaxChars);
         }
 
         SetStatus("1. Request 送信中", false);
@@ -391,7 +317,7 @@ public class SpeechToSpeech : MonoBehaviour
 
         if (sttResponseText != null)
         {
-            sttResponseText.text = FormatHttpResponseForDisplay(sttResult.statusCode, sttResult.body);
+            sttResponseText.text = HttpDisplay.FormatResponse(sttResult.statusCode, sttResult.body);
         }
 
         if (!sttResult.ok)
@@ -402,7 +328,7 @@ public class SpeechToSpeech : MonoBehaviour
         }
 
         string transcript;
-        if (!TryExtractAssistantText(sttResult.body, out transcript))
+        if (!GeminiTextResponse.TryExtractText(sttResult.body, "[SpeechToSpeech]", out transcript))
         {
             ShowError("STT 応答から文字起こしを取り出せませんでした。2. Response を確認してください。", sttResponseText);
             SetSending(false);
@@ -424,7 +350,7 @@ public class SpeechToSpeech : MonoBehaviour
         string chatRequestJson = BuildChatRequestJson();
         if (llmRequestText != null)
         {
-            llmRequestText.text = FormatHttpRequestForDisplay(url, chatRequestJson);
+            llmRequestText.text = HttpDisplay.FormatRequest(url, chatRequestJson, apiKey, DisplayBase64MaxChars);
         }
 
         SetStatus("3. Request 送信中", false);
@@ -433,7 +359,7 @@ public class SpeechToSpeech : MonoBehaviour
 
         if (llmResponseText != null)
         {
-            llmResponseText.text = FormatHttpResponseForDisplay(chatResult.statusCode, chatResult.body);
+            llmResponseText.text = HttpDisplay.FormatResponse(chatResult.statusCode, chatResult.body);
         }
 
         SetStatus("応答解析中", false);
@@ -446,7 +372,7 @@ public class SpeechToSpeech : MonoBehaviour
         }
 
         string assistantText;
-        if (!TryExtractAssistantText(chatResult.body, out assistantText))
+        if (!GeminiTextResponse.TryExtractText(chatResult.body, "[SpeechToSpeech]", out assistantText))
         {
             ShowError("LLM 応答 JSON からテキストを取り出せませんでした。4. Response を確認してください。", llmResponseText);
             RemoveLastTurnIfUser();
@@ -467,7 +393,7 @@ public class SpeechToSpeech : MonoBehaviour
         {
             // 設定行（voice など）を先頭に置き、その下に実際の HTTP リクエストを続ける
             ttsRequestText.text =
-                BuildTtsSettingsSummary() + "\n\n" + FormatHttpRequestForDisplay(ttsUrl, ttsRequestJson);
+                BuildTtsSettingsSummary() + "\n\n" + HttpDisplay.FormatRequest(ttsUrl, ttsRequestJson, apiKey, DisplayBase64MaxChars);
         }
 
         SetStatus("5. Request 送信中", false);
@@ -478,7 +404,7 @@ public class SpeechToSpeech : MonoBehaviour
         {
             if (ttsResponseText != null)
             {
-                ttsResponseText.text = FormatHttpResponseForDisplay(ttsResult.statusCode, ttsResult.body);
+                ttsResponseText.text = HttpDisplay.FormatResponse(ttsResult.statusCode, ttsResult.body);
             }
 
             ShowError("TTS HTTP エラー: " + ttsResult.statusCode + " / " + ttsResult.error, ttsResponseText);
@@ -492,7 +418,7 @@ public class SpeechToSpeech : MonoBehaviour
         {
             if (ttsResponseText != null)
             {
-                ttsResponseText.text = FormatHttpResponseForDisplay(ttsResult.statusCode, ttsResult.body);
+                ttsResponseText.text = HttpDisplay.FormatResponse(ttsResult.statusCode, ttsResult.body);
             }
 
             ShowError("TTS 応答から音声データを取り出せませんでした。6. Response を確認してください。", ttsResponseText);
@@ -508,7 +434,7 @@ public class SpeechToSpeech : MonoBehaviour
                 "HTTP " + ttsResult.statusCode + "\n\n"
                 + "mimeType: " + mimeType + "\n"
                 + "audio bytes: " + pcmOrWavBytes.Length + "\n"
-                + "base64 head: " + TruncateForDisplay(audioBase64Out, DisplayBase64MaxChars) + "\n\n"
+                + "base64 head: " + GeminiJson.Truncate(audioBase64Out, DisplayBase64MaxChars) + "\n\n"
                 + "(本文の audio バイナリは再生に回し、ここには載せていません)";
         }
 
@@ -524,14 +450,6 @@ public class SpeechToSpeech : MonoBehaviour
         PlayTtsClip(clip);
         SetStatus("再生中（完了後 Space で録音）", false);
         SetSending(false);
-    }
-
-    // チャット用 generateContent の URL を組み立てる
-    string BuildGenerateContentUrl()
-    {
-        return "https://generativelanguage.googleapis.com/v1beta/models/"
-               + modelName
-               + ":generateContent";
     }
 
     // TTS 用 generateContent の URL（ttsModelName を使う）
@@ -579,7 +497,7 @@ public class SpeechToSpeech : MonoBehaviour
         StringBuilder sb = new StringBuilder();
         sb.Append("{\"contents\":[{\"role\":\"user\",\"parts\":[");
         sb.Append("{\"text\":\"");
-        sb.Append(EscapeJson(SttPromptText));
+        sb.Append(GeminiJson.Escape(SttPromptText));
         sb.Append("\"},");
         sb.Append("{\"inlineData\":{\"mimeType\":\"audio/wav\",\"data\":\"");
         sb.Append(audioBase64);
@@ -598,7 +516,7 @@ public class SpeechToSpeech : MonoBehaviour
         if (!string.IsNullOrEmpty(instruction))
         {
             sb.Append("\"systemInstruction\":{\"parts\":[{\"text\":\"");
-            sb.Append(EscapeJson(instruction));
+            sb.Append(GeminiJson.Escape(instruction));
             sb.Append("\"}]},");
         }
 
@@ -612,9 +530,9 @@ public class SpeechToSpeech : MonoBehaviour
 
             ChatTurn turn = turns[i];
             sb.Append("{\"role\":\"");
-            sb.Append(EscapeJson(turn.role));
+            sb.Append(GeminiJson.Escape(turn.role));
             sb.Append("\",\"parts\":[{\"text\":\"");
-            sb.Append(EscapeJson(turn.text));
+            sb.Append(GeminiJson.Escape(turn.text));
             sb.Append("\"}]}");
         }
 
@@ -635,7 +553,6 @@ public class SpeechToSpeech : MonoBehaviour
             : string.Empty;
     }
 
-
     // TTS 用: 返答テキストを読み上げさせる。responseModalities に AUDIO を指定する
     string BuildTtsRequestJson(string speakText)
     {
@@ -643,7 +560,7 @@ public class SpeechToSpeech : MonoBehaviour
         sb.Append('{');
         sb.Append("\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"");
         // 読み上げ指示を短く添え、本文は Chat の返答そのもの
-        sb.Append(EscapeJson("次の文を自然な日本語で読み上げてください。\n\n" + speakText));
+        sb.Append(GeminiJson.Escape("次の文を自然な日本語で読み上げてください。\n\n" + speakText));
         sb.Append("\"}]}],");
         sb.Append("\"generationConfig\":{");
         sb.Append("\"responseModalities\":[\"AUDIO\"],");
@@ -651,7 +568,7 @@ public class SpeechToSpeech : MonoBehaviour
         sb.Append("\"voiceConfig\":{");
         sb.Append("\"prebuiltVoiceConfig\":{");
         sb.Append("\"voiceName\":\"");
-        sb.Append(EscapeJson(ttsVoiceName));
+        sb.Append(GeminiJson.Escape(ttsVoiceName));
         sb.Append("\"}");
         sb.Append('}');
         sb.Append('}');
@@ -693,66 +610,6 @@ public class SpeechToSpeech : MonoBehaviour
     }
 
     // ----- レスポンス解析 -----
-
-    // JsonUtility で入れ子 DTO に載せ、最初の候補テキストを返す
-    bool TryExtractAssistantText(string responseBody, out string assistantText)
-    {
-        assistantText = null;
-        if (string.IsNullOrEmpty(responseBody))
-        {
-            return false;
-        }
-
-        GeminiResponse parsed = null;
-        try
-        {
-            parsed = JsonUtility.FromJson<GeminiResponse>(responseBody);
-        }
-        catch (Exception e)
-        {
-            Debug.LogError("[SpeechToSpeech] JSON 解析失敗: " + e.Message);
-            return false;
-        }
-
-        if (parsed == null || parsed.candidates == null || parsed.candidates.Length == 0)
-        {
-            return false;
-        }
-
-        GeminiCandidate first = parsed.candidates[0];
-        if (first == null || first.content == null || first.content.parts == null || first.content.parts.Length == 0)
-        {
-            return false;
-        }
-
-        assistantText = first.content.parts[0].text;
-        return !string.IsNullOrEmpty(assistantText);
-    }
-
-    [Serializable]
-    class GeminiResponse
-    {
-        public GeminiCandidate[] candidates;
-    }
-
-    [Serializable]
-    class GeminiCandidate
-    {
-        public GeminiContent content;
-    }
-
-    [Serializable]
-    class GeminiContent
-    {
-        public GeminiPart[] parts;
-    }
-
-    [Serializable]
-    class GeminiPart
-    {
-        public string text;
-        public GeminiInlineData inlineData; // TTS 応答の音声（text と排他的なことが多い）
-    }
 
     [Serializable]
     class GeminiInlineData
@@ -958,17 +815,6 @@ public class SpeechToSpeech : MonoBehaviour
         }
     }
 
-    // 表示用に長い文字列を先頭だけ残す
-    static string TruncateForDisplay(string value, int maxChars)
-    {
-        if (string.IsNullOrEmpty(value) || value.Length <= maxChars)
-        {
-            return value;
-        }
-
-        return value.Substring(0, maxChars) + "…(" + value.Length + " chars total)";
-    }
-
     // ----- systemInstruction ファイル同期（1A と同型） -----
 
     string GetSystemInstructionFilePath()
@@ -1082,30 +928,16 @@ public class SpeechToSpeech : MonoBehaviour
 
     void LoadApiKey()
     {
-        string path = Path.Combine(Application.dataPath, apiKeyRelativePath);
-        if (!File.Exists(path))
+        string error;
+        if (!GeminiKey.TryRead(apiKeyRelativePath, out apiKey, out error))
         {
-            Debug.LogError("[SpeechToSpeech] APIキーファイルがありません: " + path);
-            apiKey = null;
+            Debug.LogError("[SpeechToSpeech] " + error);
             SetStatus("エラー", false);
-            SetPanelPlaceholder(sttResponseText, "APIキーファイルが見つかりません:\n" + path);
+            SetPanelPlaceholder(sttResponseText, error);
             return;
         }
 
-        apiKey = File.ReadAllText(path).Trim();
-        if (string.IsNullOrEmpty(apiKey))
-        {
-            Debug.LogError("[SpeechToSpeech] APIキーが空です: " + path);
-            apiKey = null;
-            SetStatus("エラー", false);
-            SetPanelPlaceholder(
-                sttResponseText,
-                "APIキーが空です。Docs/gemini-ai-studio-setup.md を参照してください。");
-        }
-        else
-        {
-            Debug.Log("[SpeechToSpeech] APIキーを読み込みました（長さ " + apiKey.Length + "）。キー自体はログに出しません。");
-        }
+        Debug.Log("[SpeechToSpeech] APIキーを読み込みました（長さ " + apiKey.Length + "）。キー自体はログに出しません。");
     }
 
     // ----- UI 更新 -----
@@ -1135,60 +967,6 @@ public class SpeechToSpeech : MonoBehaviour
         Color color = statusText.color;
         color.a = Mathf.Lerp(0.25f, 1f, wave);
         statusText.color = color;
-    }
-
-    // 中央ペイン用: URL / マスク済みヘッダ / JSON（長い Base64 は表示だけ短縮）
-    string FormatHttpRequestForDisplay(string url, string requestJson)
-    {
-        StringBuilder sb = new StringBuilder();
-        sb.AppendLine("POST " + url);
-        sb.AppendLine("Content-Type: application/json; charset=utf-8");
-        sb.AppendLine("x-goog-api-key: " + MaskApiKey(apiKey));
-        sb.AppendLine();
-        sb.Append(PrettyPrintJson(TruncateBase64ForDisplay(requestJson)));
-        return sb.ToString();
-    }
-
-    string FormatHttpResponseForDisplay(long statusCode, string responseBody)
-    {
-        StringBuilder sb = new StringBuilder();
-        sb.AppendLine("HTTP " + statusCode);
-        sb.AppendLine();
-        sb.Append(string.IsNullOrEmpty(responseBody) ? "(empty body)" : PrettyPrintJson(responseBody));
-        return sb.ToString();
-    }
-
-    // inlineData.data の長い Base64 を、画面では先頭だけにして読みやすくする（送信自体は全文）
-    static string TruncateBase64ForDisplay(string requestJson)
-    {
-        if (string.IsNullOrEmpty(requestJson))
-        {
-            return requestJson;
-        }
-
-        const string marker = "\"data\":\"";
-        int dataIndex = requestJson.IndexOf(marker, StringComparison.Ordinal);
-        if (dataIndex < 0)
-        {
-            return requestJson;
-        }
-
-        int valueStart = dataIndex + marker.Length;
-        int valueEnd = requestJson.IndexOf('"', valueStart);
-        if (valueEnd < 0)
-        {
-            return requestJson;
-        }
-
-        int length = valueEnd - valueStart;
-        if (length <= DisplayBase64MaxChars)
-        {
-            return requestJson;
-        }
-
-        string head = requestJson.Substring(valueStart, DisplayBase64MaxChars);
-        string replacement = head + "…(" + length + " chars total)";
-        return requestJson.Substring(0, valueStart) + replacement + requestJson.Substring(valueEnd);
     }
 
     // プレースホルダ文言を1ペインに出す
@@ -1245,122 +1023,5 @@ public class SpeechToSpeech : MonoBehaviour
         {
             systemInstructionField.interactable = !sending;
         }
-    }
-
-    // ----- JSON / 表示ヘルパー -----
-
-    static string MaskApiKey(string key)
-    {
-        if (string.IsNullOrEmpty(key))
-        {
-            return "(none)";
-        }
-
-        if (key.Length <= 6)
-        {
-            return "******";
-        }
-
-        return key.Substring(0, 4) + "…" + new string('*', 8);
-    }
-
-    static string EscapeJson(string value)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            return string.Empty;
-        }
-
-        StringBuilder sb = new StringBuilder(value.Length + 8);
-        for (int i = 0; i < value.Length; i++)
-        {
-            char c = value[i];
-            switch (c)
-            {
-                case '\\':
-                    sb.Append("\\\\");
-                    break;
-                case '"':
-                    sb.Append("\\\"");
-                    break;
-                case '\n':
-                    sb.Append("\\n");
-                    break;
-                case '\r':
-                    sb.Append("\\r");
-                    break;
-                case '\t':
-                    sb.Append("\\t");
-                    break;
-                default:
-                    sb.Append(c);
-                    break;
-            }
-        }
-
-        return sb.ToString();
-    }
-
-    static string PrettyPrintJson(string json)
-    {
-        if (string.IsNullOrEmpty(json))
-        {
-            return string.Empty;
-        }
-
-        StringBuilder sb = new StringBuilder(json.Length + 32);
-        int indent = 0;
-        bool inString = false;
-        for (int i = 0; i < json.Length; i++)
-        {
-            char c = json[i];
-            if (c == '"' && (i == 0 || json[i - 1] != '\\'))
-            {
-                inString = !inString;
-                sb.Append(c);
-                continue;
-            }
-
-            if (inString)
-            {
-                sb.Append(c);
-                continue;
-            }
-
-            switch (c)
-            {
-                case '{':
-                case '[':
-                    sb.Append(c);
-                    sb.Append('\n');
-                    indent++;
-                    sb.Append(new string(' ', indent * 2));
-                    break;
-                case '}':
-                case ']':
-                    sb.Append('\n');
-                    indent = Mathf.Max(0, indent - 1);
-                    sb.Append(new string(' ', indent * 2));
-                    sb.Append(c);
-                    break;
-                case ',':
-                    sb.Append(c);
-                    sb.Append('\n');
-                    sb.Append(new string(' ', indent * 2));
-                    break;
-                case ':':
-                    sb.Append(": ");
-                    break;
-                default:
-                    if (!char.IsWhiteSpace(c))
-                    {
-                        sb.Append(c);
-                    }
-
-                    break;
-            }
-        }
-
-        return sb.ToString();
     }
 }

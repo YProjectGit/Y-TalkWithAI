@@ -104,3 +104,14 @@ Unity ではその文字をバイト列に戻し、`Texture2D.LoadImage` で画�
    `TryExtractInlineImage` — レスポンス JSON から `inlineData` とテキスト part を取り出す
 6. **送受信を画面に出す**  
    `ShowRequest` / `ShowResponse` — 中央・右ペインへの可視化（Base64 は表示だけ短縮）
+
+### 共通スクリプト（`Assets/Common/Script/`）
+
+このデモが使っている共通の道具です。どれも入力と出力だけの小さな関数なので、**上の流れを追うときに中身を読む必要はありません。**
+
+| ファイル | 中身 |
+|---|---|
+| [`GeminiJson`](../Common/Script/GeminiJson.cs) | JSON のエスケープ・整形・省略表示 |
+| [`GeminiKey`](../Common/Script/GeminiKey.cs) | APIキーの読込・マスク・generateContent の URL |
+
+共通スクリプトは 13 デモすべてが使っています。挙動を変えたくなったら Common を直さず、そのファイルをこのデモの `Script/` にコピーしてクラス名を変えてください。

@@ -74,6 +74,18 @@ STT は Speech-to-Text（音声→テキスト）、TTS は Text-to-Speech（テ
 - **API キーは `Assets/Common/APIKey.txt`**（リポジトリにはコミットしない）
 - **共通基盤への寄せすぎはしない** — コピーして改変しやすい短い流れを優先
 
+### 共有しているもの / していないもの
+
+繰り返し出てくる**純粋関数だけ**を `Assets/Common/Script/` に置いています。名前だけで用が足りるので、デモを上から下まで読むときに Common へ飛ぶ必要はありません。
+
+| | 置き場所 | 例 |
+|---|---|---|
+| 共有する（葉） | `Assets/Common/Script/` | JSON のエスケープ・整形（`GeminiJson`）、JSON 走査（`GeminiJsonScan`）、APIキー（`GeminiKey`）、レスポンスのテキスト取り出し（`GeminiTextResponse`）、音声の形の変換（`AudioCodec`）、通信ペインの整形（`HttpDisplay`）、テクスチャ縮小（`TextureUtil`） |
+| 共有しない（背骨） | 各デモの `Script/` | Live セッション、マイク制御、音声再生、Status 表示、SystemInstruction 同期、カメラ制御 |
+| 共有しない（主題） | 各デモの `Script/` | **リクエスト JSON の組み立てとレスポンスのキー解釈** — 何を送って何が返るかは、そのデモで学ぶことそのもの |
+
+判定条件と、変更したくなったときの手順は [WorkshopMaterial.mdc](../.cursor/rules/WorkshopMaterial.mdc) にあります。
+
 ---
 
 ## 各デモで増えるもの（ざっくり）

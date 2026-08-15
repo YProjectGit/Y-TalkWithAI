@@ -12,7 +12,6 @@
 
 using System;
 using System.Collections;
-using System.IO;
 using System.Text;
 using TMPro;
 using UnityEngine;
@@ -219,7 +218,7 @@ public class ImageToImage : MonoBehaviour
         StringBuilder sb = new StringBuilder();
         sb.Append("{\"contents\":[{\"role\":\"user\",\"parts\":[");
         sb.Append("{\"text\":\"");
-        sb.Append(EscapeJson(prompt));
+        sb.Append(GeminiJson.Escape(prompt));
         sb.Append("\"},");
         // 参照画像。mime は JPEG。data は Base64（画面表示だけ後で短縮する）
         sb.Append("{\"inlineData\":{\"mimeType\":\"image/jpeg\",\"data\":\"");
@@ -235,7 +234,7 @@ public class ImageToImage : MonoBehaviour
             if (!string.IsNullOrEmpty(aspectRatio))
             {
                 sb.Append("\"aspectRatio\":\"");
-                sb.Append(EscapeJson(aspectRatio));
+                sb.Append(GeminiJson.Escape(aspectRatio));
                 sb.Append('"');
                 wrote = true;
             }
@@ -248,7 +247,7 @@ public class ImageToImage : MonoBehaviour
                 }
 
                 sb.Append("\"imageSize\":\"");
-                sb.Append(EscapeJson(imageSize));
+                sb.Append(GeminiJson.Escape(imageSize));
                 sb.Append('"');
             }
 
@@ -498,7 +497,7 @@ public class ImageToImage : MonoBehaviour
             float scale = (float)maxSendLongSide / longSide;
             int dstW = Mathf.Max(1, Mathf.RoundToInt(srcW * scale));
             int dstH = Mathf.Max(1, Mathf.RoundToInt(srcH * scale));
-            sendTex = ScaleTexture(src, dstW, dstH);
+            sendTex = TextureUtil.Scale(src, dstW, dstH);
             Destroy(src);
         }
 
@@ -507,47 +506,19 @@ public class ImageToImage : MonoBehaviour
         return jpegBytes != null && jpegBytes.Length > 0;
     }
 
-    // 単純なバイリニア縮小（教材用。GPU スケールは使わない）
-    static Texture2D ScaleTexture(Texture2D source, int dstW, int dstH)
-    {
-        Texture2D dst = new Texture2D(dstW, dstH, TextureFormat.RGB24, false);
-        for (int y = 0; y < dstH; y++)
-        {
-            float v = (y + 0.5f) / dstH;
-            for (int x = 0; x < dstW; x++)
-            {
-                float u = (x + 0.5f) / dstW;
-                dst.SetPixel(x, y, source.GetPixelBilinear(u, v));
-            }
-        }
-
-        dst.Apply();
-        return dst;
-    }
-
     // ----- APIキー -----
 
     // Assets/Common/APIKey.txt を1行読む（リポジトリにはコミットしない）
     void LoadApiKey()
     {
-        string path = Path.Combine(Application.dataPath, apiKeyRelativePath);
-        if (!File.Exists(path))
+        string error;
+        if (!GeminiKey.TryRead(apiKeyRelativePath, out apiKey, out error))
         {
-            Debug.LogError("[ImageToImage] APIキーファイルがありません: " + path);
-            apiKey = null;
+            Debug.LogError("[ImageToImage] " + error);
             return;
         }
 
-        apiKey = File.ReadAllText(path).Trim();
-        if (string.IsNullOrEmpty(apiKey))
-        {
-            Debug.LogError("[ImageToImage] APIキーが空です: " + path);
-            apiKey = null;
-        }
-        else
-        {
-            Debug.Log("[ImageToImage] APIキーを読み込みました（長さ " + apiKey.Length + "）。キー自体はログに出しません。");
-        }
+        Debug.Log("[ImageToImage] APIキーを読み込みました（長さ " + apiKey.Length + "）。キー自体はログに出しません。");
     }
 
     // ----- UI 更新 -----
@@ -658,44 +629,5 @@ public class ImageToImage : MonoBehaviour
         GameObject es = new GameObject("EventSystem");
         es.AddComponent<EventSystem>();
         es.AddComponent<InputSystemUIInputModule>();
-    }
-
-    // ----- JSON ヘルパー -----
-
-    static string EscapeJson(string value)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            return string.Empty;
-        }
-
-        StringBuilder sb = new StringBuilder(value.Length + 8);
-        for (int i = 0; i < value.Length; i++)
-        {
-            char c = value[i];
-            switch (c)
-            {
-                case '\\':
-                    sb.Append("\\\\");
-                    break;
-                case '"':
-                    sb.Append("\\\"");
-                    break;
-                case '\n':
-                    sb.Append("\\n");
-                    break;
-                case '\r':
-                    sb.Append("\\r");
-                    break;
-                case '\t':
-                    sb.Append("\\t");
-                    break;
-                default:
-                    sb.Append(c);
-                    break;
-            }
-        }
-
-        return sb.ToString();
     }
 }

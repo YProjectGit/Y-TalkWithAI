@@ -258,7 +258,7 @@ public class VisionToSpeech : MonoBehaviour
         StringBuilder sb = new StringBuilder(512);
         sb.Append("{\"setup\":{");
         sb.Append("\"model\":\"models/");
-        sb.Append(EscapeJson(modelName));
+        sb.Append(GeminiJson.Escape(modelName));
         sb.Append("\",");
 
         // シャッター／ストリームともクライアントが activityStart/End でターンを区切る
@@ -268,7 +268,7 @@ public class VisionToSpeech : MonoBehaviour
         if (!string.IsNullOrEmpty(mediaResolution))
         {
             sb.Append("\"mediaResolution\":\"");
-            sb.Append(EscapeJson(mediaResolution));
+            sb.Append(GeminiJson.Escape(mediaResolution));
             sb.Append("\",");
         }
 
@@ -276,14 +276,14 @@ public class VisionToSpeech : MonoBehaviour
         if (!string.IsNullOrEmpty(instruction))
         {
             sb.Append("\"systemInstruction\":{\"parts\":[{\"text\":\"");
-            sb.Append(EscapeJson(instruction));
+            sb.Append(GeminiJson.Escape(instruction));
             sb.Append("\"}]},");
         }
 
         sb.Append("\"generationConfig\":{");
         sb.Append("\"responseModalities\":[\"AUDIO\"],");
         sb.Append("\"speechConfig\":{\"voiceConfig\":{\"prebuiltVoiceConfig\":{\"voiceName\":\"");
-        sb.Append(EscapeJson(voiceName));
+        sb.Append(GeminiJson.Escape(voiceName));
         sb.Append("\"}}}");
         sb.Append('}'); // generationConfig
         sb.Append("}}"); // setup + root
@@ -388,7 +388,7 @@ public class VisionToSpeech : MonoBehaviour
         {
             setupHeaderText.text =
                 BuildSetupSettingsSummary() + "\n\n"
-                + PrettyPrintJson(TruncateForDisplay(lastSetupJsonForDisplay, 400));
+                + GeminiJson.PrettyPrint(GeminiJson.Truncate(lastSetupJsonForDisplay, 400));
         }
         else
         {
@@ -510,7 +510,7 @@ public class VisionToSpeech : MonoBehaviour
             : framePromptText;
         string textJson =
             "{\"clientContent\":{\"turns\":[{\"role\":\"user\",\"parts\":[{\"text\":\""
-            + EscapeJson(prompt)
+            + GeminiJson.Escape(prompt)
             + "\"}]}],\"turnComplete\":false}}";
         yield return StartCoroutine(SendJsonCoroutine(textJson));
         AppendOutboundLog("clientContent text（説明指示）");
@@ -552,7 +552,7 @@ public class VisionToSpeech : MonoBehaviour
             float scale = (float)maxSendLongSide / longSide;
             int dstW = Mathf.Max(1, Mathf.RoundToInt(srcW * scale));
             int dstH = Mathf.Max(1, Mathf.RoundToInt(srcH * scale));
-            sendTex = ScaleTexture(src, dstW, dstH);
+            sendTex = TextureUtil.Scale(src, dstW, dstH);
             Destroy(src);
         }
 
@@ -561,24 +561,6 @@ public class VisionToSpeech : MonoBehaviour
         jpegBytes = sendTex.EncodeToJPG(Mathf.Clamp(jpegQuality, 1, 100));
         Destroy(sendTex);
         return jpegBytes != null && jpegBytes.Length > 0;
-    }
-
-    // 単純なバイリニア縮小（教材用。GPU スケールは使わない）
-    static Texture2D ScaleTexture(Texture2D source, int dstW, int dstH)
-    {
-        Texture2D dst = new Texture2D(dstW, dstH, TextureFormat.RGB24, false);
-        for (int y = 0; y < dstH; y++)
-        {
-            float v = (y + 0.5f) / dstH;
-            for (int x = 0; x < dstW; x++)
-            {
-                float u = (x + 0.5f) / dstW;
-                dst.SetPixel(x, y, source.GetPixelBilinear(u, v));
-            }
-        }
-
-        dst.Apply();
-        return dst;
     }
 
     // ----- 送受信 -----
@@ -677,7 +659,7 @@ public class VisionToSpeech : MonoBehaviour
 
         if (json.IndexOf("\"outputTranscription\"", StringComparison.Ordinal) >= 0)
         {
-            string t = ExtractNestedTextAfterKey(json, "outputTranscription");
+            string t = GeminiJsonScan.NestedTextAfterKey(json, "outputTranscription");
             if (!string.IsNullOrEmpty(t))
             {
                 EnqueueMain(() => OnOutputTranscription(t));
@@ -816,7 +798,7 @@ public class VisionToSpeech : MonoBehaviour
             }
 
             EnsurePlaybackAudioSource();
-            AudioClip clip = Pcm16ToClip(pcm, playbackSampleRate);
+            AudioClip clip = AudioCodec.Pcm16ToClip(pcm, playbackSampleRate);
             if (clip == null)
             {
                 continue;
@@ -903,7 +885,7 @@ public class VisionToSpeech : MonoBehaviour
                + "mediaResolution: " + mediaResolution + "\n"
                + "send: JPEG ≤" + maxSendLongSide + "\n"
                + modeLine
-               + "key: " + MaskApiKey(apiKey);
+               + "key: " + GeminiKey.Mask(apiKey);
     }
 
     void RefreshSetupHeader(string setupJson)
@@ -916,7 +898,7 @@ public class VisionToSpeech : MonoBehaviour
 
         setupHeaderText.text =
             BuildSetupSettingsSummary() + "\n\n"
-            + PrettyPrintJson(TruncateForDisplay(setupJson, 400));
+            + GeminiJson.PrettyPrint(GeminiJson.Truncate(setupJson, 400));
     }
 
     void SetInboundHeaderStatic()
@@ -1139,43 +1121,15 @@ public class VisionToSpeech : MonoBehaviour
         playbackAudioSource.playOnAwake = false;
     }
 
-    static AudioClip Pcm16ToClip(byte[] pcm, int rate)
-    {
-        if (pcm == null || pcm.Length < 2 || rate <= 0)
-        {
-            return null;
-        }
-
-        int sampleCount = pcm.Length / 2;
-        float[] samples = new float[sampleCount];
-        for (int i = 0; i < sampleCount; i++)
-        {
-            short s = (short)(pcm[i * 2] | (pcm[i * 2 + 1] << 8));
-            samples[i] = s / 32768f;
-        }
-
-        AudioClip clip = AudioClip.Create("LivePcm", sampleCount, 1, rate, false);
-        clip.SetData(samples, 0);
-        return clip;
-    }
-
     // ----- systemInstruction / APIキー -----
 
     void LoadApiKey()
     {
-        string path = Path.Combine(Application.dataPath, apiKeyRelativePath);
-        if (!File.Exists(path))
+        string error;
+        if (!GeminiKey.TryRead(apiKeyRelativePath, out apiKey, out error))
         {
-            apiKey = null;
-            Debug.LogError("[VisionToSpeech] APIキーがありません: " + path);
+            Debug.LogError("[VisionToSpeech] " + error);
             return;
-        }
-
-        apiKey = File.ReadAllText(path).Trim();
-        if (string.IsNullOrEmpty(apiKey))
-        {
-            apiKey = null;
-            Debug.LogError("[VisionToSpeech] APIキーが空です。");
         }
     }
 
@@ -1326,204 +1280,5 @@ public class VisionToSpeech : MonoBehaviour
         socket = null;
         isConnected = false;
         setupComplete = false;
-    }
-
-    // ----- JSON / 表示ヘルパー -----
-
-    static string ExtractNestedTextAfterKey(string json, string objectKey)
-    {
-        int keyIndex = json.IndexOf("\"" + objectKey + "\"", StringComparison.Ordinal);
-        if (keyIndex < 0)
-        {
-            return null;
-        }
-
-        int textKey = json.IndexOf("\"text\"", keyIndex, StringComparison.Ordinal);
-        if (textKey < 0)
-        {
-            return null;
-        }
-
-        return ExtractJsonStringFieldFrom(json, textKey);
-    }
-
-    static string ExtractJsonStringFieldFrom(string json, int keyIndex)
-    {
-        int colon = json.IndexOf(':', keyIndex);
-        if (colon < 0)
-        {
-            return null;
-        }
-
-        int firstQuote = json.IndexOf('"', colon + 1);
-        if (firstQuote < 0)
-        {
-            return null;
-        }
-
-        int i = firstQuote + 1;
-        StringBuilder sb = new StringBuilder();
-        while (i < json.Length)
-        {
-            char c = json[i];
-            if (c == '\\' && i + 1 < json.Length)
-            {
-                char n = json[i + 1];
-                if (n == 'n')
-                {
-                    sb.Append('\n');
-                }
-                else if (n == '"')
-                {
-                    sb.Append('"');
-                }
-                else if (n == '\\')
-                {
-                    sb.Append('\\');
-                }
-                else
-                {
-                    sb.Append(n);
-                }
-
-                i += 2;
-                continue;
-            }
-
-            if (c == '"')
-            {
-                break;
-            }
-
-            sb.Append(c);
-            i++;
-        }
-
-        return sb.ToString();
-    }
-
-    static string MaskApiKey(string key)
-    {
-        if (string.IsNullOrEmpty(key))
-        {
-            return "(none)";
-        }
-
-        if (key.Length <= 6)
-        {
-            return "******";
-        }
-
-        return key.Substring(0, 4) + "…" + new string('*', 8);
-    }
-
-    static string EscapeJson(string value)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            return string.Empty;
-        }
-
-        StringBuilder sb = new StringBuilder(value.Length + 8);
-        for (int i = 0; i < value.Length; i++)
-        {
-            char c = value[i];
-            switch (c)
-            {
-                case '\\':
-                    sb.Append("\\\\");
-                    break;
-                case '"':
-                    sb.Append("\\\"");
-                    break;
-                case '\n':
-                    sb.Append("\\n");
-                    break;
-                case '\r':
-                    sb.Append("\\r");
-                    break;
-                case '\t':
-                    sb.Append("\\t");
-                    break;
-                default:
-                    sb.Append(c);
-                    break;
-            }
-        }
-
-        return sb.ToString();
-    }
-
-    static string TruncateForDisplay(string value, int maxChars)
-    {
-        if (string.IsNullOrEmpty(value) || value.Length <= maxChars)
-        {
-            return value;
-        }
-
-        return value.Substring(0, maxChars) + "…(" + value.Length + " chars)";
-    }
-
-    static string PrettyPrintJson(string json)
-    {
-        if (string.IsNullOrEmpty(json))
-        {
-            return string.Empty;
-        }
-
-        StringBuilder sb = new StringBuilder(json.Length + 32);
-        int indent = 0;
-        bool inString = false;
-        for (int i = 0; i < json.Length; i++)
-        {
-            char c = json[i];
-            if (c == '"' && (i == 0 || json[i - 1] != '\\'))
-            {
-                inString = !inString;
-                sb.Append(c);
-                continue;
-            }
-
-            if (inString)
-            {
-                sb.Append(c);
-                continue;
-            }
-
-            switch (c)
-            {
-                case '{':
-                case '[':
-                    sb.Append(c);
-                    sb.Append('\n');
-                    indent++;
-                    sb.Append(new string(' ', indent * 2));
-                    break;
-                case '}':
-                case ']':
-                    sb.Append('\n');
-                    indent = Mathf.Max(0, indent - 1);
-                    sb.Append(new string(' ', indent * 2));
-                    sb.Append(c);
-                    break;
-                case ',':
-                    sb.Append(c);
-                    sb.Append('\n');
-                    sb.Append(new string(' ', indent * 2));
-                    break;
-                case ':':
-                    sb.Append(": ");
-                    break;
-                default:
-                    if (!char.IsWhiteSpace(c))
-                    {
-                        sb.Append(c);
-                    }
-
-                    break;
-            }
-        }
-
-        return sb.ToString();
     }
 }
