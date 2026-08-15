@@ -1,4 +1,4 @@
-# 2C の音声認識モデルを置く
+# sherpa-onnx の配置（2C.(SpeechToTextSherpa)）
 
 2C のローカル STT（Speech-to-Text）に使うモデルとネイティブライブラリを、自分の PC に置いてください。APIキーは不要です。
 

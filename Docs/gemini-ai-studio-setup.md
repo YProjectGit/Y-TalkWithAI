@@ -1,4 +1,4 @@
-# APIキーを用意する
+# Google AI Studio セットアップ手順
 
 音声・画像インタラクション・ワークショップ用 / Gemini Developer API を Unity から使うための準備  
 （最終確認: 2026年8月）

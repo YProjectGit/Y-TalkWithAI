@@ -1,4 +1,4 @@
-# 無料枠を超えたときの課金
+# Gemini API 支払い・価格ガイド
 
 音声・画像インタラクション・ワークショップ用 / 無料枠の回数に達してから有料へ移る  
 （最終確認: 2026年8月。手順・金額は [公式の課金](https://ai.google.dev/gemini-api/docs/billing) と [料金表](https://ai.google.dev/gemini-api/docs/pricing) を正とします）
