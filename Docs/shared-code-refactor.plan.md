@@ -1,355 +1,294 @@
-# 共通コード共有へのリファクタリング計画
+# 共通ユーティリティ切り出し計画
 
 ## 要点（サマリー）
 
-- **何をするか**: 「デモごとに全部コピー」という現在の縛りを外し、**配管（plumbing）は `Assets/Common/` に寄せる／プロトコルと流れはデモに残す** の二層に整理する。
-- **なぜ**: 13 デモ・約 14,400 行のうち、コメントと空白を無視して**完全一致するコピーだけで約 3,500 行**。名前が同じメソッドまで含めると各ファイルの **40〜67%** が他デモと重なっている。1 か所の修正が 13 か所に散る状態になっている。
-- **判断の軸**: 「学生が読むべきコード」か「読まなくていいコード」か。JSON エスケープ・WAV 変換・WebSocket の後始末は後者。何を送って何が返るかは前者。
-- **効果の見込み**: 共有ライブラリ約 1,500 行を新設し、デモ側から約 5,000 行を削除。メインスクリプト 1 本あたり **700〜1,600 行 → 350〜800 行**。
-- **前提の変更**: 現行の規約（[WorkshopMaterial.mdc](../.cursor/rules/WorkshopMaterial.mdc)・[demo-series-overview.md](demo-series-overview.md)）は「共通基盤への寄せすぎは避ける」と明記している。**この計画はその条項の改訂を伴う**ので、Phase 0 で先に規約を直す。
-- **一言**: 「全部コピー」から「配管は共有・主題はコピー」へ。学生が読む行数はむしろ減る。
+- **何をするか**: デモ間で繰り返し現れる**純粋関数だけ**を `Assets/Common/Script/` に切り出す。それ以外は今までどおりデモごとにコピーのまま残す。
+- **対象**: JSON エスケープ／整形、JSON 走査、WAV / PCM 変換、APIキー読込、レスポンスからのテキスト取り出し、HTTP 表示整形、テクスチャ縮小。**17 メソッド・約 2,700 行の重複**。
+- **対象外**: WebSocket セッション、マイク制御、音声再生、Status 点滅、吹き出し、SystemInstruction 同期、カメラ矩形、Prefab。これらは**状態とライフサイクルを持つ＝デモの背骨**なので触らない。
+- **効果**: ライブラリ約 570 行を新設し、デモ側から約 2,700 行を削除。**正味 約 2,100 行減（-15%）**。
+- **リスク**: シーン変更なし・インスペクタ配線変更なし・PlayMode 検証不要。**検証は `compile` のみ**で完結する。
+- **一言**: 葉っぱだけ共有する。背骨はコピーのまま残す。
 
 ---
 
-## 1. 現状の計測
+## 1. スコープの決め方
 
-対象は各デモのメインスクリプト（`Assets/{番号}.{題名}/Script/*.cs`）。`2C` の `SherpaOnnx/` 配下はベンダー提供のバインディングなので除外。
+「ユーティリティかどうか」は主観になるので、機械的に判定できる条件にする。
 
-| | 行数 | 他デモと同名メソッドが占める割合 |
-|---|---:|---:|
-| 1A.TextToText | 761 | 66% |
-| 1B.TextToJSON | 784 | 61% |
-| 2A.SpeechToText | 995 | 80% |
-| 2B.SpeechToJSON | 1,038 | 72% |
-| 2C.(SpeechToTextSherpa) | 919 | 80% |
-| 2D.(SpeechToTextWhisper) | 993 | 74% |
-| 3A.SpeechToSpeech | 1,367 | 65% |
-| 3B.SpeechToSpeechLiveAPI | 1,569 | 79% |
-| 3C.SpeechToMotion | 1,617 | ※ |
-| 4.VisionToSpeech | 1,530 | 76% |
-| 5.ScreenToSpeech | 885 | 77% |
-| 6.TextToImage | 776 | 67% |
-| 7.ImageToImage | 702 | 63% |
-| **合計** | **14,438** | |
+### 採用条件（全部満たすもののみ）
 
-※ 3C は自動計測が途中で崩れたため未算出（`ExtractArgsObjectNear` 内の波括弧リテラルが原因）。手で追うと 3B とほぼ同じ比率。
+1. `static` で書ける（インスタンス状態を持たない）
+2. `MonoBehaviour` のライフサイクル（`Start` / `Update` / `OnDestroy` / コルーチン）を必要としない
+3. UI 参照（`TMP_Text` など）もシーン上のオブジェクトも受け取らない
+4. 呼び出し側へ戻ってこない（コールバックもイベントもない）
+5. **入力と出力だけで説明が完結する**
 
-**コメントと空白を無視して完全一致するコピーだけで約 3,527 行。** 代表例:
+### しきい値
 
-| メソッド | 完全一致しているデモ | 1 本あたり |
-|---|---|---:|
-| `EscapeJson` | 1A・1B・2A・2B・2C・2D・3A・3B・4・5・6・7（12 本） | 36 行 |
-| `PrettyPrintJson` | 1A・1B・2A・2B・2C・2D・3A・3B・4・6（10 本） | 62 行 |
-| `SetStatus` / `UpdateStatusBlink` | 11 本ずつ | 13 / 12 行 |
-| `MaskApiKey` | 9 本 | 14 行 |
-| `SystemInstruction` 同期一式（7 メソッド） | 1A・2A・2C・2D・3A（＋3B・4 が別系統） | 約 90 行 |
-| `CloseSocket` / `ExtractJsonStringFieldFrom` | 3B・4・5 | 44 / 54 行 |
-| `SendJsonCoroutine` / `SendTextAsync` / `Pcm16ToClip` / `ClearPlaybackQueue` | 3B・3C・4・5 | 18 / 9 / 19 / 12 行 |
-| `ConvertAudioClipToWav` / `TrimClip` / `PostJsonCoroutine` | 2A・2B・3A（＋2C・2D） | 46 / 24 / 19 行 |
-| カメラ矩形一式（`EnsureBackgroundClearCamera` ほか） | 1B・2B・3C | 約 130 行 |
-| `MessageBubble.prefab` | 1A・2A・2C・2D・3A・3B・4（バイト単位で同一、GUID だけ 7 種） | — |
+- **3 デモ以上で使われていること。** 2 デモだけの重複は放置する
+- 例外は同族関数のみ。`CopyClipSamples`（2C・2D）と `FloatsToPcm16`（3B・3C）は 2 デモだが、`ConvertAudioClipToWav` / `Pcm16ToClip` と同じ音声変換ファイルに置くほうが探しやすいので含める
 
-**「名前は同じだが中身が違う」ものもある**（後述の差異一覧）。ここが一括置換で事故る場所なので、共有化の前に潰す。
+### この基準が効く理由
+
+ユーティリティは**葉**である。`GeminiJson.Escape(x)` は名前で用が足りるので、デモを上から下まで読み通すのに一度も飛ばなくていい。一方 `LiveSession` のような**背骨**を共有すると、読むために必ず飛ぶ必要が出る。**「1 ファイル = 1 つの流れ」という教材の形は、葉を切り出しても壊れないが、背骨を抜くと壊れる。**
 
 ---
 
-## 2. 方針 — 何を共有し、何を共有しないか
+## 2. 現状の計測
 
-線引きは「教材としてそのコードを読ませたいか」で決める。
+対象は各デモのメインスクリプト。`2C` の `SherpaOnnx/` 配下はベンダー提供のバインディングなので除外。デモ合計 **14,438 行**。
 
-### 共有する（読まなくていい配管）
+### 採用するメソッド（実測）
 
-| 領域 | 理由 |
-|---|---|
-| JSON のエスケープ・整形・省略表示 | Gemini の話ではなく文字列処理。読んでも API の理解は進まない |
-| API キーの読み込み・マスク | 全デモで同一。手順は `Docs/` 側で説明済み |
-| SystemInstruction.txt と入力欄の同期 | ファイル I/O の都合。API の話ではない |
-| Status の点滅・ペインへの追記・吹き出し追加 | 見せ方の実装であって通信ではない |
-| WAV エンコード / PCM16 変換 / AudioClip 生成 | 音声フォーマットの定型処理 |
-| マイク録音の開始・停止・切り出し | Unity の `Microphone` API の作法 |
-| WebSocket の接続・受信ループ・メインスレッド復帰・後始末 | 非同期の定型。**送る中身は共有しない** |
-| WebCamTexture の起動・停止・JPEG 化 | Unity の定型処理 |
-| EventSystem / AudioListener の用意 | シーンの下準備 |
-| `MessageBubble.prefab` | バイト単位で同一 |
+| メソッド | 使用デモ数 | 1 本 | 合計 | 共有先ファイル |
+|---|---:|---:|---:|---|
+| `EscapeJson` | 13 | 36 | 434 | `GeminiJson` |
+| `PrettyPrintJson` | 11 | 62 | 622 | `GeminiJson` |
+| `TruncateForDisplay` | 4 | 9 | 29 | `GeminiJson` |
+| `TruncateBase64ForDisplay` | 3 | 32 | 94 | `GeminiJson` |
+| `ExtractNestedTextAfterKey` | 4 | 16 | 51 | `GeminiJsonScan` |
+| `ExtractJsonStringFieldFrom` | 4 | 54 | 165 | `GeminiJsonScan` |
+| `LoadApiKey` → `TryRead` | 13 | 32 | 273 | `GeminiKey` |
+| `MaskApiKey` | 9 | 14 | 126 | `GeminiKey` |
+| `BuildGenerateContentUrl` | 5 | 6 | 30 | `GeminiKey` |
+| `TryExtractAssistantText` | 5 | 33 | 165 | `GeminiResponse` |
+| `ConvertAudioClipToWav` | 3 | 46 | 137 | `AudioCodec` |
+| `TrimClip` | 3 | 24 | 72 | `AudioCodec` |
+| `Pcm16ToClip` | 4 | 19 | 59 | `AudioCodec` |
+| `CopyClipSamples` | 2※ | 35 | 70 | `AudioCodec` |
+| `FloatsToPcm16` | 2※ | 13 | 26 | `AudioCodec` |
+| `FormatHttpRequestForDisplay` | 5 | 10 | 50 | `HttpDisplay` |
+| `FormatHttpResponseForDisplay` | 5 | 8 | 40 | `HttpDisplay` |
+| `ScaleTexture` | 3 | 19 | 57 | `TextureUtil` |
+| **合計** | | | **約 2,700** | |
 
-### 共有しない（デモの主題そのもの）
+※ 同族関数の例外（1 節）。
 
-| 領域 | 理由 |
-|---|---|
-| `BuildRequestJson` / `BuildSetupJson` / `BuildSttRequestJson` / `BuildChatRequestJson` | **何を送るか**が各デモの学習ポイント。ここを共通ビルダーに隠すとデモの意味が消える |
-| レスポンスから「どのキーを取るか」 | 同上。取り出す作法（走査ヘルパー）だけ共有し、キー名はデモに書く |
-| `responseSchema` / `tools` 宣言 | 1B・2B・3C の主題 |
-| 各デモのメインコルーチン（流れ） | 上から読んで追える 1 本道であることが教材の価値 |
-| `ShowError` / `SetSending` | デモごとに「何を止めるか」「どこに出すか」が違う。共有すると分岐だらけになる |
-| ペインの番号づけと文言 | デモごとの説明の一部 |
+`EscapeJson` は 13 デモすべてでコメントと空白を無視して**完全一致**。`PrettyPrintJson` は 11 本、`MaskApiKey` は 9 本が完全一致。
 
-### 原典デモの扱い（要判断）
+### 見送るメソッド（しきい値未満）
 
-`1A`（REST の原典）と `3B`（Live の原典）をどう扱うかで 2 案ある。
-
-| | 案 A: 原典は完全自己完結のまま | 案 B: 原典も配管は共有 |
+| メソッド | 使用デモ | 見送る理由 |
 |---|---|---|
-| 1A / 3B | 1 ファイル読めば全部わかる | 配管は Common、通信の骨格は自前 |
-| 他デモ | 共有クラスを使う | 同左 |
-| 利点 | 「まず 1A を通読する」導線が完璧に残る | 修正が 1 か所で済む。デモ間の一貫性が保てる |
-| 欠点 | `EscapeJson` などが 1A と Common に二重に存在し、直し忘れが起きる | 1A でも `GeminiJson.Escape` を追う必要がある |
-
-**推奨は案 B。** 二重管理は今回の目的に反する。案 B を採っても 1A の「送る → 待つ → 取り出す」の本体は 1A に残るので、通読の導線は失われない。
+| `ToColor` | 1B・2B | 2 デモ・計 12 行 |
+| `NormalizeInlineDataKeys` | 6・7 | 2 デモ・計 18 行 |
+| `TryExtractStructuredJson` | 1B | 1 デモのみ |
+| `IndexOfJsonKey` / `TryExtractJsonNumber` / `ExtractBalancedObject` / `ExtractArgsObjectNear` | 3C | 3C だけ。function call 用で 3C の主題に近い |
 
 ---
 
-## 3. 共有ライブラリの構成案
+## 3. 共有ライブラリの構成
 
 ```text
-Assets/Common/
-  APIKey.txt                       （既存・コミットしない）
-  SystemInstruction.txt            （既存）
-  Prefab/
-    MessageBubble.prefab           ← 7 デモの同一 prefab を 1 本に統合
-  Script/
-    Ui/
-      ChatBubble.cs                （既存を移動。GUID は .meta が持つのでシーン参照は切れない）
-      ChatLog.cs                   吹き出し追加 + 下端スクロール
-      StatusLabel.cs               Status 文言 + 応答待ちの点滅
-      PaneLog.cs                   ペインへの追記・プレースホルダ・Base64 の省略表示
-      SceneBootstrap.cs            EventSystem / AudioListener の用意
-    Gemini/
-      GeminiKey.cs                 APIキー読込・マスク・generateContent URL 組み立て
-      GeminiJson.cs                Escape / PrettyPrint / Truncate
-      GeminiJsonScan.cs            Live 用の素朴な走査（キー検索・文字列取り出し・数値・波括弧対応）
-      GeminiTextResponse.cs        candidates[0].content.parts[0].text を取り出す DTO と抽出
-      GeminiRestPost.cs            POST コルーチン + HttpResult + Request/Response の表示整形
-      SystemInstructionField.cs    SystemInstruction.txt ↔ TMP_InputField の同期
-    Live/
-      LiveSession.cs               WebSocket 接続・setup 送信・受信ループ・メインスレッド復帰・切断
-      LiveAudioPlayer.cs           受信 PCM のキュー再生
-    Media/
-      MicRecorder.cs               押し話し録音 → AudioClip 切り出し
-      MicStreamer.cs               連続録音 → PCM16 チャンク
-      WavCodec.cs                  AudioClip ⇄ WAV / PCM16 ⇄ AudioClip
-      WebcamFrame.cs               WebCamTexture 起動・停止・JPEG 化・縮小
-      GeneratedImageView.cs        inlineData → Texture2D 表示と解放
-    Stage/
-      CubeStage.cs                 1B / 2B / 3C のカメラ矩形合わせ・背景クリアカメラ
+Assets/Common/Script/
+  ChatBubble.cs          （既存・移動しない）
+  GeminiJson.cs          Escape / PrettyPrint / Truncate / TruncateBase64        約 140 行
+  GeminiJsonScan.cs      NestedTextAfterKey / StringFieldFrom                    約  70 行
+  GeminiKey.cs           TryRead / Mask / BuildGenerateContentUrl                約  50 行
+  GeminiResponse.cs      TryExtractText（JsonUtility 用 DTO を同梱）             約  50 行
+  AudioCodec.cs          ClipToWav / TrimClip / CopyClipSamples /
+                         FloatsToPcm16 / Pcm16ToClip                             約 140 行
+  HttpDisplay.cs         FormatRequest / FormatResponse                          約  30 行
+  TextureUtil.cs         Scale                                                   約  25 行
+                                                                    ライブラリ計 約 570 行
 ```
 
-### 設計上の決めごと
+### 決めごと
 
-1. **シーンの再配線を起こさない。** 各デモの `public TMP_Text statusText` などのインスペクタ公開フィールドは**名前も型も変えない**。共有クラスには呼び出し側が参照を渡す。
-   ```csharp
-   // デモ側（インスペクタ配線はこれまでどおり）
-   public TMP_Text statusText;
-   readonly StatusLabel status = new StatusLabel();
+1. **すべて `static class`。** `MonoBehaviour` は 1 つも増やさない
+2. **名前空間は導入しない。** 教材で `using` 行を増やさない。`Gemini` / `Audio` / `Http` の接頭辞で衝突を防ぐ
+3. **asmdef は作らない。** 現状このプロジェクトに `.asmdef` は 1 つもなく、全コードが `Assembly-CSharp` にある。切ると 2C / 2D の外部パッケージ参照を明示する手間が増えるだけ
+4. **シーンもインスペクタも触らない。** 公開フィールドの名前・型は一切変えない
+5. **外部パッケージに依存しない。** sherpa-onnx / whisper.unity への依存は 2C / 2D の中に閉じたまま
+6. **コメント規約は Common にも適用する。** [WorkshopMaterial.mdc](../.cursor/rules/WorkshopMaterial.mdc) の日本語コメント規約に従い、各ファイル冒頭に「何のための道具か・どのデモが使うか」を書く
 
-   void Start()  { status.Bind(statusText); status.Set("待機中", false); }
-   void Update() { status.Tick(); }
-   ```
-2. **`MonoBehaviour` を増やさない。** `LiveSession` も `MicRecorder` もプレーンクラス。コルーチンは呼び出し側の `MonoBehaviour` が回す。
-   ```csharp
-   yield return live.ConnectRoutine(apiKey, modelName, BuildSetupJson());  // setup の中身はデモが作る
-   ```
-3. **名前空間は導入しない。** 教材で `using` 行が増えるのを避ける。代わりに `Gemini` / `Live` / `Mic` / `Wav` の接頭辞で衝突を防ぐ。
-4. **asmdef は作らない。** 現状このプロジェクトに `.asmdef` は 1 つもなく、全コードが `Assembly-CSharp` にある。Common を切り出すと 2C / 2D の外部パッケージ参照を明示的に足す必要が出て、得より面倒が勝つ。
-5. **共有層は外部パッケージに依存しない。** sherpa-onnx / whisper.unity への依存は 2C / 2D の中に閉じる。
-6. **入れ子 private クラスの整理。** 現在 `ChatTurn` / `HttpResult` / `GeminiResponse` は各ファイルの入れ子 private クラスなので衝突していない。共有版に移すデモからは入れ子を削除する（移行途中は両方残さない）。
+### `LoadApiKey` は分割する
+
+現状の `LoadApiKey` は 13 デモすべてにあり、差はログ接頭辞とエラー表示先だけ。ただし失敗時に `SetStatus` と `responseText` を触るので、そのままでは採用条件 3 を満たさない。**純粋関数とエラー表示に割る。**
+
+```csharp
+// Common: 読むだけ。UI もログも触らない
+public static bool TryRead(string relativePath, out string key, out string error)
+
+// デモ側: 表示のしかたは今までどおりデモが決める
+if (!GeminiKey.TryRead(apiKeyRelativePath, out apiKey, out string error))
+{
+    Debug.LogError("[TextToText] " + error);
+    SetStatus("エラー", false);
+    responseText.text = error;
+}
+```
+
+`TryExtractAssistantText` も同様に、DTO ごと `GeminiResponse` へ移して純粋関数にする。
 
 ---
 
-## 4. 共有化の前に潰す差異
+## 4. 共有しないもの
 
-「名前は同じだが中身が違う」もの。一括置換すると挙動が変わる。
+意図的に各デモへ残す。**ここを動かすと教材の形が変わる。**
 
-| メソッド | 差異 | 対処 |
+| 領域 | 該当 | 残す理由 |
 |---|---|---|
-| `LoadApiKey` | 12 本すべて別実装だが、差はログ接頭辞（`[TextToText]` など）とエラー表示先だけ | 接頭辞を引数に。エラー表示は呼び出し側に返す |
-| `SetStatus` | 5 のみ 1 引数版（点滅なし） | 共有版は 2 引数。5 は `Set(text, false)` に統一 |
-| `LoadSystemInstructionFromFile` | 3C だけ `LoadSystemInstruction` という別名で、リロード機能を持たない | 共有版に寄せて 3C も同挙動にする（挙動が変わる点を README に書く） |
-| `ReloadSystemInstructionFromFileIfChanged` | 2C・2D 版と 1A・2A・3A 版で分岐が違う | 機能の多い側へ統一 |
-| `BeginRecording` / `EndRecording` | 6 系統。押し話しと Live ストリームで役割が違う | `MicRecorder`（押し話し）と `MicStreamer`（常時）に分ける |
-| `ShowError` | 12 本すべて別実装。吹き出しに出すか・Response 欄に足すかが違う | **共有しない**。各デモに残す |
-| `SetSending` | 3 系統。無効化する UI が違う | **共有しない**。各デモに残す |
-| `Update` | 8 系統 | **共有しない**。呼ぶ Tick が違うだけ |
-| `ReceiveLoopAsync` | 3B・4 が同一、3C・5 が別 | 差分を確認して最も安全な版へ統一 |
-| `TryExtractAndEnqueueAudio` | 3B・4 が同一、5 が別 | 同上 |
+| Live セッション | `ConnectLiveSessionCoroutine` / `ReceiveLoopAsync` / `CloseSocket` / `EnqueueMain` ほか（3B・3C・4・5） | 状態とライフサイクルを持つ背骨。読むために飛ぶ必要が出る |
+| 音声再生 | `PlaybackPumpCoroutine` / `ClearPlaybackQueue` / `EnsurePlaybackAudioSource` | コルーチンと `AudioSource` を持つ |
+| マイク制御 | `SetupMicrophone` / `BeginRecording` / `PumpMicrophoneChunksIfStreaming` | デバイス状態を持つ |
+| Status / ログ UI | `SetStatus` / `UpdateStatusBlink` / `AddBubble` / `AppendLog` | UI 参照と点滅の状態を持つ |
+| SystemInstruction 同期 | 7 メソッド（1A・2A・2C・2D・3A・3B・4） | `TMP_InputField` とファイル更新時刻の状態を持つ |
+| カメラ矩形 | `EnsureBackgroundClearCamera` ほか（1B・2B・3C） | カメラの状態を持つ |
+| **リクエスト組み立て** | `BuildRequestJson` / `BuildSetupJson` / `BuildSttRequestJson` / `BuildChatRequestJson` | **何を送るかが各デモの学習ポイント**。共通ビルダーに隠すとデモの意味が消える |
+| レスポンスのキー解釈 | `HandleServerMessage` / `TryExtractAndEnqueueAudio` | 同上。走査の道具だけ共有し、キー名はデモに書く |
+| エラー表示 / 送信ロック | `ShowError` / `SetSending` | デモごとに「どこに出すか」「何を止めるか」が違う。共有すると分岐だらけになる |
 
-**着手前に、この表を実際の diff で埋め直すこと。** ここを飛ばすと Phase 4・5 で挙動が変わる。
+**Live 系には約 1,300 行の重複が残る。** これは承知のうえでの判断。詳細は 9 節。
 
 ---
 
-## 5. 削減の見込み
+## 5. 削減見込み
 
-自動計測に基づく概算（3C は 3B からの類推）。
-
-| 領域 | 現状の合計 | 共有後（Common 1 本） | 削減 |
+| デモ | 現状 | 削減 | 後 |
 |---|---:|---:|---:|
-| JSON 文字列ユーティリティ | 1,173 | 110 | -1,060 |
-| Live 用 JSON 走査 | 約 410 | 90 | -320 |
-| API キー | 426 | 60 | -366 |
-| SystemInstruction 同期 | 781 | 110 | -670 |
-| Status / ログ UI | 540 | 120 | -420 |
-| REST POST と表示整形 | 183 | 40 | -143 |
-| マイク録音（押し話し） | 525 | 120 | -405 |
-| マイク常時ストリーム | 226 | 130 | -96 |
-| Live セッション | 約 860 | 230 | -630 |
-| Live 音声再生 | 453 | 160 | -293 |
-| カメラ / フレーム取得 | 218 | 100 | -118 |
-| キューブ舞台 | 約 380 | 140 | -240 |
-| レスポンス解析 | 198 | 40 | -158 |
-| 画像表示 | 120 | 60 | -60 |
-| シーン下準備 | 60 | 20 | -40 |
-| **合計** | **約 6,550** | **約 1,530** | **約 -5,020** |
+| 1A.TextToText | 761 | -177 | 584 |
+| 1B.TextToJSON | 784 | -130 | 654 |
+| 2A.SpeechToText | 995 | -297 | 698 |
+| 2B.SpeechToJSON | 1,038 | -262 | 776 |
+| 2C.(SpeechToTextSherpa) | 919 | -221 | 698 |
+| 2D.(SpeechToTextWhisper) | 993 | -221 | 772 |
+| 3A.SpeechToSpeech | 1,367 | -306 | 1,061 |
+| 3B.SpeechToSpeechLiveAPI | 1,569 | -240 | 1,329 |
+| 3C.SpeechToMotion | 1,617 | -222 | 1,395 |
+| 4.VisionToSpeech | 1,530 | -246 | 1,284 |
+| 5.ScreenToSpeech | 885 | -161 | 724 |
+| 6.TextToImage | 776 | -133 | 643 |
+| 7.ImageToImage | 702 | -76 | 626 |
+| **デモ合計** | **14,438** | **-2,692** | **11,746** |
+| Common | 38 | +570 | 608 |
+| **総計** | **14,476** | | **12,354（-15%）** |
 
-デモ側の見込み:
-
-| | 現状 | 見込み |
-|---|---:|---:|
-| 1A.TextToText | 761 | 約 430 |
-| 1B.TextToJSON | 784 | 約 460 |
-| 2A.SpeechToText | 995 | 約 470 |
-| 2B.SpeechToJSON | 1,038 | 約 560 |
-| 2C.(SpeechToTextSherpa) | 919 | 約 460 |
-| 2D.(SpeechToTextWhisper) | 993 | 約 535 |
-| 3A.SpeechToSpeech | 1,367 | 約 815 |
-| 3B.SpeechToSpeechLiveAPI | 1,569 | 約 670 |
-| 3C.SpeechToMotion | 1,617 | 約 800 |
-| 4.VisionToSpeech | 1,530 | 約 700 |
-| 5.ScreenToSpeech | 885 | 約 370 |
-| 6.TextToImage | 776 | 約 530 |
-| 7.ImageToImage | 702 | 約 455 |
-| **デモ合計** | **14,438** | **約 7,900** |
-| Common | 38 | 約 1,530 |
-| **総計** | **14,476** | **約 9,430**（-35%） |
-
-**学生が 1 デモを読むときの行数は 700〜1,600 行から 350〜800 行に半減する。** これが今回いちばん大きい効果。
+3B / 3C / 4 は 1,300〜1,400 行のまま残る。**大物デモは細くならない。** それが今回のスコープの意図した限界。
 
 ---
 
 ## 6. 段階計画
 
-1 Phase = 1 コミット。各 Phase は単独でコンパイルが通り、単独で巻き戻せる状態にする。
+1 Phase = 1 コミット。各 Phase 単独でコンパイルが通り、単独で巻き戻せる。
 
-### Phase 0 — 規約の改訂（コード変更なし）
+### Phase 0 — 規約の追記（コード変更なし）
 
-**先にここを直さないと、以降の全 Phase が既存ルール違反になる。**
+現行の [WorkshopMaterial.mdc](../.cursor/rules/WorkshopMaterial.mdc) は「共通基盤への過度な寄せすぎは避ける（必要最小限の共有のみ）」と書いてある。**この方針自体は維持し、「必要最小限」の中身を具体化する形で追記する。**
 
-- `.cursor/rules/WorkshopMaterial.mdc`
-  - 「共通基盤への過度な寄せすぎは避ける（必要最小限の共有のみ）」→ 「配管は `Assets/Common/` に寄せる。プロトコルと流れはデモに残す」へ書き換え
-  - 「フォルダ構成（デモ単位）」節に `Assets/Common/Script/` のサブフォルダ規約（`Ui` / `Gemini` / `Live` / `Media` / `Stage`）を追記
-  - 実装時のチェックリストに「新しい処理は、配管なら Common・主題ならデモ、の判断をしたか」を追加
-- `Docs/demo-series-overview.md`
-  - 「設計の骨格」の「共通基盤への寄せすぎはしない」を差し替え、共有／非共有の線引き表を載せる
+- `WorkshopMaterial.mdc` に追記:
+  - 1 節の採用条件 5 つと「3 デモ以上」のしきい値
+  - 「状態とライフサイクルを持つものは共有しない」の一行
+  - `Assets/Common/Script/` に置いてよいものの例と、置いてはいけないものの例
+- `Docs/demo-series-overview.md`「設計の骨格」に、共有／非共有の線引きを一行追記
 
-### Phase 1 — 純関数（リスク最小）
+### Phase 1 — 純粋関数の切り出し（本体）
 
-`GeminiJson` / `GeminiJsonScan` / `WavCodec` を新設し、13 デモから該当メソッドを削除して呼び出しに置換。
+`GeminiJson` / `GeminiJsonScan` / `AudioCodec` / `HttpDisplay` / `TextureUtil` を新設し、13 デモから該当メソッドを削除して呼び出しに置換。
 
 - 状態を持たない `static` メソッドのみ。シーンもインスペクタも触らない
-- 対象: `EscapeJson`・`PrettyPrintJson`・`TruncateForDisplay`・`TruncateBase64ForDisplay`・`ExtractNestedTextAfterKey`・`ExtractJsonStringFieldFrom`・`IndexOfJsonKey`・`TryExtractJsonNumber`・`ExtractBalancedObject`・`ConvertAudioClipToWav`・`FloatsToPcm16`・`Pcm16ToClip`・`TrimClip`・`CopyClipSamples`
-- 削減 約 1,500 行
+- 削減 約 1,960 行
 
-### Phase 2 — 設定と UI ヘルパー
+### Phase 2 — 分割が要る 2 つ
 
-`GeminiKey` / `SystemInstructionField` / `StatusLabel` / `PaneLog` / `ChatLog` / `SceneBootstrap` を新設。
+`GeminiKey` / `GeminiResponse` を新設。
 
-- 公開フィールド名は据え置き。シーンの再配線なし
-- 差異一覧（4 節）の `LoadApiKey`・`SetStatus`・`LoadSystemInstruction` の統一をここで実施
-- `ShowError` / `SetSending` / `Update` は各デモに残す
-- 削減 約 1,500 行
+- `LoadApiKey` を `TryRead` ＋ デモ側のエラー表示に割る（3 節）
+- `TryExtractAssistantText` を DTO ごと移す。移行したデモから入れ子 `GeminiResponse` / `GeminiCandidate` / `GeminiContent` / `GeminiPart` を削除する（残すと名前が衝突する）
+- 削減 約 730 行
 
-### Phase 3 — Prefab 統合
+### Phase 3 — ドキュメント追従
 
-`MessageBubble.prefab` を `Assets/Common/Prefab/` に 1 本化し、7 デモのコピーを削除。
-
-- **唯一シーンの書き換えを伴う Phase**。7 つの `.unity` の該当 GUID を Common 版へ置換する
-- 手順: 統合先の GUID を控える → 各シーンの旧 GUID を `sed` で置換 → 旧 prefab と `.meta` を削除 → Editor で全シーンを開いて Missing 参照がないか確認
-- 単独コミットにして、問題があればここだけ戻せるようにする
-
-### Phase 4 — REST 系（対象: 2A・2B・2C・2D・3A、および 1A・1B・6・7 の POST 部）
-
-`GeminiRestPost` / `GeminiTextResponse` / `MicRecorder` を新設。
-
-- `PostJsonCoroutine`・`HttpResult`・`FormatHttpRequestForDisplay`・`FormatHttpResponseForDisplay`・`BuildGenerateContentUrl`・`TryExtractAssistantText`・`SetupMicrophone`・`BeginRecording` を移動
-- `BuildSttRequestJson` / `BuildChatRequestJson` / `BuildRequestJson` は**移動しない**
-- 削減 約 900 行
-
-### Phase 5 — Live 系（対象: 3B・3C・4・5）
-
-`LiveSession` / `LiveAudioPlayer` / `MicStreamer` を新設。**いちばん重い Phase。**
-
-- `ConnectLiveSessionCoroutine` の接続部・`SendTextAsync`・`SendJsonCoroutine`・`ReceiveLoopAsync`・`CloseSocket`・`EnqueueMain`・`DrainMainThreadActions`・`PlaybackPumpCoroutine`・`ClearPlaybackQueue`・`EnsurePlaybackAudioSource`・`PumpMicrophoneChunksIfStreaming` を移動
-- `BuildSetupJson`・`HandleServerMessage`・`TryExtractAndEnqueueAudio` の**キー名の解釈部分**は各デモに残す
-- 3C の function call（`HandleToolCallOnMain` / `BuildFunctionResponseJson`）は 3C 専用なので移動しない
-- 削減 約 1,000 行
-- **PlayMode での実動確認が必要な唯一の Phase**（接続・音声再生・切断）
-
-### Phase 6 — 表示系（対象: 1B・2B・3C・4・5・6・7）
-
-`WebcamFrame` / `CubeStage` / `GeneratedImageView` を新設。
-
-- `SetupWebcam`・`StopWebcam`・`TryCaptureJpeg`・`ScaleTexture`・`EnsureBackgroundClearCamera`・`UpdateCameraViewportToPreview`・`RestoreCameraViewport`・`TryShowGeneratedImage`・`ReleaseGeneratedTexture`・`NormalizeInlineDataKeys` を移動
-- 削減 約 500 行
-
-### Phase 7 — ドキュメント追従
-
-- 各デモ README の「主要クラス」節に **「このデモが自前で持つもの / Common に任せているもの」の 2 列表**を追加
-- `Docs/demo-series-overview.md` に Common の構成図を追加
-- Common 内の各ファイル冒頭に「何のための配管か / どのデモが使うか」を日本語で書く（教材のコメント規約は Common にも適用する）
+- Common の各ファイル冒頭に「何のための道具か・どのデモが使うか」
+- 各デモ README の「主要クラス」節に、Common に出した関数がある場合のみ一行触れる
+- `Docs/demo-series-overview.md` に Common の一覧を追記
 
 ---
 
-## 7. リスクと緩和策
+## 7. 着手前に潰す差異
+
+「名前は同じだが中身が違う」もの。一括置換すると挙動が変わる。**Phase 1 の前に実 diff で確認する。**
+
+| メソッド | 差異 | 対処 |
+|---|---|---|
+| `LoadApiKey` | 13 本すべて別実装。差はログ接頭辞（`[TextToText]` など）とエラー表示先 | 3 節の分割で吸収。接頭辞はデモ側に残る |
+| `TruncateForDisplay` | 3B・4 が同一、3A が別 | 実装を突き合わせ、機能の多い側へ統一 |
+| `FormatHttpRequestForDisplay` | 2A・2B・3A 版と 2C・2D 版で分岐が違う | 同上 |
+| `TryExtractAssistantText` | 5 本すべて別実装（ログ接頭辞のみの差の可能性が高い） | 実 diff で確認してから統一 |
+| `Pcm16ToClip` | 3B・4・5 が完全一致、3C は未確認 | 3C を突き合わせる |
+
+`EscapeJson`（13 本）・`PrettyPrintJson`（11 本）・`MaskApiKey`（9 本）は**完全一致を確認済み**なので、そのまま置換してよい。
+
+---
+
+## 8. リスクと緩和策
 
 | リスク | 影響 | 緩和策 |
 |---|---|---|
-| **教材価値の低下**。「1 ファイル読めば全部わかる」が崩れる | 大 | 2 節の線引きを厳守する。主題（送る中身・返る中身・流れ）は絶対に Common へ移さない。README に「自前 / Common」の表を置き、Common 側にも「どのデモが使う配管か」を書く |
-| シーン参照の破損（Missing Script / Missing Prefab） | 大 | 公開フィールドの名前・型を変えない。Prefab 統合は Phase 3 に隔離し、全シーンを開いて確認してからコミット |
-| 名前衝突（全コードが `Assembly-CSharp` 単一） | 中 | 接頭辞で回避。共有版へ移したデモからは入れ子 private クラスを必ず削除する |
-| 「同名だが別実装」の取りこぼしで挙動が変わる | 中 | 4 節の差異一覧を実 diff で埋めてから着手。統一で挙動が変わるもの（3C の SystemInstruction リロードなど）は README に明記 |
-| 2C / 2D の外部パッケージ依存が Common に漏れる | 中 | 共有層は sherpa-onnx / whisper.unity を参照しない。ローカル STT の呼び出しはデモ側に閉じる |
-| Live 系の非同期リグレッション（切断漏れ・音声の途切れ） | 中 | Phase 5 は PlayMode で 4 デモすべて実動確認。`OnDestroy` での切断も確認する |
-| Phase が大きくなりすぎて戻せない | 中 | 1 Phase = 1 コミット。Phase 5 はさらに「セッション」「再生」「マイク」の 3 コミットに割ってよい |
-| クラウド環境では Unity Editor 検証ができない | 小 | [UnityDev.mdc](../.cursor/rules/UnityDev.mdc) の方針どおり、クラウドではコード変更まで。Phase 3 と 5 はローカル Editor のあるときに実施する |
+| 名前衝突（全コードが `Assembly-CSharp` 単一） | 中 | 接頭辞で回避。Phase 2 で入れ子 DTO を必ず削除する |
+| 「同名だが別実装」の取りこぼし | 中 | 7 節を実 diff で埋めてから着手 |
+| 学生や AI が Common を書き換えて全デモを壊す | 中 | **eject の逃げ道を規約に明記する**（下記） |
+| 教材の読みやすさの低下 | 小 | 採用条件により、切り出すのは葉のみ。デモを通読するのに Common へ飛ぶ必要は生じない |
+| シーン参照の破損 | **なし** | 公開フィールドを一切変えないため |
+
+### eject の逃げ道
+
+学生が自分のデモをデバッグしていて Common を直すと、13 デモ全部が壊れる。AI コーディングを使う場合は、AI が呼び出し連鎖を遡って大元を直しに行くため、さらに起きやすい。規約に一行入れる。
+
+> `Assets/Common/` は変更しない。挙動を変えたくなったら、そのファイルを自分のデモの `Script/` にコピーしてクラス名を変える。
+
+AI は書かれたルールにはよく従うので、これだけでも事故が自分のフォルダ内に閉じる。
+
+### AI コーディング前提での補足
+
+今回のスコープなら、共有 API は 8 ファイル・十数個の static メソッドで、名前も `GeminiJson.Escape(string)` のように推測が当たる形になる。**AI が API をハルシネーションするリスクは低い**ので、API 目録の整備は必須ではない。
+
+ただし別件として、この repo には `CLAUDE.md` も `AGENTS.md` も `.github/copilot-instructions.md` もなく、**教材規約は `.cursor/rules/*.mdc` 経由で Cursor を使う学生にしか届いていない**。Claude Code や Codex を使う学生にはフォルダ規約もコメント規約も渡っていないので、Phase 0 のついでに `CLAUDE.md` / `AGENTS.md` を置いて `.cursor/rules` と内容を揃えておくとよい。これは本計画とは独立に価値がある。
 
 ---
 
-## 8. 検証と完了条件
+## 9. 見送るもの（将来の宿題）
+
+判断として除外するが、理由と再検討の条件を残す。
+
+| 見送るもの | 重複量 | 再検討する条件 |
+|---|---:|---|
+| **Live セッション**（3B・3C・4・5 の WebSocket 一式） | 約 700 行 | Live デモがもう 1 つ増えたとき。`CloseSocket` は 3 本が完全一致で、切断漏れは学生が最も踏みやすいバグなので、優先度は高い |
+| **音声再生**（3B・4・5） | 約 300 行 | 同上 |
+| **マイク制御**（押し話し 5 本 / 常時 2 本） | 約 500 行 | 押し話しと常時で役割が違うため、分けて考える |
+| **`MessageBubble.prefab`**（7 デモでバイト単位に同一） | — | 統合には 7 シーンの GUID 書き換えが必要。得られるのは「吹き出しの見た目を変えるとき 7 回直さずに済む」だけなので割に合わない。吹き出しのデザインを本格的に変えるときに再検討 |
+| **カメラ矩形**（1B・2B・3C） | 約 380 行 | 3 デモで一致しているが、カメラ状態を持つため採用条件を満たさない |
+
+**この計画で取れるのは重複全体の約 4 割。** 残り 6 割は意図的に残す。
+
+---
+
+## 10. 検証と完了条件
 
 各 Phase 共通:
 
 - `compile` の ErrorCount が 0
-- 変更したデモのシーンを開き、Missing 参照が出ないこと
 - 削除したメソッドの参照が残っていないこと（`grep` で確認）
+- 変更したデモのシーンを開き、Missing 参照が出ないこと（公開フィールドを変えないので出ないはずだが、念のため）
 
-Phase ごとの追加確認:
+**PlayMode 検証も `run-tests` も不要。** 切り出すのは純粋関数だけで、非同期もライフサイクルも触らないため。ただし Phase 2 の `LoadApiKey` 分割だけは失敗時の表示が変わりうるので、1 デモで**キーファイルを一時的にリネームしてエラー表示を目視確認**する。
 
-| Phase | 追加確認 |
-|---|---|
-| 1・2 | コンパイルのみ（静的変更） |
-| 3 | 7 シーンすべてを開き、`MessageBubble` 参照が Common 版を指していること |
-| 4 | 2A で 1 往復（録音 → STT → Chat）。1B・6 で 1 往復 |
-| 5 | 3B・3C・4・5 で接続 → 発話 → 音声再生 → 切断まで PlayMode 実行 |
-| 6 | 4・7 でカメラ、1B・2B・3C でキューブ表示 |
+クラウド環境で作業する場合は [UnityDev.mdc](../.cursor/rules/UnityDev.mdc) の方針どおりコード変更まで。Editor 検証を省略した旨を報告に一行書く。
 
 全体の完了条件:
 
 - 13 デモすべてが従来どおり動く
-- `Assets/Common/Script/` 配下がコメント規約を満たしている
-- 規約ドキュメント（Phase 0）と README（Phase 7）が実態と一致している
+- `Assets/Common/Script/` の各ファイルが日本語コメント規約を満たしている
+- Phase 0 の規約追記と実態が一致している
 
 ---
 
-## 9. やらないこと
+## 11. やらないこと
 
+- **背骨の共有** — Live セッション / マイク / 音声再生 / UI / SystemInstruction 同期（4 節・9 節）
+- **`BuildRequestJson` の抽象化** — 何を送るかは各デモの主題
+- **Prefab の統合** — シーンの GUID 書き換えに見合わない
 - **asmdef の導入** — 現状ゼロ。切ると 2C / 2D の依存記述が増えるだけ
 - **名前空間の導入** — 教材で `using` を増やさない
 - **JSON ライブラリの導入**（Newtonsoft など）— 「素朴な文字列処理で JSON を組む」ことは教材の一部
-- **UI レイアウトの作り直し** — 今回は配線を変えないことが前提
-- **`2C/Script/SherpaOnnx/` への手入れ** — ベンダー提供コード
-- **デモの追加・削除・並べ替え** — 構成は現状維持
-- **共通ビルダーによる `BuildRequestJson` の抽象化** — これをやると教材が壊れる
-
----
-
-## 10. 進め方の提案
-
-Phase 0 の規約改訂だけ先に確定させ、Phase 1・2 を 1 セット（コンパイルのみで検証でき、約 3,000 行減る）で実施するのが費用対効果が高い。Phase 3 以降は Editor 検証が必要なので、ローカルで Unity を開けるタイミングに合わせる。
+- **UI レイアウトの変更・デモの追加削除** — 構成は現状維持
