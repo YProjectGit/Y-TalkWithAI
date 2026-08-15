@@ -49,7 +49,7 @@ Project ウィンドウで `Assets/6.TextToImage/TextToImage.unity` を開き、
 
 ---
 
-## 画像生成とは？
+## 画像生成
 
 テキストの説明（プロンプト）から、新しい画像を作ることです。1A のチャットが「文を返す」なら、ここでは同じ `generateContent` で **絵を返して** もらいます。
 
@@ -59,7 +59,7 @@ Project ウィンドウで `Assets/6.TextToImage/TextToImage.unity` を開き、
 
 ---
 
-## responseModalities とは？
+## responseModalities
 
 Gemini に「何の形で返してほしいか」を伝える設定です。1A では指定を省略しているので、テキストが返ります。このデモでは `generationConfig.responseModalities` に `"TEXT"` と `"IMAGE"` を載せ、画像を必須にします。
 
@@ -69,7 +69,7 @@ Gemini に「何の形で返してほしいか」を伝える設定です。1A �
 
 ---
 
-## inlineData（画像バイト）とは？
+## inlineData（画像バイト）
 
 JSON の中に、画像そのものを Base64 という文字の列で埋め込んだものです。3A の TTS が音声バイトを `inlineData` で受け取ったのと同じ入れ物で、中身が絵になっています。
 

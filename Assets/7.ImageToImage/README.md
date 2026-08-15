@@ -45,7 +45,7 @@ Project ウィンドウで `Assets/7.ImageToImage/ImageToImage.unity` を開き�
 
 ---
 
-## 参照画像とは？
+## 参照画像
 
 生成の手がかりとして送る元画像です。6 は言葉だけで絵を作ります。ここでは **今カメラに映っている1フレーム** を JPEG にして、指示文と一緒に送ります。
 
@@ -55,7 +55,7 @@ Project ウィンドウで `Assets/7.ImageToImage/ImageToImage.unity` を開き�
 
 ---
 
-## シャッター1枚とは？
+## シャッター1枚
 
 変換ボタンを押した瞬間のフレームを、1回だけ送ることです。プレビューは動き続けますが、API に載るのはその1枚です。
 
@@ -65,7 +65,7 @@ Project ウィンドウで `Assets/7.ImageToImage/ImageToImage.unity` を開き�
 
 ---
 
-## inlineData（参照画像）とは？
+## inlineData（参照画像）
 
 JSON の中に、画像そのものを Base64 という文字の列で埋め込んだものです。6 では **返ってきた絵** が `inlineData` でした。ここでは **送る側** にも同じ入れ物でカメラ JPEG を載せます。
 

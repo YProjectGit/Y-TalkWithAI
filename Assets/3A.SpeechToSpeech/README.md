@@ -61,7 +61,7 @@ Project ウィンドウで `Assets/3A.SpeechToSpeech/SpeechToSpeech.unity` を�
 
 ---
 
-## TTS（Text-to-Speech）とは？
+## TTS（Text-to-Speech）
 
 テキストを音声データに変換することです。このデモでは、Chat（3→4）で得た返答文を、**別の TTS 向けモデル**の `generateContent` に渡し、`responseModalities: ["AUDIO"]` で音声バイトを受け取ります。声色はリクエスト内の `speechConfig`（`ttsVoiceName`）で指定します。
 
@@ -71,7 +71,7 @@ Project ウィンドウで `Assets/3A.SpeechToSpeech/SpeechToSpeech.unity` を�
 
 ---
 
-## マイク入力と音声データとは？
+## マイク入力と音声データ
 
 マイク入力とは、PC のマイクが拾った音を、プログラムが扱える数字の列として取り込むことです。入口側（1→2）の変換は `2A.SpeechToText` と同じです。
 

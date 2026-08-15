@@ -45,7 +45,7 @@ Project ウィンドウで `Assets/2C.SpeechToTextLocal/SpeechToTextLocal.unity`
 
 ---
 
-## ローカル STT とは？
+## ローカル STT
 
 音声をテキストに変換する処理を、インターネット上の API ではなく、自分の PC 上のエンジンで行うことです。
 
@@ -66,7 +66,7 @@ Gemini generateContent（Text）
 
 ---
 
-## sherpa-onnx とは？
+## sherpa-onnx
 
 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) は、音声認識のモデルを端末で動かすためのライブラリです。動かす対象は、音声を文字にする専用のモデル（ASR: Automatic Speech Recognition）で、文章を考える LLM とは役割が違います。
 

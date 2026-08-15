@@ -60,7 +60,7 @@ VAD は Setup 時の設定のため、切替のたびに Live セッションを
 
 ---
 
-## Live API（セッション）とは？
+## Live API（セッション）
 
 Live API とは、HTTP の `generateContent` を何回も呼ぶのではなく、**WebSocket で1本のセッションを張り、音声をチャンクで双方向に流す**仕組みです。
 
@@ -70,7 +70,7 @@ Live API とは、HTTP の `generateContent` を何回も呼ぶのではなく�
 
 ---
 
-## VAD（Voice Activity Detection）とは？
+## VAD（Voice Activity Detection）
 
 VAD とは、音声の流れのなかから「話している区間」を見つける処理です。このデモの **VAD 自動モード** では、Live API の `automaticActivityDetection` がサーバ側で無音を見てターンを区切ります。クライアントはマイク PCM を流し続けるだけで、`activityStart` / `activityEnd` は送りません。
 
@@ -80,7 +80,7 @@ VAD とは、音声の流れのなかから「話している区間」を見つ�
 
 ---
 
-## 3A（REST 三段）との違いは？
+## 3A（REST 三段）との違い
 
 | | 3A | 3B（このデモ） |
 |---|----|----------------|
@@ -94,7 +94,7 @@ VAD とは、音声の流れのなかから「話している区間」を見つ�
 
 ---
 
-## PCM ストリームと再生バッファとは？
+## PCM ストリームと再生バッファ
 
 PCM とは、音を時刻ごとの振幅の数字列として表した音声データです。このデモの送信は 16 kHz、受信はおおむね 24 kHz の 16-bit PCM です。
 

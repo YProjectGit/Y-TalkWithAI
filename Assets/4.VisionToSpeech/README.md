@@ -53,7 +53,7 @@ Project ウィンドウで `Assets/4.VisionToSpeech/VisionToSpeech.unity` を開
 
 ---
 
-## Live API の映像入力とは？
+## Live API の映像入力
 
 Live API は WebSocket で1本のセッションを張り、音声や画像をチャンクで双方向に流す仕組みです。このデモではマイクの代わりに **JPEG フレーム** を `realtimeInput.video` で送り、サーバから返る PCM を再生します。
 
@@ -63,7 +63,7 @@ REST で「画像理解 → TTS」と二段に分けるのではなく、**見�
 
 ---
 
-## シャッターとストリーミングとは？
+## シャッターとストリーミング
 
 **シャッター**（初期）は Space でいまのカメラ画を1枚だけ送り、ターンを閉じます。送信ログに1回分の `+frame` が増えます。
 
@@ -73,7 +73,7 @@ REST で「画像理解 → TTS」と二段に分けるのではなく、**見�
 
 ---
 
-## 送信／受信の2分割とは？
+## 送信／受信の2分割
 
 3B と同じく、中央が **送信（Outbound）**、右が **受信（Inbound）** です。GenerateContent の番号欄はありません。段階バーは `Connect → Send Frame → Receive PCM → Play` です。
 

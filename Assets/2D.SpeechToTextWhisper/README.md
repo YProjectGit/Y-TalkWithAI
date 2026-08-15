@@ -45,7 +45,7 @@ Project ウィンドウで `Assets/2D.SpeechToTextWhisper/SpeechToTextWhisper.un
 
 ---
 
-## ローカル STT とは？
+## ローカル STT
 
 音声をテキストに変換する処理を、インターネット上の API ではなく、自分の PC 上のエンジンで行うことです。
 
@@ -66,7 +66,7 @@ Gemini generateContent（Text）
 
 ---
 
-## Whisper とは？
+## Whisper
 
 Whisper は、音声を文字にする専用のモデルです。文章を考える LLM とは役割が違います。
 

@@ -47,7 +47,7 @@ Project ウィンドウで `Assets/2A.SpeechToText/SpeechToText.unity` を開き
 
 ---
 
-## マイク入力と音声データとは？
+## マイク入力と音声データ
 
 マイク入力とは、PC のマイクが拾った音を、プログラムが扱える数字の列として取り込むことです。このデモでは Unity の `Microphone` が、録音中の音を **AudioClip**（サンプルの集まり）へ書き込みます。
 
@@ -70,7 +70,7 @@ Base64
 
 ---
 
-## STT（Speech-to-Text）とは？
+## STT（Speech-to-Text）
 
 音声をテキストに変換することです。このデモでは専用の別サービス（Cloud Speech-to-Text）ではなく、Gemini の `generateContent` に音声（`audio/wav`）を載せ、「文字起こしだけ返して」と頼んでいます。
 

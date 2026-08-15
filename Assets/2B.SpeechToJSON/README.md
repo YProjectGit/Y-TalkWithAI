@@ -42,7 +42,7 @@ Project ウィンドウで `Assets/2B.SpeechToJSON/SpeechToJSON.unity` を開き
 
 ---
 
-## マイク入力と音声データとは？
+## マイク入力と音声データ
 
 マイク入力とは、PC のマイクが拾った音を、プログラムが扱える数字の列として取り込むことです。このデモでは Unity の `Microphone` が録音中の音を **AudioClip** へ書き込み、WAV（16-bit PCM）→ Base64 にして 1. Request の `inlineData` に載せます。
 
@@ -50,7 +50,7 @@ Project ウィンドウで `Assets/2B.SpeechToJSON/SpeechToJSON.unity` を開き
 
 ---
 
-## 構造化出力とスキーマとは？
+## 構造化出力とスキーマ
 
 構造化出力とは、自由文ではなく **決まった形の JSON** で返してもらうことです。スキーマはその形の約束で、このデモでは `cubeColor` / `backgroundColor` の `r` / `g` / `b` を **`NUMBER`（0〜1）** で受け取ります（`1B.TextToJSON` と同じ）。
 

@@ -47,7 +47,7 @@ Project ウィンドウで `Assets/3C.SpeechToMotion/SpeechToMotion.unity` を�
 
 ---
 
-## Function calling とは？
+## Function calling
 
 Function calling とは、モデルが自由文だけで答えるのではなく、**あらかじめ宣言した関数を「呼んでほしい」と依頼する**仕組みです。
 
@@ -57,7 +57,7 @@ Function calling とは、モデルが自由文だけで答えるのではなく
 
 ---
 
-## Tool response とは？
+## Tool response
 
 Tool response とは、モデルから来た `toolCall` を実行したあと、**同じ Live セッションに結果を返す**メッセージです。
 
@@ -67,7 +67,7 @@ Tool response とは、モデルから来た `toolCall` を実行したあと、
 
 ---
 
-## 符号付き角速度と漸近とは？
+## 符号付き角速度と漸近
 
 角速度とは、どれだけ速く回るかです。このデモでは **符号が向き、絶対値が速さ** です。正は起動時と同じ向き（Y 軸プラスまわり）、負は逆向き、`0` は停止です。サイズは回転とは別で、`1` が初期の大きさです。
 
