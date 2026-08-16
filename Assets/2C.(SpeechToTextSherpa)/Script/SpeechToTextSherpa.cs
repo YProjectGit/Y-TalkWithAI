@@ -1,4 +1,4 @@
-// SpeechToTextLocal.cs
+// SpeechToTextSherpa.cs
 // 2A.SpeechToText の派生デモ。STT だけ sherpa-onnx（ローカル）に差し替える。
 // Chat は 2A と同じ Gemini generateContent。
 //
@@ -27,7 +27,7 @@ using UnityEngine.UI;
 /// <summary>
 /// マイク録音とローカル STT / Gemini チャットで、声入力からテキスト返答までを可視化する。
 /// </summary>
-public class SpeechToTextLocal : MonoBehaviour
+public class SpeechToTextSherpa : MonoBehaviour
 {
     // ===== インスペクタ: 設定 =====
 
@@ -193,12 +193,12 @@ public class SpeechToTextLocal : MonoBehaviour
         if (Microphone.devices == null || Microphone.devices.Length == 0)
         {
             microphoneDevice = null;
-            Debug.LogWarning("[SpeechToTextLocal] マイクデバイスが見つかりません。");
+            Debug.LogWarning("[SpeechToTextSherpa] マイクデバイスが見つかりません。");
             return;
         }
 
         microphoneDevice = Microphone.devices[0];
-        Debug.Log("[SpeechToTextLocal] マイクを使用します: " + microphoneDevice);
+        Debug.Log("[SpeechToTextSherpa] マイクを使用します: " + microphoneDevice);
     }
 
     void BeginRecording()
@@ -338,7 +338,7 @@ public class SpeechToTextLocal : MonoBehaviour
         }
 
         string assistantText;
-        if (!GeminiTextResponse.TryExtractText(chatResult.body, "[SpeechToTextLocal]", out assistantText))
+        if (!GeminiTextResponse.TryExtractText(chatResult.body, "[SpeechToTextSherpa]", out assistantText))
         {
             ShowError("LLM 応答 JSON からテキストを取り出せませんでした。4. Response を確認してください。", llmResponseText);
             RemoveLastTurnIfUser();
@@ -491,7 +491,7 @@ public class SpeechToTextLocal : MonoBehaviour
         DateTime writeTimeUtc;
         if (!TryReadSystemInstructionFile(out text, out writeTimeUtc))
         {
-            Debug.LogWarning("[SpeechToTextLocal] SystemInstruction.txt がありません: " + GetSystemInstructionFilePath());
+            Debug.LogWarning("[SpeechToTextSherpa] SystemInstruction.txt がありません: " + GetSystemInstructionFilePath());
             systemInstructionField.text = string.Empty;
             systemInstructionFileWriteTimeUtc = DateTime.MinValue;
             return;
@@ -584,7 +584,7 @@ public class SpeechToTextLocal : MonoBehaviour
         string error;
         if (!GeminiKey.TryRead(apiKeyRelativePath, out apiKey, out error))
         {
-            Debug.LogError("[SpeechToTextLocal] " + error);
+            Debug.LogError("[SpeechToTextSherpa] " + error);
             return;
         }
     }
@@ -628,7 +628,7 @@ public class SpeechToTextLocal : MonoBehaviour
 
     void ShowError(string message, TMP_Text responsePanel = null)
     {
-        Debug.LogError("[SpeechToTextLocal] " + message);
+        Debug.LogError("[SpeechToTextSherpa] " + message);
         SetStatus("エラー", false);
         AddBubble("Error", message, false);
         if (responsePanel != null && !responsePanel.text.Contains(message))
@@ -649,7 +649,7 @@ public class SpeechToTextLocal : MonoBehaviour
     {
         if (messageBubblePrefab == null || messageContent == null)
         {
-            Debug.LogWarning("[SpeechToTextLocal] messageBubblePrefab または messageContent が未設定です。");
+            Debug.LogWarning("[SpeechToTextSherpa] messageBubblePrefab または messageContent が未設定です。");
             return;
         }
 

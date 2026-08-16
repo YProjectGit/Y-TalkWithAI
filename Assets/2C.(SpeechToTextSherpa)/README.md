@@ -27,7 +27,7 @@
 
 ## 動かし方
 
-Project ウィンドウで `Assets/2C.(SpeechToTextSherpa)/SpeechToTextLocal.unity` を開き、Play を押してください。
+Project ウィンドウで `Assets/2C.(SpeechToTextSherpa)/SpeechToTextSherpa.unity` を開き、Play を押してください。
 
 ### 1. Space で日本語を話してみる
 
@@ -82,7 +82,7 @@ Gemini generateContent（Text）
 
 ## 主要クラス
 
-### SpeechToTextLocal（[`SpeechToTextLocal.cs`](Script/SpeechToTextLocal.cs)）
+### SpeechToTextSherpa（[`SpeechToTextSherpa.cs`](Script/SpeechToTextSherpa.cs)）
 
 デモの本体です。上から、録音〜ローカル認識〜Chat の流れを追うとわかりやすいです。
 
