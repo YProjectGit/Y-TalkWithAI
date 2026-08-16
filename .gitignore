@@ -110,14 +110,14 @@ InitTestScene*.unity*
 .uloop/
 
 # 2C sherpa-onnx の配布物（Docs/setup-sherpa-onnx.py で配置）
-/Assets/2C.SpeechToTextLocal/Resource/models/*.onnx
-/Assets/2C.SpeechToTextLocal/Resource/Plugins/**/*.dll
-/Assets/2C.SpeechToTextLocal/Resource/Plugins/**/*.dylib
-/Assets/2C.SpeechToTextLocal/Resource/Plugins/**/*.so
-/Assets/2C.SpeechToTextLocal/Resource/Plugins/**/*.so.*
+/Assets/2C.(SpeechToTextSherpa)/Resource/models/*.onnx
+/Assets/2C.(SpeechToTextSherpa)/Resource/Plugins/**/*.dll
+/Assets/2C.(SpeechToTextSherpa)/Resource/Plugins/**/*.dylib
+/Assets/2C.(SpeechToTextSherpa)/Resource/Plugins/**/*.so
+/Assets/2C.(SpeechToTextSherpa)/Resource/Plugins/**/*.so.*
 
 # 2D whisper.unity の配布物（Docs/setup-whisper-unity.py で配置）
-/Assets/2D.SpeechToTextWhisper/Resource/models/*.bin
+/Assets/2D.(SpeechToTextWhisper)/Resource/models/*.bin
 
 # Python
 __pycache__/

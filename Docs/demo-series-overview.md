@@ -6,8 +6,9 @@
 
 ## 事前準備
 
-Google AI Studio から Gemini の API にアクセスするための APIキーを取得し、`Assets/Common/APIKey.txt` に保管してください。  
-手順 → [gemini-ai-studio-setup.md](gemini-ai-studio-setup.md)
+1. Unity Hub でこのプロジェクトを開き、バージョン **6000.3.6f1**（Unity 6.3）で開いてください。
+2. Google AI Studio から Gemini の API にアクセスするための APIキーを取得し、`Assets/Common/APIKey.txt` に保管してください。  
+   手順 → [gemini-ai-studio-setup.md](gemini-ai-studio-setup.md)
 
 ---
 
@@ -21,12 +22,12 @@ Google AI Studio から Gemini の API にアクセスするための APIキー�
   返事を決まった形（JSON）で受け取り、UI やパラメータに反映する
 - **[2A.SpeechToText](../Assets/2A.SpeechToText/)**  
   マイクの声を文字にして、キーボードなしで同じやり取りをする
-- **[2C.(SpeechToTextSherpa)](../Assets/2C.%28SpeechToTextSherpa%29/)**  
-  文字起こしだけローカルPC上の sherpa-onnx で行い、待ち時間を減らす
-- **[2D.(SpeechToTextWhisper)](../Assets/2D.%28SpeechToTextWhisper%29/)**  
-  文字起こしをローカルPC上の Whisper で行い、多くの言語を1つのモデルで扱う
 - **[2B.SpeechToJSON](../Assets/2B.SpeechToJSON/)**  
   声の指示を JSON で受け取り、話しかけるだけで見た目や設定を変える
+- **[2C.(SpeechToTextSherpa)](../Assets/2C.%28SpeechToTextSherpa%29/)**（任意）  
+  文字起こしだけローカルPC上の sherpa-onnx で行い、待ち時間を減らす。追加手順 → [sherpa-onnx-setup.md](sherpa-onnx-setup.md)
+- **[2D.(SpeechToTextWhisper)](../Assets/2D.%28SpeechToTextWhisper%29/)**（任意）  
+  文字起こしをローカルPC上の Whisper で行い、多くの言語を1つのモデルで扱う。追加手順 → [whisper-unity-setup.md](whisper-unity-setup.md)
 - **[3A.SpeechToSpeech](../Assets/3A.SpeechToSpeech/)**  
   返事を音声で受け取り、画面を見ないやり取りにする
 - **[3B.SpeechToSpeechLiveAPI](../Assets/3B.SpeechToSpeechLiveAPI/)**  
