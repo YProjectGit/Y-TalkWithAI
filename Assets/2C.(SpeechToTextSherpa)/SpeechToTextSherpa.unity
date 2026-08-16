@@ -3455,7 +3455,7 @@ GameObject:
   - component: {fileID: 818441806}
   - component: {fileID: 818441805}
   m_Layer: 0
-  m_Name: SpeechToTextLocal
+  m_Name: SpeechToTextSherpa
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

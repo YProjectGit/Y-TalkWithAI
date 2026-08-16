@@ -16,7 +16,7 @@
 python3 Docs/setup-sherpa-onnx.py
 ```
 
-終わったら Unity に戻し、Project ウィンドウを一度クリックしてください（置いたファイルが再インポートされます）。そのあと `SpeechToTextLocal` シーンを Play してください。
+終わったら Unity に戻し、Project ウィンドウを一度クリックしてください（置いたファイルが再インポートされます）。そのあと `SpeechToTextSherpa` シーンを Play してください。
 
 置く場所:
 
