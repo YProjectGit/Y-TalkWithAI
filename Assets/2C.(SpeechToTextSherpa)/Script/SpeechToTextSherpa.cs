@@ -38,6 +38,10 @@ public class SpeechToTextSherpa : MonoBehaviour
     public int maxRecordingSeconds = 30;
     public float minRecordingSeconds = 0.3f;
     public int sherpaNumThreads = 2; // ローカル STT の CPU スレッド数
+    public string sherpaEncoderFileName = "encoder-epoch-99-avg-1.int8.onnx"; // models/ 内の encoder
+    public string sherpaDecoderFileName = "decoder-epoch-99-avg-1.onnx"; // models/ 内の decoder
+    public string sherpaJoinerFileName = "joiner-epoch-99-avg-1.int8.onnx"; // models/ 内の joiner
+    public string sherpaTokensFileName = "tokens.txt"; // models/ 内の tokens
 
     // ===== インスペクタ: 左ペイン（チャット UI） =====
 
@@ -102,6 +106,10 @@ public class SpeechToTextSherpa : MonoBehaviour
         }
 
         sherpa.numThreads = sherpaNumThreads;
+        sherpa.encoderFileName = sherpaEncoderFileName;
+        sherpa.decoderFileName = sherpaDecoderFileName;
+        sherpa.joinerFileName = sherpaJoinerFileName;
+        sherpa.tokensFileName = sherpaTokensFileName;
         SetStatus("モデル読み込み中", true);
         bool sherpaReady = sherpa.TryInitialize();
 
