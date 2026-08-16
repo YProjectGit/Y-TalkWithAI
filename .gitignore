@@ -109,8 +109,8 @@ InitTestScene*.unity*
 # AI agent tooling (local)
 .uloop/
 .cursor/skills/uloop-*/
-.claude/skills/uloop-*/
-.codex/skills/uloop-*/
+.claude/
+.codex/
 
 # 2C sherpa-onnx の配布物（Docs/setup-sherpa-onnx.py で配置）
 /Assets/2C.(SpeechToTextSherpa)/Resource/models/*.onnx
