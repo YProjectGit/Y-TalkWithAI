@@ -12,7 +12,6 @@
 - **Google アカウント**（APIキー用）
 - **マイク**（2A 以降の音声デモ）
 - **カメラ**（4.VisionToSpeech / 7.ImageToImage）
-- **Python 3**（任意の 2C / 2D だけ。モデル配置スクリプト用）
 
 ---
 
