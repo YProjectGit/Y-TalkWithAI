@@ -24,9 +24,7 @@
   マイクの声を文字にして、キーボードなしで同じやり取りをする
 - **[2B.SpeechToJSON](../2B.SpeechToJSON/)**  
   声の指示を JSON で受け取り、話しかけるだけで見た目や設定を変える
-- **[2C.(SpeechToTextWhisper)](../2C.%28SpeechToTextWhisper%29/)**（任意）  
-  文字起こしをローカルPC上の Whisper で行い、多くの言語を1つのモデルで扱う。追加手順 → [whisper-unity-setup.md](whisper-unity-setup.md)
-- **[2D.(SpeechToTextSherpa)](../2D.%28SpeechToTextSherpa%29/)**（任意）  
+- **[2C.SpeechToTextLocal](../2C.SpeechToTextLocal/)**（任意）  
   文字起こしだけローカルPC上の sherpa-onnx で行い、待ち時間を減らす。追加手順 → [sherpa-onnx-setup.md](sherpa-onnx-setup.md)
 - **[3A.SpeechToSpeech](../3A.SpeechToSpeech/)**  
   返事を音声で受け取り、画面を見ないやり取りにする

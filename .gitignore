@@ -112,11 +112,9 @@ InitTestScene*.unity*
 .claude/
 .codex/
 
-# 2C / 2D の Resource（モデル・ネイティブライブラリは各自配置）
-/Assets/2C.(SpeechToTextWhisper)/Resource/
-/Assets/2C.(SpeechToTextWhisper)/Resource.meta
-/Assets/2D.(SpeechToTextSherpa)/Resource/
-/Assets/2D.(SpeechToTextSherpa)/Resource.meta
+# 2C の Resource（モデル・ネイティブライブラリは各自配置）
+/Assets/2C.SpeechToTextLocal/Resource/
+/Assets/2C.SpeechToTextLocal/Resource.meta
 
 # Python
 __pycache__/

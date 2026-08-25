@@ -1,12 +1,12 @@
-// SpeechToTextWhisper.cs
-// 2A.SpeechToText の派生デモ。STT だけ Whisper（ローカル）に差し替える。
+// SpeechToTextLocal.cs
+// 2A.SpeechToText の派生デモ。STT だけ sherpa-onnx（ローカル）に差し替える。
 // Chat は 2A と同じ Gemini generateContent。
 //
 // 上からの流れ:
-//   Start → APIキー読込・systemInstruction 読込・マイク確認・Whisper 初期化
+//   Start → APIキー読込・systemInstruction 読込・マイク確認・sherpa 初期化
 //   Space 押下 → Microphone.Start（録音中）
 //   Space 解放 → Microphone.End → float サンプル
-//     → WhisperManager.GetTextAsync（端末）
+//     → sherpa offline 認識（端末）
 //     → 認識テキストを user として Chat（2A と同型）へ
 //
 // 会話コンテキストは常に送る。
@@ -17,29 +17,31 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using System.Threading.Tasks;
+using System.Threading;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.Networking;
 using UnityEngine.UI;
-using Whisper;
 
 /// <summary>
 /// マイク録音とローカル STT / Gemini チャットで、声入力からテキスト返答までを可視化する。
 /// </summary>
-public class SpeechToTextWhisper : MonoBehaviour
+public class SpeechToTextLocal : MonoBehaviour
 {
     // ===== インスペクタ: 設定 =====
 
     public string modelName = "gemini-3.1-flash-lite"; // Chat に使う Gemini モデル名
     public string apiKeyRelativePath = "Common/APIKey.txt"; // Assets/ からの相対パス
     public string systemInstructionRelativePath = "Common/SystemInstruction.txt";
-    public int sampleRate = 16000; // マイク録音のサンプルレート（Hz）
+    public int sampleRate = 16000; // マイク録音のサンプルレート（Hz）。sherpa 側も 16kHz
     public int maxRecordingSeconds = 30;
     public float minRecordingSeconds = 0.3f;
-    public string whisperModelRelativePath = "2C.(SpeechToTextWhisper)/Resource/models/ggml-base.bin"; // Assets/ からの相対パス
-    public string whisperLanguage = "ja"; // Whisper に渡す言語コード。空や auto で自動判定
+    public int sherpaNumThreads = 2; // ローカル STT の CPU スレッド数
+    public string sherpaEncoderFileName = "encoder-epoch-99-avg-1.int8.onnx"; // models/ 内の encoder
+    public string sherpaDecoderFileName = "decoder-epoch-99-avg-1.int8.onnx"; // models/ 内の decoder
+    public string sherpaJoinerFileName = "joiner-epoch-99-avg-1.int8.onnx"; // models/ 内の joiner
+    public string sherpaTokensFileName = "tokens.txt"; // models/ 内の tokens
 
     // ===== インスペクタ: 左ペイン（チャット UI） =====
 
@@ -53,7 +55,7 @@ public class SpeechToTextWhisper : MonoBehaviour
     // ===== インスペクタ: 通信可視化（1/2 はローカル STT、3/4 は Gemini Chat） =====
 
     public TMP_Text statusText;
-    public TMP_Text sttRequestText; // 1. Local STT（Whisper）
+    public TMP_Text sttRequestText; // 1. Local STT（sherpa-onnx）
     public TMP_Text llmRequestText; // 3. Request - GenerateContent（Text）
     public TMP_Text sttResponseText; // 2. Local STT 結果
     public TMP_Text llmResponseText; // 4. Response - GenerateContent（Text）
@@ -74,8 +76,7 @@ public class SpeechToTextWhisper : MonoBehaviour
     bool statusBlink;
     const float StatusBlinkSpeed = 6f;
 
-    WhisperManager whisper; // パッケージの認識マネージャ。Play 中は使い回す
-    string whisperLastError; // モデル未配置など、初期化失敗の理由
+    readonly SherpaOfflineAsr sherpa = new SherpaOfflineAsr(); // ローカル STT。Play 中は使い回す
 
     class ChatTurn
     {
@@ -91,19 +92,9 @@ public class SpeechToTextWhisper : MonoBehaviour
         public string error;
     }
 
-    class WhisperAsrResult
-    {
-        public string text;
-        public string language;
-        public string error;
-        public long elapsedMilliseconds;
-        public float audioSeconds;
-        public float realtimeFactor;
-    }
-
     // ----- エントリポイント -----
 
-    IEnumerator Start()
+    void Start()
     {
         LoadApiKey();
         LoadSystemInstructionFromFile();
@@ -119,14 +110,19 @@ public class SpeechToTextWhisper : MonoBehaviour
             recordHintText.text = "Space を押しているあいだ録音します（離すとローカルで文字起こし → 返信）";
         }
 
+        sherpa.numThreads = sherpaNumThreads;
+        sherpa.encoderFileName = sherpaEncoderFileName;
+        sherpa.decoderFileName = sherpaDecoderFileName;
+        sherpa.joinerFileName = sherpaJoinerFileName;
+        sherpa.tokensFileName = sherpaTokensFileName;
         SetStatus("モデル読み込み中", true);
-        yield return StartCoroutine(SetupWhisperCoroutine());
+        bool sherpaReady = sherpa.TryInitialize();
 
-        if (whisper == null || !whisper.IsLoaded)
+        if (!sherpaReady)
         {
-            SetStatus("whisper 未配置", false);
-            SetPanelPlaceholder(sttRequestText, whisperLastError);
-            SetPanelPlaceholder(sttResponseText, "Assets/Docs/whisper-unity-setup.md を見て ggml モデルを配置してください。");
+            SetStatus("sherpa 未配置", false);
+            SetPanelPlaceholder(sttRequestText, sherpa.LastError);
+            SetPanelPlaceholder(sttResponseText, "Assets/Docs/sherpa-onnx-setup.md を見てモデルとネイティブ lib を配置してください。");
         }
         else
         {
@@ -140,16 +136,17 @@ public class SpeechToTextWhisper : MonoBehaviour
         SetSending(false);
     }
 
+    void OnDestroy()
+    {
+        StopMicrophone();
+        sherpa.Dispose();
+    }
+
     void Update()
     {
         UpdateStatusBlink();
         UpdatePushToTalk();
         UpdateLevelMeter();
-    }
-
-    void OnDestroy()
-    {
-        StopMicrophone();
     }
 
     // 旧 Input Manager で Space の押し始め／離しを見る
@@ -204,51 +201,6 @@ public class SpeechToTextWhisper : MonoBehaviour
                && EventSystem.current.currentSelectedGameObject == systemInstructionField.gameObject;
     }
 
-    // ----- Whisper 初期化（パッケージの WhisperManager） -----
-
-    // 非アクティブな子に足してからパスをセットし、起こす。Awake より先にモデルパスを変えたいため
-    IEnumerator SetupWhisperCoroutine()
-    {
-        string modelPath = Path.Combine(Application.dataPath, whisperModelRelativePath);
-        if (!File.Exists(modelPath))
-        {
-            whisperLastError =
-                "ggml モデルがありません: " + modelPath
-                + "\nAssets/Docs/whisper-unity-setup.md を見て配置してください。";
-            Debug.LogError("[SpeechToTextWhisper] " + whisperLastError);
-            yield break;
-        }
-
-        GameObject whisperGo = new GameObject("WhisperManager");
-        whisperGo.transform.SetParent(transform, false);
-        whisperGo.SetActive(false);
-        whisper = whisperGo.AddComponent<WhisperManager>();
-        whisper.IsModelPathInStreamingAssets = false;
-        whisper.ModelPath = modelPath;
-        whisper.language = whisperLanguage;
-        whisperGo.SetActive(true);
-
-        float timeout = 120f;
-        float started = Time.realtimeSinceStartup;
-        while (whisper.IsLoading || (!whisper.IsLoaded && Time.realtimeSinceStartup - started < 0.5f))
-        {
-            if (Time.realtimeSinceStartup - started > timeout)
-            {
-                break;
-            }
-
-            yield return null;
-        }
-
-        if (!whisper.IsLoaded)
-        {
-            whisperLastError =
-                "Whisper モデルの読み込みに失敗しました: " + modelPath
-                + "\nコンソールと Assets/Docs/whisper-unity-setup.md を確認してください。";
-            Debug.LogError("[SpeechToTextWhisper] " + whisperLastError);
-        }
-    }
-
     // ----- マイク録音（押し話し） -----
 
     void SetupMicrophone()
@@ -256,12 +208,12 @@ public class SpeechToTextWhisper : MonoBehaviour
         if (Microphone.devices == null || Microphone.devices.Length == 0)
         {
             microphoneDevice = null;
-            Debug.LogWarning("[SpeechToTextWhisper] マイクデバイスが見つかりません。");
+            Debug.LogWarning("[SpeechToTextLocal] マイクデバイスが見つかりません。");
             return;
         }
 
         microphoneDevice = Microphone.devices[0];
-        Debug.Log("[SpeechToTextWhisper] マイクを使用します: " + microphoneDevice);
+        Debug.Log("[SpeechToTextLocal] マイクを使用します: " + microphoneDevice);
     }
 
     void StartMonitor()
@@ -293,12 +245,12 @@ public class SpeechToTextWhisper : MonoBehaviour
             return;
         }
 
-        if (whisper == null || !whisper.IsLoaded)
+        if (!sherpa.IsReady)
         {
             ShowError(
-                whisperLastError != null
-                    ? whisperLastError
-                    : "Whisper が初期化されていません。Assets/Docs/whisper-unity-setup.md を見てください。",
+                sherpa.LastError != null
+                    ? sherpa.LastError
+                    : "sherpa が初期化されていません。Assets/Docs/sherpa-onnx-setup.md を見てください。",
                 sttResponseText);
             return;
         }
@@ -374,10 +326,10 @@ public class SpeechToTextWhisper : MonoBehaviour
         }
 
         SetStatus("ローカル STT 中", true);
-        WhisperAsrResult asr = null;
+        SherpaAsrResult asr = null;
         float sttStarted = Time.realtimeSinceStartup; // ローカル STT 開始。返信までの計測用
-        yield return StartCoroutine(RecognizeWhisperCoroutine(samples, value => { asr = value; }));
-        ResponseTime.Log("Whisper STT", sttStarted);
+        yield return StartCoroutine(RecognizeBackgroundCoroutine(samples, value => { asr = value; }));
+        ResponseTime.Log("Sherpa STT", sttStarted);
 
         if (sttResponseText != null && asr != null)
         {
@@ -429,7 +381,7 @@ public class SpeechToTextWhisper : MonoBehaviour
         }
 
         string assistantText;
-        if (!GeminiTextResponse.TryExtractText(chatResult.body, "[SpeechToTextWhisper]", out assistantText))
+        if (!GeminiTextResponse.TryExtractText(chatResult.body, "[SpeechToTextLocal]", out assistantText))
         {
             ShowError("LLM 応答 JSON からテキストを取り出せませんでした。4. Response を確認してください。", llmResponseText);
             RemoveLastTurnIfUser();
@@ -445,61 +397,56 @@ public class SpeechToTextWhisper : MonoBehaviour
         SetSending(false);
     }
 
-    // WhisperManager.GetTextAsync を待ち、終わるまで画面は固めていない
-    IEnumerator RecognizeWhisperCoroutine(float[] samples, Action<WhisperAsrResult> onDone)
+    // 認識をスレッドプールで回し、終わるまで待つ（メインスレッドを止めない）
+    IEnumerator RecognizeBackgroundCoroutine(float[] samples, Action<SherpaAsrResult> onDone)
     {
-        WhisperAsrResult result = new WhisperAsrResult();
-        result.audioSeconds = sampleRate > 0 ? samples.Length / (float)sampleRate : 0f;
+        SherpaAsrResult result = null;
+        bool done = false;
+        ThreadPool.QueueUserWorkItem(_ =>
+        {
+            result = sherpa.Recognize(samples, sampleRate);
+            done = true;
+        });
 
-        Task<WhisperResult> task = whisper.GetTextAsync(samples, sampleRate, 1);
-        DateTime startedUtc = DateTime.UtcNow;
-        while (!task.IsCompleted)
+        while (!done)
         {
             yield return null;
         }
 
-        result.elapsedMilliseconds = (long)(DateTime.UtcNow - startedUtc).TotalMilliseconds;
-        if (result.audioSeconds > 0f)
-        {
-            result.realtimeFactor = (result.elapsedMilliseconds / 1000f) / result.audioSeconds;
-        }
-
-        if (task.IsFaulted)
-        {
-            Exception inner = task.Exception != null ? task.Exception.GetBaseException() : null;
-            result.error = inner != null ? inner.Message : "Whisper 認識に失敗しました。";
-            onDone(result);
-            yield break;
-        }
-
-        WhisperResult whisperResult = task.Result;
-        if (whisperResult == null)
-        {
-            result.error = "認識結果を受け取れませんでした。モデル配置を確認してください。";
-            onDone(result);
-            yield break;
-        }
-
-        result.text = whisperResult.Result;
-        result.language = whisperResult.Language;
         onDone(result);
     }
 
     string BuildLocalSttRequestText(int sampleCount, float audioSeconds)
     {
         StringBuilder sb = new StringBuilder();
-        sb.AppendLine("engine: Whisper WhisperManager");
-        sb.AppendLine("model: " + Path.GetFileName(whisperModelRelativePath) + "（多言語）");
-        sb.AppendLine("language: " + whisperLanguage);
+        sb.AppendLine("engine: sherpa-onnx OfflineRecognizer");
+        sb.AppendLine("model: ReazonSpeech Zipformer " + DescribeSherpaWeights(sherpa.encoderFileName) + "（日本語）");
+        sb.AppendLine("provider: cpu");
+        sb.AppendLine("numThreads: " + sherpa.numThreads);
         sb.AppendLine("sampleRate: " + sampleRate);
         sb.AppendLine("samples: " + sampleCount + " / ~" + audioSeconds.ToString("0.0") + "s");
         sb.AppendLine();
-        sb.AppendLine("weights: " + Path.GetFileName(whisperModelRelativePath));
-        sb.AppendLine("path: " + Path.Combine(Application.dataPath, whisperModelRelativePath));
+        sb.AppendLine("encoder: " + sherpa.encoderFileName);
+        sb.AppendLine("decoder: " + sherpa.decoderFileName);
+        sb.AppendLine("joiner: " + sherpa.joinerFileName);
+        sb.AppendLine("tokens: " + sherpa.tokensFileName);
+        sb.AppendLine("dir: " + sherpa.ModelDirectory);
         return sb.ToString();
     }
 
-    static string BuildLocalSttResponseText(WhisperAsrResult asr)
+    // encoder のファイル名から、置いている重み（int8 / fp32）を 1. 欄用に決める
+    static string DescribeSherpaWeights(string encoderFileName)
+    {
+        if (!string.IsNullOrEmpty(encoderFileName)
+            && encoderFileName.IndexOf("int8", StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            return "int8";
+        }
+
+        return "fp32";
+    }
+
+    static string BuildLocalSttResponseText(SherpaAsrResult asr)
     {
         StringBuilder sb = new StringBuilder();
         if (!string.IsNullOrEmpty(asr.error))
@@ -512,11 +459,6 @@ public class SpeechToTextWhisper : MonoBehaviour
         sb.AppendLine("elapsedMs: " + asr.elapsedMilliseconds);
         sb.AppendLine("audioSeconds: " + asr.audioSeconds.ToString("0.00"));
         sb.AppendLine("RTF: " + asr.realtimeFactor.ToString("0.000"));
-        if (!string.IsNullOrEmpty(asr.language))
-        {
-            sb.AppendLine("detectedLanguage: " + asr.language);
-        }
-
         sb.AppendLine();
         sb.Append(asr.text);
         return sb.ToString();
@@ -607,7 +549,7 @@ public class SpeechToTextWhisper : MonoBehaviour
         DateTime writeTimeUtc;
         if (!TryReadSystemInstructionFile(out text, out writeTimeUtc))
         {
-            Debug.LogWarning("[SpeechToTextWhisper] SystemInstruction.txt がありません: " + GetSystemInstructionFilePath());
+            Debug.LogWarning("[SpeechToTextLocal] SystemInstruction.txt がありません: " + GetSystemInstructionFilePath());
             systemInstructionField.text = string.Empty;
             systemInstructionFileWriteTimeUtc = DateTime.MinValue;
             return;
@@ -700,7 +642,7 @@ public class SpeechToTextWhisper : MonoBehaviour
         string error;
         if (!GeminiKey.TryRead(apiKeyRelativePath, out apiKey, out error))
         {
-            Debug.LogError("[SpeechToTextWhisper] " + error);
+            Debug.LogError("[SpeechToTextLocal] " + error);
             return;
         }
     }
@@ -758,7 +700,7 @@ public class SpeechToTextWhisper : MonoBehaviour
 
     void ShowError(string message, TMP_Text responsePanel = null)
     {
-        Debug.LogError("[SpeechToTextWhisper] " + message);
+        Debug.LogError("[SpeechToTextLocal] " + message);
         SetStatus("エラー", false);
         AddBubble("Error", message, false);
         if (responsePanel != null && !responsePanel.text.Contains(message))
@@ -779,7 +721,7 @@ public class SpeechToTextWhisper : MonoBehaviour
     {
         if (messageBubblePrefab == null || messageContent == null)
         {
-            Debug.LogWarning("[SpeechToTextWhisper] messageBubblePrefab または messageContent が未設定です。");
+            Debug.LogWarning("[SpeechToTextLocal] messageBubblePrefab または messageContent が未設定です。");
             return;
         }
 

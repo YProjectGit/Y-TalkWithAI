@@ -1,6 +1,6 @@
-# sherpa-onnx の配置（2D.(SpeechToTextSherpa)）
+# sherpa-onnx の配置（2C.SpeechToTextLocal）
 
-2D のローカル STT（Speech-to-Text）に使うモデルとネイティブライブラリを、自分で選んで置いてください。APIキーは不要です。
+2C のローカル STT（Speech-to-Text）に使うモデルとネイティブライブラリを、自分で選んで置いてください。APIキーは不要です。
 
 ライセンス: [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) と [ReazonSpeech](https://research.reazon.jp/blog/2024-08-01-ReazonSpeech.html) は Apache 2.0 です。
 
@@ -25,7 +25,7 @@
 
 1. 次をダウンロードして展開してください。  
    https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-zipformer-ja-reazonspeech-2024-08-01.tar.bz2
-2. 展開したフォルダから、選んだほうのファイルを `Assets/2D.(SpeechToTextSherpa)/Resource/models/` にコピーしてください。`tokens.txt` はリポジトリに入っているので、上書きしてもそのままでも構いません。
+2. 展開したフォルダから、選んだほうのファイルを `Assets/2C.SpeechToTextLocal/Resource/models/` にコピーしてください。`tokens.txt` はリポジトリに入っているので、上書きしてもそのままでも構いません。
 
 **int8 を選んだとき**
 
@@ -45,7 +45,7 @@
 | `joiner-epoch-99-avg-1.onnx` | 約 10MB |
 | `tokens.txt` | 約 45KB |
 
-fp32 を置いたら、Play の前に Hierarchy でデモ本体（`SpeechToTextSherpa`）を選び、Inspector のファイル名を次に変えてください。置いたファイルと名前が違うと読み込みません。
+fp32 を置いたら、Play の前に Hierarchy でデモ本体（`SpeechToTextLocal`）を選び、Inspector のファイル名を次に変えてください。置いたファイルと名前が違うと読み込みません。
 
 - `sherpaEncoderFileName` → `encoder-epoch-99-avg-1.onnx`
 - `sherpaDecoderFileName` → `decoder-epoch-99-avg-1.onnx`
@@ -70,10 +70,10 @@ int8 のときは、Inspector の初期値のままで動きます。
 
 | OS | コピーするファイル | 配置先 |
 |----|--------------------|--------|
-| Windows x64 | `sherpa-onnx-c-api.dll`<br>`onnxruntime.dll`<br>`onnxruntime_providers_shared.dll` | `Assets/2D.(SpeechToTextSherpa)/Resource/Plugins/Windows/x86_64/` |
-| macOS（Apple Silicon） | `libsherpa-onnx-c-api.dylib`<br>`libonnxruntime.dylib` | `Assets/2D.(SpeechToTextSherpa)/Resource/Plugins/macOS/ARM64/` |
+| Windows x64 | `sherpa-onnx-c-api.dll`<br>`onnxruntime.dll`<br>`onnxruntime_providers_shared.dll` | `Assets/2C.SpeechToTextLocal/Resource/Plugins/Windows/x86_64/` |
+| macOS（Apple Silicon） | `libsherpa-onnx-c-api.dylib`<br>`libonnxruntime.dylib` | `Assets/2C.SpeechToTextLocal/Resource/Plugins/macOS/ARM64/` |
 
-3. Unity に戻し、Project ウィンドウを一度クリックしてください（置いたファイルが再インポートされます）。必要なら各プラグインの Inspector で自分の OS だけ有効にしてください。そのあと `SpeechToTextSherpa` シーンを Play してください。
+3. Unity に戻し、Project ウィンドウを一度クリックしてください（置いたファイルが再インポートされます）。必要なら各プラグインの Inspector で自分の OS だけ有効にしてください。そのあと `SpeechToTextLocal` シーンを Play してください。
 
 ---
 

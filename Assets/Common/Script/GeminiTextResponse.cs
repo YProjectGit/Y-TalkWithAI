@@ -7,7 +7,7 @@
 // JsonUtility は入れ子のクラスに載せる形でしか読めないので、必要なフィールドだけの
 // 入れ物を用意して FromJson に渡している。どのフィールドを見るかがそのまま下の型。
 //
-// 使っているデモ: 1A / 2A / 2C / 2D / 3A
+// 使っているデモ: 1A / 2A / 2C / 3A
 
 using System;
 using UnityEngine;

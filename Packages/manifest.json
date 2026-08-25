@@ -6,7 +6,6 @@
     "com.unity.render-pipelines.universal": "17.3.0",
     "com.unity.test-framework": "1.6.0",
     "com.unity.ugui": "2.0.0",
-    "com.whisper.unity": "https://github.com/Macoron/whisper.unity.git?path=/Packages/com.whisper.unity#1.4.0",
     "com.yugop.yfullscreen": "https://github.com/YProjectGit/yFullScreen.git",
     "io.github.hatayama.uloopmcp": "https://github.com/hatayama/unity-cli-loop.git?path=/Packages/src",
     "com.unity.modules.accessibility": "1.0.0",
