@@ -1818,17 +1818,16 @@ MonoBehaviour:
   sampleRate: 16000
   maxRecordingSeconds: 30
   minRecordingSeconds: 0.3
-  voiceName: Kore
+  voiceName: Puck
   playbackSampleRate: 24000
   cubeRenderer: {fileID: 1029627803}
   targetCamera: {fileID: 330585545}
   previewArea: {fileID: 996036058}
+  initialAngularVelocityX: 0
   initialAngularVelocity: 18
+  initialAngularVelocityZ: 0
   initialSize: 1
   motionLerpSpeed: 4
-  maxAbsAngularVelocity: 180
-  minSize: 0.3
-  maxSize: 3
   recordHintText: {fileID: 1718470724}
   levelMeterFill: {fileID: 858319822}
   motionStateText: {fileID: 153897663}
@@ -3710,7 +3709,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 920000082}
   m_HandleRect: {fileID: 920000080}
   m_Direction: 2
-  m_Value: 1
+  m_Value: 0
   m_Size: 1
   m_NumberOfSteps: 0
   m_OnValueChanged:
@@ -6371,7 +6370,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 974005497}
   m_HandleRect: {fileID: 974005496}
   m_Direction: 2
-  m_Value: 0
+  m_Value: 1
   m_Size: 1
   m_NumberOfSteps: 0
   m_OnValueChanged:
