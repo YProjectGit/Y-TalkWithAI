@@ -610,6 +610,32 @@ public class SpeechToSpeech : MonoBehaviour
     }
 
     // ----- レスポンス解析 -----
+    // TTS 応答は text ではなく inlineData（音声）が入るので、Common の GeminiTextResponse は使わない。
+
+    [Serializable]
+    class GeminiResponse
+    {
+        public GeminiCandidate[] candidates;
+    }
+
+    [Serializable]
+    class GeminiCandidate
+    {
+        public GeminiContent content;
+    }
+
+    [Serializable]
+    class GeminiContent
+    {
+        public GeminiPart[] parts;
+    }
+
+    [Serializable]
+    class GeminiPart
+    {
+        public string text;
+        public GeminiInlineData inlineData; // TTS 応答の音声（text と排他的なことが多い）
+    }
 
     [Serializable]
     class GeminiInlineData
