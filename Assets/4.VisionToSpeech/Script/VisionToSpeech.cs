@@ -39,7 +39,7 @@ public class VisionToSpeech : MonoBehaviour
     public int maxSendLongSide = 768; // 送信 JPEG の長辺上限（推奨解像度）
     public int jpegQuality = 75; // EncodeToJPG の品質（1〜100）
     public float streamIntervalSeconds = 1f; // ストリーミング時の送信間隔（約1 FPS）
-    public string mediaResolution = "MEDIA_RESOLUTION_MEDIUM"; // Setup の mediaResolution
+    public string mediaResolution = "MEDIA_RESOLUTION_MEDIUM"; // generationConfig の mediaResolution
     public string framePromptText =
         "この画像に写っているものを、日本語で短く説明してください。"; // フレームと一緒に送る指示
 
@@ -235,6 +235,12 @@ public class VisionToSpeech : MonoBehaviour
         while (!setupComplete && wait < 15f)
         {
             wait += Time.unscaledDeltaTime;
+            if (socket == null || socket.State != WebSocketState.Open)
+            {
+                SetStreamButtonInteractable(true);
+                yield break;
+            }
+
             yield return null;
         }
 
@@ -266,13 +272,6 @@ public class VisionToSpeech : MonoBehaviour
         sb.Append("\"realtimeInputConfig\":{\"automaticActivityDetection\":{\"disabled\":true}},");
         sb.Append("\"outputAudioTranscription\":{},");
 
-        if (!string.IsNullOrEmpty(mediaResolution))
-        {
-            sb.Append("\"mediaResolution\":\"");
-            sb.Append(GeminiJson.Escape(mediaResolution));
-            sb.Append("\",");
-        }
-
         string instruction = GetSystemInstructionText();
         if (!string.IsNullOrEmpty(instruction))
         {
@@ -283,6 +282,14 @@ public class VisionToSpeech : MonoBehaviour
 
         sb.Append("\"generationConfig\":{");
         sb.Append("\"responseModalities\":[\"AUDIO\"],");
+        if (!string.IsNullOrEmpty(mediaResolution))
+        {
+            // GenerationConfig のフィールド。setup 直下に置くとサーバが切断する
+            sb.Append("\"mediaResolution\":\"");
+            sb.Append(GeminiJson.Escape(mediaResolution));
+            sb.Append("\",");
+        }
+
         sb.Append("\"speechConfig\":{\"voiceConfig\":{\"prebuiltVoiceConfig\":{\"voiceName\":\"");
         sb.Append(GeminiJson.Escape(voiceName));
         sb.Append("\"}}}");
@@ -506,15 +513,16 @@ public class VisionToSpeech : MonoBehaviour
             + outboundTotalBytes + "B  #" + outboundFrameCount);
 
         // 画像だけだと応答のきっかけが弱いことがあるので、短い指示テキストも同じターンで送る
+        // 3.1 Live は会話中の clientContent を拒否するので realtimeInput.text を使う
         string prompt = string.IsNullOrEmpty(framePromptText)
             ? "この画像を日本語で短く説明してください。"
             : framePromptText;
         string textJson =
-            "{\"clientContent\":{\"turns\":[{\"role\":\"user\",\"parts\":[{\"text\":\""
+            "{\"realtimeInput\":{\"text\":\""
             + GeminiJson.Escape(prompt)
-            + "\"}]}],\"turnComplete\":false}}";
+            + "\"}}";
         yield return StartCoroutine(SendJsonCoroutine(textJson));
-        AppendOutboundLog("clientContent text（説明指示）");
+        AppendOutboundLog("realtimeInput text（説明指示）");
 
         yield return StartCoroutine(SendJsonCoroutine("{\"realtimeInput\":{\"activityEnd\":{}}}"));
         AppendOutboundLog("activityEnd");
@@ -612,10 +620,18 @@ public class VisionToSpeech : MonoBehaviour
                             .ConfigureAwait(false);
                         if (result.MessageType == WebSocketMessageType.Close)
                         {
+                            string closeReason = result.CloseStatusDescription;
                             EnqueueMain(() =>
                             {
                                 isConnected = false;
-                                SetStatus("切断されました", false);
+                                if (!string.IsNullOrEmpty(closeReason))
+                                {
+                                    ShowError("切断: " + closeReason);
+                                }
+                                else
+                                {
+                                    SetStatus("切断されました", false);
+                                }
                             });
                             return;
                         }

@@ -37,7 +37,7 @@ public class ScreenToSpeech : MonoBehaviour
     public int maxSendLongSide = 768; // 送信 JPEG の長辺上限（推奨解像度）
     public int jpegQuality = 75; // EncodeToJPG の品質（1〜100）
     public float interpretIntervalSeconds = 1f; // 自動送信の間隔（約1 FPS）
-    public string mediaResolution = "MEDIA_RESOLUTION_MEDIUM"; // Setup の mediaResolution
+    public string mediaResolution = "MEDIA_RESOLUTION_MEDIUM"; // generationConfig の mediaResolution
     public string systemInstructionText =
         "あなたは、人がいま描いている絵を見る実況者です。紙に見えている線や形を、日本語で短くやさしく話してください。途中の線でも、いま見えているものから推測してよいです。まだほとんど描かれていないときは、無理に物語を作らず、見えていることだけを言ってください。返答は1〜2文にしてください。"; // Setup の事前指示（画面には出さない）
     public string framePromptText =
@@ -176,13 +176,6 @@ public class ScreenToSpeech : MonoBehaviour
         sb.Append("\"realtimeInputConfig\":{\"automaticActivityDetection\":{\"disabled\":true}},");
         sb.Append("\"outputAudioTranscription\":{},");
 
-        if (!string.IsNullOrEmpty(mediaResolution))
-        {
-            sb.Append("\"mediaResolution\":\"");
-            sb.Append(GeminiJson.Escape(mediaResolution));
-            sb.Append("\",");
-        }
-
         string instruction = systemInstructionText != null ? systemInstructionText.Trim() : string.Empty;
         if (!string.IsNullOrEmpty(instruction))
         {
@@ -193,6 +186,14 @@ public class ScreenToSpeech : MonoBehaviour
 
         sb.Append("\"generationConfig\":{");
         sb.Append("\"responseModalities\":[\"AUDIO\"],");
+        if (!string.IsNullOrEmpty(mediaResolution))
+        {
+            // GenerationConfig のフィールド。setup 直下に置くとサーバが切断する
+            sb.Append("\"mediaResolution\":\"");
+            sb.Append(GeminiJson.Escape(mediaResolution));
+            sb.Append("\",");
+        }
+
         sb.Append("\"speechConfig\":{\"voiceConfig\":{\"prebuiltVoiceConfig\":{\"voiceName\":\"");
         sb.Append(GeminiJson.Escape(voiceName));
         sb.Append("\"}}}");
@@ -268,13 +269,14 @@ public class ScreenToSpeech : MonoBehaviour
         yield return StartCoroutine(SendJsonCoroutine(videoJson));
 
         // 画像だけだと応答のきっかけが弱いことがあるので、短い指示テキストも同じターンで送る
+        // 3.1 Live は会話中の clientContent を拒否するので realtimeInput.text を使う
         string prompt = string.IsNullOrEmpty(framePromptText)
             ? "この絵を日本語で短く実況してください。"
             : framePromptText;
         string textJson =
-            "{\"clientContent\":{\"turns\":[{\"role\":\"user\",\"parts\":[{\"text\":\""
+            "{\"realtimeInput\":{\"text\":\""
             + GeminiJson.Escape(prompt)
-            + "\"}]}],\"turnComplete\":false}}";
+            + "\"}}";
         yield return StartCoroutine(SendJsonCoroutine(textJson));
 
         yield return StartCoroutine(SendJsonCoroutine("{\"realtimeInput\":{\"activityEnd\":{}}}"));
