@@ -10,6 +10,7 @@
 //   【VAD 自動モード】（ボタンで切替。切替時は Setup を載せ直すため再接続）
 //     マイクを常時送信。サーバの automaticActivityDetection が無音でターンを区切る
 //     このあいだ Space は無効
+//     「再生中マイクOFF」がオンなら、返答再生中はマイク送信を止める（スピーカー回り込み防止）
 //   受信 → serverContent の音声を再生キューへ / transcription を吹き出しと右欄へ
 
 using System;
@@ -41,6 +42,9 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
     public float minRecordingSeconds = 0.3f; // これより短い発話は送らない
     public string voiceName = "Kore"; // Setup の prebuilt 声色名
     public int playbackSampleRate = 24000; // 受信 PCM の想定サンプルレート（Hz）
+    public float micResumeDelaySeconds = 0.5f; // 再生終了後、マイク送信を再開するまでの待ち
+    public int silenceDurationMs = 0; // VAD 自動: 無音が何ms続いたら発話終了。0=サーバ既定（Setup に載せない）
+    public EndOfSpeechSensitivityOption endOfSpeechSensitivity = EndOfSpeechSensitivityOption.ServerDefault; // VAD 自動: 発話終了の切れやすさ。ServerDefault は載せない
 
     // ===== インスペクタ: 左ペイン（チャット UI） =====
 
@@ -48,6 +52,7 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
     public TMP_Text recordHintText; // Space / VAD モードの案内
     public Image levelMeterFill; // マイク音量の横棒（Image Type = Filled）
     public Button vadModeButton; // VAD 自動モードのトグル（Message 行のボタン）
+    public Toggle muteMicDuringPlaybackToggle; // VAD 自動時、再生中はマイク送信を止める
     public Transform messageContent; // バブルを並べる Content
     public ChatBubble messageBubblePrefab; // 1A と同型の吹き出し Prefab
     public ScrollRect chatScrollRect; // 新着時に下端へ
@@ -84,7 +89,9 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
     string microphoneDevice; // マイク名
     AudioClip micClip; // ループ録音用クリップ
     float displayedLevel; // 横棒の現在値
+    Color levelMeterOnColor; // ON 時のゲージ色（シーンの緑を Start で覚える）
     readonly float[] meterSamples = new float[MicLevel.WindowSamples]; // 直近サンプルの読み出し先
+    static readonly Color LevelMeterOffColor = new Color(0.28f, 0.28f, 0.30f, 1f); // OFF 時のグレー
     int lastMicSamplePos; // 前回送ったサンプル位置
     float recordingStartedTime; // 手動モードの録音開始時刻
     long outboundTotalBytes; // 送信累計バイト
@@ -93,6 +100,8 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
     int inboundChunkCount; // 受信チャンク数
     string inputTranscriptBuffer; // 入力 transcription の蓄積（吹き出し用）
     string outputTranscriptBuffer; // 出力 transcription の蓄積
+    ChatBubble liveUserBubble; // このターンの You 吹き出し（断片が来るたびに更新）
+    ChatBubble liveModelBubble; // このターンの Gemini 吹き出し
     bool playbackCoroutineRunning; // 再生コルーチン稼働中か
     DateTime systemInstructionFileWriteTimeUtc; // SystemInstruction.txt 同期用
     bool statusBlink; // 接続中 / 応答待ちのとき Status を点滅させる
@@ -102,6 +111,10 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
     string lastSetupJsonForDisplay; // Setup ヘッダに添える直近の Setup JSON
     float replyWaitStarted = -1f; // 送信完了時刻。未計測は -1
     bool replyWaitFrozen; // VAD 自動で、返信が始まったら起点を動かさない
+    int receivedPcmRate; // mime から拾った受信レート。0 なら Inspector の playbackSampleRate
+    bool isHoldingMicForPlayback; // 再生中マイクOFF で、いま送信を止めているか
+    bool sentMicHoldSignal; // 今回のホールドで audioStreamEnd を送ったか
+    float micResumeAtRealtime = -1f; // この時刻まで送信しない。未使用は -1
 
     const int MicClipSeconds = 2; // マイクのリングバッファ長さ（秒）
     const int MaxLogChars = 8000; // ログ欄の上限（古い先頭を捨てる）
@@ -134,6 +147,12 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         SetupMicrophone();
         EnsurePlaybackAudioSource();
         SetupVadModeButton();
+        SetupMuteMicDuringPlaybackToggle();
+        if (levelMeterFill != null)
+        {
+            levelMeterOnColor = levelMeterFill.color;
+        }
+
         InitPanelTexts();
         RefreshModeUi();
 
@@ -177,6 +196,26 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         vadModeButtonImage = vadModeButton.GetComponent<Image>();
         vadModeButton.onClick.RemoveListener(OnVadModeButtonClicked);
         vadModeButton.onClick.AddListener(OnVadModeButtonClicked);
+    }
+
+    // 再生中マイクOFF チェックの初期値を揃える（未配線なら何もしない）
+    void SetupMuteMicDuringPlaybackToggle()
+    {
+        if (muteMicDuringPlaybackToggle == null)
+        {
+            return;
+        }
+
+        muteMicDuringPlaybackToggle.onValueChanged.RemoveListener(OnMuteMicDuringPlaybackChanged);
+        muteMicDuringPlaybackToggle.onValueChanged.AddListener(OnMuteMicDuringPlaybackChanged);
+    }
+
+    void OnMuteMicDuringPlaybackChanged(bool _)
+    {
+        if (!IsMuteMicDuringPlaybackEnabled())
+        {
+            FinishMicResume();
+        }
     }
 
     // ----- 接続（Setup） -----
@@ -278,7 +317,22 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         // 自動: disabled=false（サーバが無音判定。クライアントは PCM を流し続けるだけ）
         if (vadAutoMode)
         {
-            sb.Append("\"realtimeInputConfig\":{\"automaticActivityDetection\":{\"disabled\":false}},");
+            sb.Append("\"realtimeInputConfig\":{\"automaticActivityDetection\":{\"disabled\":false");
+            if (silenceDurationMs > 0)
+            {
+                sb.Append(",\"silenceDurationMs\":");
+                sb.Append(silenceDurationMs);
+            }
+
+            string endSensitivity = GetEndOfSpeechSensitivityJsonValue();
+            if (endSensitivity != null)
+            {
+                sb.Append(",\"endOfSpeechSensitivity\":\"");
+                sb.Append(endSensitivity);
+                sb.Append('"');
+            }
+
+            sb.Append("}},");
         }
         else
         {
@@ -397,6 +451,22 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         {
             vadModeButton.interactable = interactable;
         }
+    }
+
+    // Inspector の選択を Setup JSON の値にする。ServerDefault は null（キーを載せない）
+    string GetEndOfSpeechSensitivityJsonValue()
+    {
+        if (endOfSpeechSensitivity == EndOfSpeechSensitivityOption.High)
+        {
+            return "END_SENSITIVITY_HIGH";
+        }
+
+        if (endOfSpeechSensitivity == EndOfSpeechSensitivityOption.Low)
+        {
+            return "END_SENSITIVITY_LOW";
+        }
+
+        return null;
     }
 
     string GetReadyStatusText()
@@ -539,6 +609,8 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         SyncSystemInstructionBeforeSend();
         inputTranscriptBuffer = string.Empty;
         outputTranscriptBuffer = string.Empty;
+        liveUserBubble = null;
+        liveModelBubble = null;
 
         micClip = Microphone.Start(microphoneDevice, true, MicClipSeconds, sampleRate);
         if (micClip == null)
@@ -564,12 +636,128 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         micClip = null;
     }
 
+    bool IsMuteMicDuringPlaybackEnabled()
+    {
+        return muteMicDuringPlaybackToggle != null && muteMicDuringPlaybackToggle.isOn;
+    }
+
+    // VAD 自動 + チェック ON + 再生中なら、スピーカー音をサーバへ返さない
+    bool ShouldHoldMicForPlayback()
+    {
+        if (!vadAutoMode || !IsMuteMicDuringPlaybackEnabled())
+        {
+            return false;
+        }
+
+        if (isHoldingMicForPlayback)
+        {
+            return true;
+        }
+
+        if (!playbackPcmQueue.IsEmpty)
+        {
+            return true;
+        }
+
+        return playbackAudioSource != null && playbackAudioSource.isPlaying;
+    }
+
+    // 再生後の待ち時間中も送信しない
+    bool IsMicResumeCooldown()
+    {
+        return micResumeAtRealtime >= 0f && Time.realtimeSinceStartup < micResumeAtRealtime;
+    }
+
+    bool IsMicSendPaused()
+    {
+        return ShouldHoldMicForPlayback() || IsMicResumeCooldown();
+    }
+
+    // ホールド開始／解除のあいだに溜まった再生音サンプルを捨てる
+    void DiscardPendingMicSamples()
+    {
+        if (microphoneDevice == null)
+        {
+            return;
+        }
+
+        int pos = Microphone.GetPosition(microphoneDevice);
+        if (pos >= 0)
+        {
+            lastMicSamplePos = pos;
+        }
+    }
+
+    void BeginMicHoldForPlayback()
+    {
+        isHoldingMicForPlayback = true;
+        if (sentMicHoldSignal)
+        {
+            return;
+        }
+
+        sentMicHoldSignal = true;
+        DiscardPendingMicSamples();
+        StartCoroutine(SendJsonCoroutine("{\"realtimeInput\":{\"audioStreamEnd\":true}}"));
+        AppendOutboundLog("playback: mic hold (audioStreamEnd)");
+        SetOutboundStatus("再生中（マイクOFF）");
+    }
+
+    // 再生が終わったら、すぐ再開せず待ち時間を入れる（残響で次ターンが始まらないようにする）
+    void ScheduleMicResumeAfterPlayback()
+    {
+        isHoldingMicForPlayback = false;
+        if (!vadAutoMode || !IsMuteMicDuringPlaybackEnabled())
+        {
+            FinishMicResume();
+            return;
+        }
+
+        float delay = micResumeDelaySeconds > 0f ? micResumeDelaySeconds : 0.5f;
+        micResumeAtRealtime = Time.realtimeSinceStartup + delay;
+        SetOutboundStatus("マイクOFF");
+    }
+
+    void FinishMicResume()
+    {
+        bool wasPaused = sentMicHoldSignal || micResumeAtRealtime >= 0f;
+        isHoldingMicForPlayback = false;
+        sentMicHoldSignal = false;
+        micResumeAtRealtime = -1f;
+        if (!wasPaused)
+        {
+            return;
+        }
+
+        DiscardPendingMicSamples();
+        if (vadAutoMode && isMicStreaming)
+        {
+            SetOutboundStatus("常時送信");
+        }
+    }
+
     // マイク送信中だけ、リングバッファの新規サンプルを PCM にして送る
     void PumpMicrophoneChunksIfStreaming()
     {
         if (!isMicStreaming || micClip == null || socket == null || socket.State != WebSocketState.Open)
         {
             return;
+        }
+
+        if (IsMicSendPaused())
+        {
+            if (ShouldHoldMicForPlayback())
+            {
+                BeginMicHoldForPlayback();
+            }
+
+            DiscardPendingMicSamples();
+            return;
+        }
+
+        if (sentMicHoldSignal || micResumeAtRealtime >= 0f)
+        {
+            FinishMicResume();
         }
 
         int pos = Microphone.GetPosition(microphoneDevice);
@@ -698,8 +886,8 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
                     }
                     while (!result.EndOfMessage);
 
-                    string json = Encoding.UTF8.GetString(ms.ToArray());
-                    HandleServerMessage(json);
+                    byte[] payload = ms.ToArray();
+                    HandleReceivedPayload(payload, result.MessageType);
                 }
             }
         }
@@ -711,6 +899,37 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         {
             EnqueueMain(() => ShowError("受信ループ例外: " + e.Message));
         }
+    }
+
+    // Text / Binary の両方を受け取る。中身が JSON なら振り分け、そうでなければ PCM として扱う
+    void HandleReceivedPayload(byte[] payload, WebSocketMessageType messageType)
+    {
+        if (payload == null || payload.Length == 0)
+        {
+            return;
+        }
+
+        if (LooksLikeJson(payload))
+        {
+            HandleServerMessage(Encoding.UTF8.GetString(payload));
+            return;
+        }
+
+        if (messageType == WebSocketMessageType.Binary && payload.Length >= 2)
+        {
+            EnqueuePcmForPlayback(payload);
+        }
+    }
+
+    static bool LooksLikeJson(byte[] payload)
+    {
+        int i = 0;
+        while (i < payload.Length && (payload[i] == (byte)' ' || payload[i] == (byte)'\n' || payload[i] == (byte)'\r' || payload[i] == (byte)'\t'))
+        {
+            i++;
+        }
+
+        return i < payload.Length && (payload[i] == (byte)'{' || payload[i] == (byte)'[');
     }
 
     // サーバ JSON を種別ごとに振り分ける（教材用の最小パーサ）
@@ -759,11 +978,14 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
             EnqueueMain(OnTurnComplete);
         }
 
-        if (json.IndexOf("\"interrupted\":true", StringComparison.Ordinal) >= 0)
+        if (json.IndexOf("\"interrupted\":true", StringComparison.Ordinal) >= 0
+            || json.IndexOf("\"interrupted\": true", StringComparison.Ordinal) >= 0)
         {
             EnqueueMain(() =>
             {
                 ClearPlaybackQueue();
+                liveUserBubble = null;
+                liveModelBubble = null;
                 SetInboundStatus("割り込み");
             });
         }
@@ -772,43 +994,38 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
     // candidates ではなく Live の modelTurn.parts[].inlineData.data を拾う
     void TryExtractAndEnqueueAudio(string json)
     {
-        const string marker = "\"data\":\"";
-        // inlineData ブロック内だけを対象にしたいが、教材用に mime が audio のときだけ採用
+        // AUDIO セッションでは mimeType が省略されるチャンクもあるので、
+        // 「audio」という文字列の有無では落とさない
         if (json.IndexOf("\"inlineData\"", StringComparison.Ordinal) < 0
             && json.IndexOf("\"inline_data\"", StringComparison.Ordinal) < 0)
         {
             return;
         }
 
-        if (json.IndexOf("audio", StringComparison.OrdinalIgnoreCase) < 0)
+        int inboundRate = TryParseRateFromJson(json);
+        if (inboundRate > 0)
         {
-            return;
+            receivedPcmRate = inboundRate;
         }
 
         int searchFrom = 0;
         while (true)
         {
-            int dataIndex = json.IndexOf(marker, searchFrom, StringComparison.Ordinal);
-            if (dataIndex < 0)
+            int dataKey = json.IndexOf("\"data\"", searchFrom, StringComparison.Ordinal);
+            if (dataKey < 0)
             {
                 break;
             }
 
-            int valueStart = dataIndex + marker.Length;
-            int valueEnd = json.IndexOf('"', valueStart);
-            if (valueEnd < 0)
-            {
-                break;
-            }
-
-            string b64 = json.Substring(valueStart, valueEnd - valueStart);
-            searchFrom = valueEnd + 1;
-
-            // Setup など短いフィールドを誤爆しにくいよう、ある程度長い Base64 だけ音声とみなす
-            if (b64.Length < 64)
+            searchFrom = dataKey + 6;
+            string b64 = GeminiJsonScan.StringFieldFrom(json, dataKey);
+            if (string.IsNullOrEmpty(b64) || b64.Length < 64)
             {
                 continue;
             }
+
+            // JSON が / を \/ とエスケープしている場合に戻す
+            b64 = b64.Replace("\\/", "/");
 
             try
             {
@@ -818,21 +1035,7 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
                     continue;
                 }
 
-                playbackPcmQueue.Enqueue(pcm);
-                int len = pcm.Length;
-                EnqueueMain(() =>
-                {
-                    inboundChunkCount++;
-                    inboundTotalBytes += len;
-                    AppendInboundLog(
-                        "+audio " + len + "B / total " + inboundTotalBytes + "B  " + playbackSampleRate + "Hz");
-                    SetStage(Stage.ReceivePcm);
-                    SetInboundStatus("受信中");
-                    if (vadAutoMode)
-                    {
-                        replyWaitFrozen = true;
-                    }
-                });
+                EnqueuePcmForPlayback(pcm);
             }
             catch (FormatException)
             {
@@ -841,10 +1044,72 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         }
     }
 
+    // 受信 PCM を再生キューへ入れ、右欄の受信ログを更新する
+    void EnqueuePcmForPlayback(byte[] pcm)
+    {
+        if (pcm == null || pcm.Length < 2)
+        {
+            return;
+        }
+
+        playbackPcmQueue.Enqueue(pcm);
+        if (vadAutoMode && IsMuteMicDuringPlaybackEnabled())
+        {
+            isHoldingMicForPlayback = true;
+        }
+
+        int len = pcm.Length;
+        EnqueueMain(() =>
+        {
+            inboundChunkCount++;
+            inboundTotalBytes += len;
+            AppendInboundLog(
+                "+audio " + len + "B / total " + inboundTotalBytes + "B  " + GetPlaybackRate() + "Hz");
+            SetStage(Stage.ReceivePcm);
+            SetInboundStatus("受信中");
+            if (vadAutoMode)
+            {
+                replyWaitFrozen = true;
+            }
+        });
+    }
+
+    int GetPlaybackRate()
+    {
+        return receivedPcmRate > 0 ? receivedPcmRate : playbackSampleRate;
+    }
+
+    // mimeType の rate=24000 などを拾う。無ければ 0
+    static int TryParseRateFromJson(string json)
+    {
+        const string key = "rate=";
+        int idx = json.IndexOf(key, StringComparison.OrdinalIgnoreCase);
+        if (idx < 0)
+        {
+            return 0;
+        }
+
+        int start = idx + key.Length;
+        int end = start;
+        while (end < json.Length && char.IsDigit(json[end]))
+        {
+            end++;
+        }
+
+        int rate;
+        if (end <= start || !int.TryParse(json.Substring(start, end - start), out rate))
+        {
+            return 0;
+        }
+
+        return rate;
+    }
+
     void OnInputTranscription(string fragment)
     {
         inputTranscriptBuffer = (inputTranscriptBuffer ?? string.Empty) + fragment;
         AppendTranscriptionLog("in: " + fragment);
+        UpdateLiveBubble(ref liveUserBubble, "You", inputTranscriptBuffer, true);
         // VAD 自動は activityEnd が無いので、最後の入力 transcription を送信完了とみなす
         if (vadAutoMode && !replyWaitFrozen)
         {
@@ -856,6 +1121,7 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
     {
         outputTranscriptBuffer = (outputTranscriptBuffer ?? string.Empty) + fragment;
         AppendTranscriptionLog("out: " + fragment);
+        UpdateLiveBubble(ref liveModelBubble, "Gemini", outputTranscriptBuffer, false);
         SetStage(Stage.ReceivePcm);
         if (vadAutoMode)
         {
@@ -863,7 +1129,7 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         }
     }
 
-    // ターン完了: 吹き出しを確定し、再生段階へ
+    // ターン完了: 吹き出しの最終文面を揃え、再生段階へ
     void OnTurnComplete()
     {
         if (replyWaitStarted >= 0f)
@@ -876,15 +1142,10 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
 
         string userText = (inputTranscriptBuffer ?? string.Empty).Trim();
         string modelText = (outputTranscriptBuffer ?? string.Empty).Trim();
-        if (!string.IsNullOrEmpty(userText))
-        {
-            AddBubble("You", userText, true);
-        }
-
-        if (!string.IsNullOrEmpty(modelText))
-        {
-            AddBubble("Gemini", modelText, false);
-        }
+        UpdateLiveBubble(ref liveUserBubble, "You", userText, true);
+        UpdateLiveBubble(ref liveModelBubble, "Gemini", modelText, false);
+        liveUserBubble = null;
+        liveModelBubble = null;
 
         inputTranscriptBuffer = string.Empty;
         outputTranscriptBuffer = string.Empty;
@@ -909,21 +1170,21 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
 
     // ----- 再生 -----
 
-    // キューに溜まった PCM を順に AudioClip 化して再生する
+    // キューに溜まった PCM をまとめて AudioClip 化し、長さぶん待ってから破棄する
     IEnumerator PlaybackPumpCoroutine()
     {
         playbackCoroutineRunning = true;
         while (playbackCoroutineRunning)
         {
-            byte[] pcm;
-            if (!playbackPcmQueue.TryDequeue(out pcm))
+            byte[] pcm = DequeuePcmBatch();
+            if (pcm == null)
             {
                 yield return null;
                 continue;
             }
 
             EnsurePlaybackAudioSource();
-            AudioClip clip = AudioCodec.Pcm16ToClip(pcm, playbackSampleRate);
+            AudioClip clip = AudioCodec.Pcm16ToClip(pcm, GetPlaybackRate());
             if (clip == null)
             {
                 continue;
@@ -933,14 +1194,23 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
             SetInboundStatus("再生中");
             playbackAudioSource.clip = clip;
             playbackAudioSource.Play();
-            while (playbackAudioSource != null && playbackAudioSource.isPlaying)
+            // 短い clip は isPlaying がすぐ false になり、即 Destroy すると無音になる
+            float wait = clip.length;
+            if (wait < 0.03f)
             {
-                yield return null;
+                wait = 0.03f;
+            }
+
+            yield return new WaitForSecondsRealtime(wait);
+            if (playbackAudioSource != null)
+            {
+                playbackAudioSource.Stop();
             }
 
             Destroy(clip);
             if (playbackPcmQueue.IsEmpty)
             {
+                ScheduleMicResumeAfterPlayback();
                 SetInboundStatus("—");
                 if (!isMicStreaming)
                 {
@@ -951,6 +1221,33 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
                     SetStage(Stage.SendPcm);
                 }
             }
+        }
+    }
+
+    // キューに溜まっているチャンクを1本にまとめる（DSP バッファより短い clip 連打を避ける）
+    byte[] DequeuePcmBatch()
+    {
+        byte[] first;
+        if (!playbackPcmQueue.TryDequeue(out first))
+        {
+            return null;
+        }
+
+        if (playbackPcmQueue.IsEmpty)
+        {
+            return first;
+        }
+
+        using (MemoryStream ms = new MemoryStream(first.Length * 4))
+        {
+            ms.Write(first, 0, first.Length);
+            byte[] extra;
+            while (playbackPcmQueue.TryDequeue(out extra))
+            {
+                ms.Write(extra, 0, extra.Length);
+            }
+
+            return ms.ToArray();
         }
     }
 
@@ -965,6 +1262,8 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         {
             playbackAudioSource.Stop();
         }
+
+        ScheduleMicResumeAfterPlayback();
     }
 
     // ----- UI / ログ -----
@@ -1001,8 +1300,15 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
     // Setup ヘッダ先頭の設定行（Inspector の modelName / voiceName など）
     string BuildSetupSettingsSummary()
     {
+        string endSensitivity = GetEndOfSpeechSensitivityJsonValue();
         string vadLine = vadAutoMode
             ? "VAD: auto (server silence detection)\n"
+              + "silenceDurationMs: "
+              + (silenceDurationMs > 0 ? silenceDurationMs.ToString() : "server default")
+              + "\n"
+              + "endOfSpeechSensitivity: "
+              + (endSensitivity != null ? endSensitivity : "server default")
+              + "\n"
             : "VAD: manual (Space → activityStart/End)\n";
 
         return "model: " + modelName + "\n"
@@ -1035,7 +1341,7 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         }
 
         inboundHeaderText.text =
-            "output: PCM " + playbackSampleRate + "Hz\n"
+            "output: PCM " + GetPlaybackRate() + "Hz\n"
             + "mime: audio/pcm (L16 LE)\n"
             + "channels: 1\n"
             + "transcription: serverContent 経由";
@@ -1106,7 +1412,7 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         }
     }
 
-    // 送信中クリップの大きさを横棒の長さにする（計算は MicLevel）
+    // マイク入力 ON=緑の音量バー / OFF=グレーのバー
     void UpdateLevelMeter()
     {
         if (levelMeterFill == null)
@@ -1114,9 +1420,19 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
             return;
         }
 
+        bool micOn = isMicStreaming && !IsMicSendPaused();
+        if (!micOn)
+        {
+            displayedLevel = 0f;
+            levelMeterFill.color = LevelMeterOffColor;
+            levelMeterFill.fillAmount = 1f;
+            return;
+        }
+
         int position = microphoneDevice != null ? Microphone.GetPosition(microphoneDevice) : -1;
         float target = MicLevel.ReadBar(micClip, position, meterSamples, true, displayedLevel);
         displayedLevel = MicLevel.Smooth(displayedLevel, target, Time.deltaTime);
+        levelMeterFill.color = levelMeterOnColor;
         levelMeterFill.fillAmount = displayedLevel;
     }
 
@@ -1157,15 +1473,40 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         AppendInboundLog("[Error] " + message);
     }
 
-    void AddBubble(string speaker, string body, bool isUser)
+    // 断片が来るたびに同じ吹き出しの本文を書き換える。無ければ新規作成
+    void UpdateLiveBubble(ref ChatBubble bubble, string speaker, string body, bool isUser)
     {
-        if (messageBubblePrefab == null || messageContent == null)
+        string text = (body ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(text))
         {
             return;
         }
 
+        if (bubble == null)
+        {
+            bubble = AddBubble(speaker, text, isUser);
+            return;
+        }
+
+        bubble.SetMessage(speaker, text, isUser);
+        ScrollChatToBottom();
+    }
+
+    ChatBubble AddBubble(string speaker, string body, bool isUser)
+    {
+        if (messageBubblePrefab == null || messageContent == null)
+        {
+            return null;
+        }
+
         ChatBubble bubble = Instantiate(messageBubblePrefab, messageContent);
         bubble.SetMessage(speaker, body, isUser);
+        ScrollChatToBottom();
+        return bubble;
+    }
+
+    void ScrollChatToBottom()
+    {
         Canvas.ForceUpdateCanvases();
         if (chatScrollRect != null)
         {
@@ -1202,6 +1543,10 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         }
 
         playbackAudioSource.playOnAwake = false;
+        playbackAudioSource.loop = false;
+        playbackAudioSource.mute = false;
+        playbackAudioSource.volume = 1f;
+        playbackAudioSource.spatialBlend = 0f;
     }
 
     // ----- systemInstruction / APIキー -----
@@ -1365,4 +1710,14 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         isConnected = false;
         setupComplete = false;
     }
+}
+
+/// <summary>
+/// VAD 自動の発話終了感度。ServerDefault は Setup に載せない。
+/// </summary>
+public enum EndOfSpeechSensitivityOption
+{
+    ServerDefault,
+    High,
+    Low
 }

@@ -1,7 +1,7 @@
 // SpeechToMotion.cs
 // 3B の Live API（WebSocket・音声↔音声）に、function calling でキューブの運動を載せるデモ。
-// 声の指示 → toolCall（set_cube_motion）→ 目標の角速度 / サイズを更新 → toolResponse → 声で確認。
-// 画面上の値は目標へ lerp（指数減衰）で漸近する。向きと速さは符号付き角速度 1 つ。
+// 声の指示 → toolCall（set_cube_motion）→ 目標の角速度 XYZ / サイズ XYZ を更新 → toolResponse → 声で確認。
+// 画面上の値は目標へ lerp（指数減衰）で漸近する。向きと速さは符号付き角速度（ワールド XYZ）。
 //
 // 上からの流れ:
 //   Start → APIキー・systemInstruction・マイク・AudioSource・3D プレビュー・Live 接続（Setup に tools）
@@ -43,12 +43,11 @@ public class SpeechToMotion : MonoBehaviour
     public Renderer cubeRenderer; // 回す・拡大縮小するキューブ
     public Camera targetCamera; // Preview 用カメラ（未設定なら Camera.main）
     public RectTransform previewArea; // キューブ描画エリア
-    public float initialAngularVelocity = 18f; // 起動時の角速度（度/秒）。正が Y+
-    public float initialSize = 1f; // 起動時のサイズ倍率（1 = シーン上の初期スケール）
+    public float initialAngularVelocityX = 0f; // 起動時の角速度 X（度/秒）。前後に倒す
+    public float initialAngularVelocity = 18f; // 起動時の角速度 Y（度/秒）。正が水平の自転（Y+）
+    public float initialAngularVelocityZ = 0f; // 起動時の角速度 Z（度/秒）。左右に傾ける
+    public float initialSize = 1f; // 起動時のサイズ倍率（XYZ とも同じ。1 = シーン上の初期スケール）
     public float motionLerpSpeed = 4f; // 目標への追従の速さ（大きいほど速い。指数減衰の係数）
-    public float maxAbsAngularVelocity = 180f; // 角速度の絶対値上限（度/秒）
-    public float minSize = 0.3f; // サイズ倍率の下限
-    public float maxSize = 3f; // サイズ倍率の上限
 
     // ===== インスペクタ: 左ペイン =====
 
@@ -88,16 +87,17 @@ public class SpeechToMotion : MonoBehaviour
     string inputTranscriptBuffer; // 入力 transcription の蓄積
     string outputTranscriptBuffer; // 出力 transcription の蓄積
     bool playbackCoroutineRunning; // 再生コルーチン稼働中か
+    int receivedPcmRate; // mime から拾った受信レート。0 なら Inspector の playbackSampleRate
     bool statusBlink; // Status 点滅中か
     float replyWaitStarted = -1f; // 送信完了（activityEnd）時刻。未計測は -1
 
     // ===== 内部状態: 運動（目標へ漸近） =====
 
-    float currentAngularVelocity; // いまの角速度（度/秒）。Rotate に使う
-    float targetAngularVelocity; // toolCall で受け取った目標角速度
-    float currentSize; // いまのサイズ倍率
-    float targetSize; // toolCall で受け取った目標サイズ
-    float baseScale; // シーン上の初期 localScale.x（size=1 のときこれ）
+    Vector3 currentAngularVelocity; // いまの角速度（度/秒）。ワールド XYZ。Rotate に使う
+    Vector3 targetAngularVelocity; // toolCall で受け取った目標角速度（ワールド XYZ）
+    Vector3 currentSize; // いまのサイズ倍率（ローカル XYZ。1 = 起動時）
+    Vector3 targetSize; // toolCall で受け取った目標サイズ倍率
+    Vector3 baseScale; // シーン上の初期 localScale（size=1 のときこれ）
     Camera backgroundClearCamera; // Preview 以外を背景色で塗る
     bool cameraViewportOwned; // Camera.rect を上書き中か
 
@@ -110,24 +110,34 @@ public class SpeechToMotion : MonoBehaviour
 
     // ファイルが無いときの事前指示（Resource の txt を優先）
     const string DefaultSystemInstruction =
-        "You control a Unity cube through the set_cube_motion function. "
-        + "When the user asks to change spin or size, call that function. "
-        + "angularVelocity is signed degrees per second: positive keeps the initial Y+ direction, "
-        + "negative reverses, 0 stops. size is a uniform scale multiplier (1 = initial size). "
-        + "Omit a field to leave it unchanged. To reverse, send the negated current angularVelocity "
-        + "(the latest tool response includes current targets). "
-        + "After the tool result, confirm briefly in Japanese. Do not invent other functions.";
+        "あなたは set_cube_motion 関数で Unity のキューブを操作します。"
+        + "自転・傾き・大きさを変えてほしいときは、この関数を呼んでください。"
+        + "angularVelocityX / angularVelocityY / angularVelocityZ は、ワールド軸まわりの符号付き角速度（度/秒）です。"
+        + "Y が基本の自転（水平に回る。正は起動時と同じ Y+）です。"
+        + "X は前後に倒す動きです。Z は左右に傾ける動きです。"
+        + "sizeX / sizeY / sizeZ は、ローカル軸ごとのサイズ倍率です（1 が初期の大きさ）。"
+        + "X は横、Y は高さ、Z は奥行きです。"
+        + "size は 3 軸を同じ値にします。書いていない引数は変えません。"
+        + "1 軸だけ逆向きにするときは、その軸の符号を反転して送ってください（直近の tool response にいまの目標が入っています）。"
+        + "軸を言わずに「逆に」と言われたときは、Y を反転してください。"
+        + "「止めて」と言われたときは、角速度 3 軸を 0 にしてください。"
+        + "関数の結果のあとは、日本語で短く確認してください。ほかの関数は作らないでください。";
 
     // Setup に載せる関数宣言（中央ペインにも同じものを出す）
     const string FunctionDeclarationJson =
         "{"
         + "\"name\":\"set_cube_motion\","
-        + "\"description\":\"Set cube motion. angularVelocity is signed deg/s (positive=Y+, negative=opposite, 0=stop). size is uniform scale (1=initial). Omit a field to keep it.\","
+        + "\"description\":\"Set cube motion. angularVelocityX/Y/Z are signed deg/s around world axes (Y=spin, X=pitch, Z=roll). sizeX/Y/Z are per-axis scale (1=initial). size sets all three. Omit a field to keep it.\","
         + "\"parameters\":{"
         + "\"type\":\"OBJECT\","
         + "\"properties\":{"
-        + "\"angularVelocity\":{\"type\":\"NUMBER\",\"description\":\"Signed angular velocity in degrees per second.\"},"
-        + "\"size\":{\"type\":\"NUMBER\",\"description\":\"Uniform scale multiplier. 1 is the initial size.\"}"
+        + "\"angularVelocityX\":{\"type\":\"NUMBER\",\"description\":\"World X angular velocity in degrees per second (pitch).\"},"
+        + "\"angularVelocityY\":{\"type\":\"NUMBER\",\"description\":\"World Y angular velocity in degrees per second (spin). Positive keeps the initial Y+ direction.\"},"
+        + "\"angularVelocityZ\":{\"type\":\"NUMBER\",\"description\":\"World Z angular velocity in degrees per second (roll).\"},"
+        + "\"sizeX\":{\"type\":\"NUMBER\",\"description\":\"Local X scale multiplier (width). 1 is the initial size.\"},"
+        + "\"sizeY\":{\"type\":\"NUMBER\",\"description\":\"Local Y scale multiplier (height). 1 is the initial size.\"},"
+        + "\"sizeZ\":{\"type\":\"NUMBER\",\"description\":\"Local Z scale multiplier (depth). 1 is the initial size.\"},"
+        + "\"size\":{\"type\":\"NUMBER\",\"description\":\"Set sizeX, sizeY, and sizeZ to the same scale multiplier.\"}"
         + "}"
         + "}"
         + "}";
@@ -206,20 +216,21 @@ public class SpeechToMotion : MonoBehaviour
     // シーンの初期スケールを 1 倍として覚え、目標を初期値にする
     void InitMotionFromScene()
     {
-        baseScale = 1f;
+        baseScale = Vector3.one;
         if (cubeRenderer != null)
         {
-            float sx = cubeRenderer.transform.localScale.x;
-            if (sx > 0.0001f)
+            Vector3 s = cubeRenderer.transform.localScale;
+            if (s.x > 0.0001f && s.y > 0.0001f && s.z > 0.0001f)
             {
-                baseScale = sx;
+                baseScale = s;
             }
         }
 
-        currentAngularVelocity = initialAngularVelocity;
-        targetAngularVelocity = initialAngularVelocity;
-        currentSize = initialSize;
-        targetSize = initialSize;
+        currentAngularVelocity = new Vector3(
+            initialAngularVelocityX, initialAngularVelocity, initialAngularVelocityZ);
+        targetAngularVelocity = currentAngularVelocity;
+        currentSize = new Vector3(initialSize, initialSize, initialSize);
+        targetSize = currentSize;
         ApplyCurrentScale();
     }
 
@@ -232,15 +243,24 @@ public class SpeechToMotion : MonoBehaviour
 
         if (cubeRenderer != null)
         {
-            if (Mathf.Abs(currentAngularVelocity) > 0.0001f)
+            if (currentAngularVelocity.sqrMagnitude > 0.0001f)
             {
-                cubeRenderer.transform.Rotate(0f, currentAngularVelocity * dt, 0f, Space.World);
+                cubeRenderer.transform.Rotate(currentAngularVelocity * dt, Space.World);
             }
 
             ApplyCurrentScale();
         }
 
         RefreshMotionStateText();
+    }
+
+    // 各軸を同じ係数で目標へ寄せる
+    Vector3 SmoothTowards(Vector3 current, Vector3 target, float dt)
+    {
+        return new Vector3(
+            SmoothTowards(current.x, target.x, dt),
+            SmoothTowards(current.y, target.y, dt),
+            SmoothTowards(current.z, target.z, dt));
     }
 
     // t = 1 - exp(-k*dt) の lerp。フレームレートに依らず同じ速さで漸近する
@@ -267,26 +287,58 @@ public class SpeechToMotion : MonoBehaviour
             return;
         }
 
-        float s = baseScale * currentSize;
-        cubeRenderer.transform.localScale = new Vector3(s, s, s);
+        cubeRenderer.transform.localScale = new Vector3(
+            baseScale.x * currentSize.x,
+            baseScale.y * currentSize.y,
+            baseScale.z * currentSize.z);
     }
 
     // toolCall の引数を目標へ書く。無いキーは現状維持
     void ApplyMotionArgs(string argsJson)
     {
-        float parsed;
-        if (TryExtractJsonNumber(argsJson, "angularVelocity", out parsed)
-            || TryExtractJsonNumber(argsJson, "angular_velocity", out parsed))
+        float axisX = targetAngularVelocity.x;
+        float axisY = targetAngularVelocity.y;
+        float axisZ = targetAngularVelocity.z;
+        TryApplyNumberField(argsJson, "angularVelocityX", "angular_velocity_x", ref axisX);
+        if (!TryApplyNumberField(argsJson, "angularVelocityY", "angular_velocity_y", ref axisY))
         {
-            targetAngularVelocity = Mathf.Clamp(parsed, -maxAbsAngularVelocity, maxAbsAngularVelocity);
+            TryApplyNumberField(argsJson, "angularVelocity", "angular_velocity", ref axisY);
         }
 
+        TryApplyNumberField(argsJson, "angularVelocityZ", "angular_velocity_z", ref axisZ);
+        targetAngularVelocity = new Vector3(axisX, axisY, axisZ);
+
+        float sizeX = targetSize.x;
+        float sizeY = targetSize.y;
+        float sizeZ = targetSize.z;
+        float parsed;
         if (TryExtractJsonNumber(argsJson, "size", out parsed))
         {
-            targetSize = Mathf.Clamp(parsed, minSize, maxSize);
+            sizeX = parsed;
+            sizeY = parsed;
+            sizeZ = parsed;
         }
 
+        TryApplyNumberField(argsJson, "sizeX", "size_x", ref sizeX);
+        TryApplyNumberField(argsJson, "sizeY", "size_y", ref sizeY);
+        TryApplyNumberField(argsJson, "sizeZ", "size_z", ref sizeZ);
+        targetSize = new Vector3(sizeX, sizeY, sizeZ);
+
         RefreshMotionStateText();
+    }
+
+    // 指定キーがあればその数値へ書き、書いたら true
+    bool TryApplyNumberField(string argsJson, string key, string snakeKey, ref float value)
+    {
+        float parsed;
+        if (!TryExtractJsonNumber(argsJson, key, out parsed)
+            && !TryExtractJsonNumber(argsJson, snakeKey, out parsed))
+        {
+            return false;
+        }
+
+        value = parsed;
+        return true;
     }
 
     void RefreshMotionStateText()
@@ -297,10 +349,18 @@ public class SpeechToMotion : MonoBehaviour
         }
 
         motionStateText.text =
-            "ω  " + currentAngularVelocity.ToString("0.0")
-            + "  →  " + targetAngularVelocity.ToString("0.0") + " deg/s\n"
-            + "size  " + currentSize.ToString("0.00")
-            + "  →  " + targetSize.ToString("0.00");
+            "ωX  " + currentAngularVelocity.x.ToString("0.0")
+            + "  →  " + targetAngularVelocity.x.ToString("0.0") + "\n"
+            + "ωY  " + currentAngularVelocity.y.ToString("0.0")
+            + "  →  " + targetAngularVelocity.y.ToString("0.0") + "\n"
+            + "ωZ  " + currentAngularVelocity.z.ToString("0.0")
+            + "  →  " + targetAngularVelocity.z.ToString("0.0") + " deg/s\n"
+            + "sizeX  " + currentSize.x.ToString("0.00")
+            + "  →  " + targetSize.x.ToString("0.00") + "\n"
+            + "sizeY  " + currentSize.y.ToString("0.00")
+            + "  →  " + targetSize.y.ToString("0.00") + "\n"
+            + "sizeZ  " + currentSize.z.ToString("0.00")
+            + "  →  " + targetSize.z.ToString("0.00");
     }
 
     // ----- 接続（Setup に tools） -----
@@ -636,7 +696,8 @@ public class SpeechToMotion : MonoBehaviour
                     }
                     while (!result.EndOfMessage);
 
-                    HandleServerMessage(Encoding.UTF8.GetString(ms.ToArray()));
+                    byte[] payload = ms.ToArray();
+                    HandleReceivedPayload(payload, result.MessageType);
                 }
             }
         }
@@ -648,6 +709,37 @@ public class SpeechToMotion : MonoBehaviour
         {
             EnqueueMain(() => ShowError("受信ループ例外: " + e.Message));
         }
+    }
+
+    // Text / Binary の両方を受け取る。中身が JSON なら振り分け、そうでなければ PCM として扱う
+    void HandleReceivedPayload(byte[] payload, WebSocketMessageType messageType)
+    {
+        if (payload == null || payload.Length == 0)
+        {
+            return;
+        }
+
+        if (LooksLikeJson(payload))
+        {
+            HandleServerMessage(Encoding.UTF8.GetString(payload));
+            return;
+        }
+
+        if (messageType == WebSocketMessageType.Binary && payload.Length >= 2)
+        {
+            EnqueuePcmForPlayback(payload);
+        }
+    }
+
+    static bool LooksLikeJson(byte[] payload)
+    {
+        int i = 0;
+        while (i < payload.Length && (payload[i] == (byte)' ' || payload[i] == (byte)'\n' || payload[i] == (byte)'\r' || payload[i] == (byte)'\t'))
+        {
+            i++;
+        }
+
+        return i < payload.Length && (payload[i] == (byte)'{' || payload[i] == (byte)'[');
     }
 
     // サーバ JSON を振り分ける。toolCall は実行してすぐ toolResponse を返す（同期 function call）
@@ -696,7 +788,8 @@ public class SpeechToMotion : MonoBehaviour
             EnqueueMain(OnTurnComplete);
         }
 
-        if (json.IndexOf("\"interrupted\":true", StringComparison.Ordinal) >= 0)
+        if (json.IndexOf("\"interrupted\":true", StringComparison.Ordinal) >= 0
+            || json.IndexOf("\"interrupted\": true", StringComparison.Ordinal) >= 0)
         {
             EnqueueMain(ClearPlaybackQueue);
         }
@@ -733,8 +826,14 @@ public class SpeechToMotion : MonoBehaviour
 
             ApplyMotionArgs(argsJson);
             responses.Add(BuildFunctionResponseJson(id, name, "ok"));
-            AppendOutboundLog("tool: " + FunctionName + " → ω=" + targetAngularVelocity.ToString("0.0")
-                              + " size=" + targetSize.ToString("0.00"));
+            AppendOutboundLog(
+                "tool: " + FunctionName
+                + " → ωX=" + targetAngularVelocity.x.ToString("0.0")
+                + " ωY=" + targetAngularVelocity.y.ToString("0.0")
+                + " ωZ=" + targetAngularVelocity.z.ToString("0.0")
+                + " sizeX=" + targetSize.x.ToString("0.00")
+                + " sizeY=" + targetSize.y.ToString("0.00")
+                + " sizeZ=" + targetSize.z.ToString("0.00"));
         }
 
         if (responses.Count == 0)
@@ -758,10 +857,18 @@ public class SpeechToMotion : MonoBehaviour
         sb.Append("\",\"response\":{");
         sb.Append("\"result\":\"");
         sb.Append(GeminiJson.Escape(result));
-        sb.Append("\",\"angularVelocity\":");
-        sb.Append(targetAngularVelocity.ToString("0.###"));
-        sb.Append(",\"size\":");
-        sb.Append(targetSize.ToString("0.###"));
+        sb.Append("\",\"angularVelocityX\":");
+        sb.Append(targetAngularVelocity.x.ToString("0.###"));
+        sb.Append(",\"angularVelocityY\":");
+        sb.Append(targetAngularVelocity.y.ToString("0.###"));
+        sb.Append(",\"angularVelocityZ\":");
+        sb.Append(targetAngularVelocity.z.ToString("0.###"));
+        sb.Append(",\"sizeX\":");
+        sb.Append(targetSize.x.ToString("0.###"));
+        sb.Append(",\"sizeY\":");
+        sb.Append(targetSize.y.ToString("0.###"));
+        sb.Append(",\"sizeZ\":");
+        sb.Append(targetSize.z.ToString("0.###"));
         sb.Append("}}");
         return sb.ToString();
     }
@@ -770,7 +877,7 @@ public class SpeechToMotion : MonoBehaviour
     static string ExtractArgsObjectNear(string json, int nameKey)
     {
         int windowStart = Mathf.Max(0, nameKey - 200);
-        int windowEnd = Mathf.Min(json.Length, nameKey + 400);
+        int windowEnd = Mathf.Min(json.Length, nameKey + 700);
         string window = json.Substring(windowStart, windowEnd - windowStart);
         int argsKey = IndexOfJsonKey(window, "args", 0);
         if (argsKey < 0)
@@ -793,56 +900,97 @@ public class SpeechToMotion : MonoBehaviour
         return string.IsNullOrEmpty(obj) ? "{}" : obj;
     }
 
+    // Live の modelTurn.parts[].inlineData.data を拾う（pretty-print の "data": "..." にも対応）
     void TryExtractAndEnqueueAudio(string json)
     {
+        // AUDIO セッションでは mimeType が省略されるチャンクもあるので、
+        // 「audio」という文字列の有無では落とさない
         if (json.IndexOf("\"inlineData\"", StringComparison.Ordinal) < 0
             && json.IndexOf("\"inline_data\"", StringComparison.Ordinal) < 0)
         {
             return;
         }
 
-        if (json.IndexOf("audio", StringComparison.OrdinalIgnoreCase) < 0)
+        int inboundRate = TryParseRateFromJson(json);
+        if (inboundRate > 0)
         {
-            return;
+            receivedPcmRate = inboundRate;
         }
 
-        const string marker = "\"data\":\"";
         int searchFrom = 0;
         while (true)
         {
-            int dataIndex = json.IndexOf(marker, searchFrom, StringComparison.Ordinal);
-            if (dataIndex < 0)
+            int dataKey = json.IndexOf("\"data\"", searchFrom, StringComparison.Ordinal);
+            if (dataKey < 0)
             {
                 break;
             }
 
-            int valueStart = dataIndex + marker.Length;
-            int valueEnd = json.IndexOf('"', valueStart);
-            if (valueEnd < 0)
-            {
-                break;
-            }
-
-            string b64 = json.Substring(valueStart, valueEnd - valueStart);
-            searchFrom = valueEnd + 1;
-            if (b64.Length < 64)
+            searchFrom = dataKey + 6;
+            string b64 = GeminiJsonScan.StringFieldFrom(json, dataKey);
+            if (string.IsNullOrEmpty(b64) || b64.Length < 64)
             {
                 continue;
             }
 
+            b64 = b64.Replace("\\/", "/");
+
             try
             {
                 byte[] pcm = Convert.FromBase64String(b64);
-                if (pcm.Length >= 2)
+                if (pcm.Length < 2)
                 {
-                    playbackPcmQueue.Enqueue(pcm);
+                    continue;
                 }
+
+                EnqueuePcmForPlayback(pcm);
             }
             catch (FormatException)
             {
                 // 非 Base64 は無視
             }
         }
+    }
+
+    void EnqueuePcmForPlayback(byte[] pcm)
+    {
+        if (pcm == null || pcm.Length < 2)
+        {
+            return;
+        }
+
+        playbackPcmQueue.Enqueue(pcm);
+    }
+
+    int GetPlaybackRate()
+    {
+        return receivedPcmRate > 0 ? receivedPcmRate : playbackSampleRate;
+    }
+
+    // mimeType の rate=24000 などを拾う。無ければ 0
+    static int TryParseRateFromJson(string json)
+    {
+        const string key = "rate=";
+        int idx = json.IndexOf(key, StringComparison.OrdinalIgnoreCase);
+        if (idx < 0)
+        {
+            return 0;
+        }
+
+        int start = idx + key.Length;
+        int end = start;
+        while (end < json.Length && char.IsDigit(json[end]))
+        {
+            end++;
+        }
+
+        int rate;
+        if (end <= start || !int.TryParse(json.Substring(start, end - start), out rate))
+        {
+            return 0;
+        }
+
+        return rate;
     }
 
     void OnInputTranscription(string fragment)
@@ -888,20 +1036,21 @@ public class SpeechToMotion : MonoBehaviour
 
     // ----- 再生 -----
 
+    // キューに溜まった PCM をまとめて AudioClip 化し、長さぶん待ってから破棄する
     IEnumerator PlaybackPumpCoroutine()
     {
         playbackCoroutineRunning = true;
         while (playbackCoroutineRunning)
         {
-            byte[] pcm;
-            if (!playbackPcmQueue.TryDequeue(out pcm))
+            byte[] pcm = DequeuePcmBatch();
+            if (pcm == null)
             {
                 yield return null;
                 continue;
             }
 
             EnsurePlaybackAudioSource();
-            AudioClip clip = AudioCodec.Pcm16ToClip(pcm, playbackSampleRate);
+            AudioClip clip = AudioCodec.Pcm16ToClip(pcm, GetPlaybackRate());
             if (clip == null)
             {
                 continue;
@@ -909,12 +1058,47 @@ public class SpeechToMotion : MonoBehaviour
 
             playbackAudioSource.clip = clip;
             playbackAudioSource.Play();
-            while (playbackAudioSource != null && playbackAudioSource.isPlaying)
+            // 短い clip は isPlaying がすぐ false になり、即 Destroy すると無音になる
+            float wait = clip.length;
+            if (wait < 0.03f)
             {
-                yield return null;
+                wait = 0.03f;
+            }
+
+            yield return new WaitForSecondsRealtime(wait);
+            if (playbackAudioSource != null)
+            {
+                playbackAudioSource.Stop();
             }
 
             Destroy(clip);
+        }
+    }
+
+    // キューに溜まっているチャンクを1本にまとめる（DSP バッファより短い clip 連打を避ける）
+    byte[] DequeuePcmBatch()
+    {
+        byte[] first;
+        if (!playbackPcmQueue.TryDequeue(out first))
+        {
+            return null;
+        }
+
+        if (playbackPcmQueue.IsEmpty)
+        {
+            return first;
+        }
+
+        using (MemoryStream ms = new MemoryStream(first.Length * 4))
+        {
+            ms.Write(first, 0, first.Length);
+            byte[] extra;
+            while (playbackPcmQueue.TryDequeue(out extra))
+            {
+                ms.Write(extra, 0, extra.Length);
+            }
+
+            return ms.ToArray();
         }
     }
 
@@ -1217,6 +1401,10 @@ public class SpeechToMotion : MonoBehaviour
         }
 
         playbackAudioSource.playOnAwake = false;
+        playbackAudioSource.loop = false;
+        playbackAudioSource.mute = false;
+        playbackAudioSource.volume = 1f;
+        playbackAudioSource.spatialBlend = 0f;
     }
 
     // ----- 設定ファイル -----

@@ -47,8 +47,11 @@ Project ウィンドウで `Assets/3B.SpeechToSpeechLiveAPI/SpeechToSpeechLiveAP
 
 1. 左ペインの **VAD 自動** ボタンを押してください（再接続のあと、ボタンが **VAD ON** になります）。
 2. Setup ヘッダの `VAD:` が `auto` になり、`automaticActivityDetection.disabled` が `false` になっていることを確認してください。
-3. **Space を使わず**話し、少し黙るとサーバが区切って返答することを聞いてください。
-4. もう一度ボタンを押すと手動モードに戻り、Space 押し話しが再び有効になります。
+3. スピーカーを使うときは、ボタン右の **再生中マイクOFF** をオンにしてください（再生中はマイク送信を止めます。ヘッドホンだけならオフでも構いません）。
+4. **Space を使わず**話し、少し黙るとサーバが区切って返答することを聞いてください。
+5. もう一度ボタンを押すと手動モードに戻り、Space 押し話しが再び有効になります。
+
+無音の切れ方は Inspector の **Silence Duration Ms** と **End Of Speech Sensitivity** で変えられます。意味は下の「設定項目」を見てください。Setup 時の設定のため、変更後は **Stop → Play**、または VAD ボタンで再接続してください。
 
 VAD は Setup 時の設定のため、切替のたびに Live セッションを張り直します。自動モードの説明 → [Live API: Automatic VAD](https://ai.google.dev/gemini-api/docs/live-api/capabilities#automatic-vad)
 
@@ -78,7 +81,31 @@ VAD とは、音声の流れのなかから「話している区間」を見つ�
 
 **手動モード**（初期）では自動 VAD をオフにし、Space の押し／離しで `activityStart` / `activityEnd` を自分で送ります。どちらも同じ Live セッションの見た目ですが、ターン境界を誰が決めるかが違います。
 
-試し方: ボタンでモードを切り替え、Setup ヘッダの `VAD:` 行と、送信ログに `activityStart` が出るかどうかを比べる。
+試し方: ボタンでモードを切り替え、Setup ヘッダの `VAD:` 行と、送信ログに `activityStart` が出るかどうかを比べる。自動モードでは Inspector の無音 2 項目を変えて、間の取り方の違いを聞く。
+
+---
+
+## 設定項目
+
+このデモがいま使っている項目です。Setup に載るものは接続時に一度だけ送るので、変えたら **Stop → Play**（VAD はボタンでも再接続）してください。
+
+設定ガイド → [Live API capabilities](https://ai.google.dev/gemini-api/docs/live-api/capabilities)
+
+| 項目 | 指定 | 意味 |
+|---|---|---|
+| `model` | Inspector（`modelName`） | 使う Live モデル。初期値は `gemini-3.1-flash-live-preview` |
+| `systemInstruction` | 左ペイン／`SystemInstruction.txt` | 事前指示。空なら Setup に載せない |
+| `voiceName` | Inspector | 返答の声色。初期値は `Kore` |
+| `responseModalities` | 固定 `AUDIO` | 返答を音声にする |
+| `inputAudioTranscription` / `outputAudioTranscription` | 固定（空オブジェクト） | 入出力の文字起こしをオンにする |
+| `automaticActivityDetection.disabled` | **VAD 自動** ボタン | `false`=サーバが無音で区切る。`true`=Space で `activityStart` / `activityEnd` |
+| `silenceDurationMs` | Inspector（`0`=載せない） | 無音が何ミリ秒続いたら発話終了とみなす。大きいほど間を許し、小さいほどすぐ返答する |
+| `endOfSpeechSensitivity` | Inspector（`Server Default`=載せない） | 発話終了の切れやすさ。`High`=切れやすい（API 既定）。`Low`=切れにくい |
+| `sampleRate` | Inspector | 送信 PCM のサンプルレート（Hz）。初期値は `16000` |
+| `playbackSampleRate` | Inspector | 受信 PCM の想定レート（Hz）。初期値は `24000`。サーバの mime があればそちらを使う |
+| `maxRecordingSeconds` / `minRecordingSeconds` | Inspector | 手動モードの録音上限と、これより短い発話は送らない下限 |
+| `micResumeDelaySeconds` | Inspector | 再生が終わってから、マイク送信を再開するまでの待ち（秒） |
+| 再生中マイクOFF | 画面のトグル | VAD 自動時、再生中はマイク送信を止める（Setup には載せない） |
 
 ---
 
@@ -121,11 +148,11 @@ PCM とは、音を時刻ごとの振幅の数字列として表した音声デ�
 3. **Space 押し話しを検知する（手動のみ）**  
    `UpdatePushToTalk` — 押しているあいだ録音送信、離したら `activityEnd`
 4. **VAD 自動でマイク常時送信する**  
-   `BeginContinuousListening` — `activityStart` なしで PCM を流し、サーバ無音判定に任せる
+   `BeginContinuousListening` — `activityStart` なしで PCM を流し、サーバ無音判定に任せる。**再生中マイクOFF** がオンなら、再生中は送信を止める
 5. **PCM チャンクを送る**  
    `PumpMicrophoneChunksIfStreaming` — マイク差分 → 16-bit PCM → Base64 → `realtimeInput.audio`
 6. **サーバメッセージを振り分ける**  
-   `HandleServerMessage` — 音声は再生キュー、transcription はログと吹き出し
+   `HandleServerMessage` — 音声は再生キュー、transcription 断片が来たら吹き出しと右欄をその場で更新
 7. **受信 PCM を再生する**  
    `PlaybackPumpCoroutine` — キューから `AudioClip` 化して `AudioSource.Play`
 
