@@ -45,6 +45,7 @@ public class SpeechToSpeech : MonoBehaviour
 
     public TMP_InputField systemInstructionField; // systemInstruction（事前指示）。空なら Chat に載せない
     public TMP_Text recordHintText; // 「Space を押しているあいだ録音」などの案内
+    public Image levelMeterFill; // マイク音量の横棒（Image Type = Filled）
     public Transform messageContent; // バブルを並べる ScrollView の Content
     public ChatBubble messageBubblePrefab; // 1メッセージ分の Prefab（見た目は 1A と同型）
     public ScrollRect chatScrollRect; // 新着時に下端へスクロールするため
@@ -73,8 +74,11 @@ public class SpeechToSpeech : MonoBehaviour
     bool isSending; // STT〜Chat の処理中（二重送信・二重録音防止）
     bool isRecording; // Space 押し話しで録音中か
     string microphoneDevice; // 使うマイク名（null なら利用不可）
-    AudioClip recordingClip; // Microphone.Start が書き込むクリップ
+    AudioClip recordingClip; // Microphone.Start が書き込むクリップ（押し話し中）
+    AudioClip monitorClip; // 待機中のレベル表示用。1秒ループでマイクを見続ける
     float recordingStartedTime; // 録音開始時刻（短すぎ防止・上限判定用）
+    float displayedLevel; // 横棒の現在値（上がりはすぐ、下りはゆっくり）
+    readonly float[] meterSamples = new float[MicLevel.WindowSamples]; // 直近サンプルの読み出し先
     DateTime systemInstructionFileWriteTimeUtc; // 最後に同期した SystemInstruction.txt の更新時刻
     bool statusBlink; // 応答待ちのとき Status を点滅させる
     AudioClip lastTtsClip; // 直前に再生した TTS クリップ（差し替え時に破棄する）
@@ -114,6 +118,7 @@ public class SpeechToSpeech : MonoBehaviour
         }
 
         SetupMicrophone();
+        StartMonitor();
         EnsurePlaybackAudioSource();
         if (recordHintText != null)
         {
@@ -132,11 +137,18 @@ public class SpeechToSpeech : MonoBehaviour
         SetSending(false);
     }
 
-    // Space 押し話しの検知と Status 点滅
+    // Space 押し話しの検知、マイクレベルの横棒、Status 点滅
     void Update()
     {
         UpdateStatusBlink();
         UpdatePushToTalk();
+        UpdateLevelMeter();
+    }
+
+    // 終了時にマイクを解放する（待機中の監視も含む）
+    void OnDestroy()
+    {
+        StopMicrophone();
     }
 
     // 旧 Input Manager で Space の押し始め／離しを見る（新 Input System API は使わない）
@@ -210,7 +222,30 @@ public class SpeechToSpeech : MonoBehaviour
         Debug.Log("[SpeechToSpeech] マイクを使用します: " + microphoneDevice);
     }
 
-    // Space 押し始め: Microphone.Start で AudioClip への書き込みを開始する
+    // 待機中もレベルを出すため、1秒ループでマイクを開き続ける
+    void StartMonitor()
+    {
+        if (microphoneDevice == null)
+        {
+            return;
+        }
+
+        StopMicrophone();
+        monitorClip = Microphone.Start(microphoneDevice, true, 1, sampleRate);
+    }
+
+    // Microphone.End して監視／録音クリップの参照を捨てる
+    void StopMicrophone()
+    {
+        if (microphoneDevice != null && Microphone.IsRecording(microphoneDevice))
+        {
+            Microphone.End(microphoneDevice);
+        }
+
+        monitorClip = null;
+    }
+
+    // Space 押し始め: 監視を止めて、送信用の AudioClip への書き込みを開始する
     void BeginRecording()
     {
         if (microphoneDevice == null)
@@ -225,11 +260,14 @@ public class SpeechToSpeech : MonoBehaviour
             return;
         }
 
+        StopMicrophone();
+
         // loop=false: 最大秒数ぶんのクリップを用意し、そこにマイクがサンプルを書き込む
         recordingClip = Microphone.Start(microphoneDevice, false, maxRecordingSeconds, sampleRate);
         if (recordingClip == null)
         {
             ShowError("Microphone.Start に失敗しました。");
+            StartMonitor();
             return;
         }
 
@@ -252,6 +290,7 @@ public class SpeechToSpeech : MonoBehaviour
         // マイクへの書き込みを止める。この時点の書き込み位置が「実際に録れた長さ」
         int positionSamples = Microphone.GetPosition(microphoneDevice);
         Microphone.End(microphoneDevice);
+        StartMonitor();
 
         if (elapsed < minRecordingSeconds || positionSamples <= 0)
         {
@@ -292,6 +331,7 @@ public class SpeechToSpeech : MonoBehaviour
     IEnumerator SendSpeechPipelineCoroutine(string audioBase64, int wavByteLength, float audioSeconds)
     {
         SetSending(true);
+        float pipelineStarted = Time.realtimeSinceStartup; // 入力開始。STT→Chat→TTS 全体の計測用
 
         // 新しい発話のたびに LLM / TTS 側はクリアし、STT から順に埋めていく
         SetPanelPlaceholder(llmRequestText, "（STT 完了後に表示）");
@@ -313,7 +353,7 @@ public class SpeechToSpeech : MonoBehaviour
 
         SetStatus("1. Request 送信中", false);
         HttpResult sttResult = new HttpResult();
-        yield return StartCoroutine(PostJsonCoroutine(url, sttRequestJson, sttResult));
+        yield return StartCoroutine(PostJsonCoroutine(url, sttRequestJson, sttResult, "STT"));
 
         if (sttResponseText != null)
         {
@@ -355,7 +395,7 @@ public class SpeechToSpeech : MonoBehaviour
 
         SetStatus("3. Request 送信中", false);
         HttpResult chatResult = new HttpResult();
-        yield return StartCoroutine(PostJsonCoroutine(url, chatRequestJson, chatResult));
+        yield return StartCoroutine(PostJsonCoroutine(url, chatRequestJson, chatResult, "Chat"));
 
         if (llmResponseText != null)
         {
@@ -398,7 +438,7 @@ public class SpeechToSpeech : MonoBehaviour
 
         SetStatus("5. Request 送信中", false);
         HttpResult ttsResult = new HttpResult();
-        yield return StartCoroutine(PostJsonCoroutine(ttsUrl, ttsRequestJson, ttsResult));
+        yield return StartCoroutine(PostJsonCoroutine(ttsUrl, ttsRequestJson, ttsResult, "TTS"));
 
         if (!ttsResult.ok)
         {
@@ -448,6 +488,7 @@ public class SpeechToSpeech : MonoBehaviour
         }
 
         PlayTtsClip(clip);
+        ResponseTime.Log("合計", pipelineStarted);
         SetStatus("再生中（完了後 Space で録音）", false);
         SetSending(false);
     }
@@ -469,7 +510,7 @@ public class SpeechToSpeech : MonoBehaviour
     }
 
     // JSON を POST し、結果を result に書き込む
-    IEnumerator PostJsonCoroutine(string url, string requestJson, HttpResult result)
+    IEnumerator PostJsonCoroutine(string url, string requestJson, HttpResult result, string stepName)
     {
         byte[] bodyRaw = Encoding.UTF8.GetBytes(requestJson);
         using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
@@ -480,7 +521,9 @@ public class SpeechToSpeech : MonoBehaviour
             request.SetRequestHeader("x-goog-api-key", apiKey);
 
             SetStatus("応答待ち", true);
+            float sendStarted = Time.realtimeSinceStartup; // 送信開始。返信までの計測用
             yield return request.SendWebRequest();
+            ResponseTime.Log(stepName, sendStarted);
 
             result.statusCode = request.responseCode;
             result.body = request.downloadHandler != null ? request.downloadHandler.text : string.Empty;
@@ -967,6 +1010,21 @@ public class SpeechToSpeech : MonoBehaviour
     }
 
     // ----- UI 更新 -----
+
+    // 直近サンプルの大きさを横棒の長さにする（計算は MicLevel、Image 更新だけここ）
+    void UpdateLevelMeter()
+    {
+        if (levelMeterFill == null)
+        {
+            return;
+        }
+
+        AudioClip clip = isRecording ? recordingClip : monitorClip;
+        int position = microphoneDevice != null ? Microphone.GetPosition(microphoneDevice) : -1;
+        float target = MicLevel.ReadBar(clip, position, meterSamples, !isRecording, displayedLevel);
+        displayedLevel = MicLevel.Smooth(displayedLevel, target, Time.deltaTime);
+        levelMeterFill.fillAmount = displayedLevel;
+    }
 
     void SetStatus(string statusJapanese, bool blink)
     {

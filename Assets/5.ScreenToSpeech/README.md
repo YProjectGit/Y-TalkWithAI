@@ -2,7 +2,7 @@
 
 映像の入力元を、カメラからアプリ自身が描く画面に替えます。アプリの中で起きていることを、そのまま AI に見せられます。
 
-シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
+シリーズ全体の位置づけ → [Assets/Docs/demo-series-overview.md](../Docs/demo-series-overview.md)
 
 ---
 
@@ -16,7 +16,7 @@
 ## 事前準備
 
 1. Google AI Studio から Gemini の API にアクセスするための APIキーを取得し、`Assets/Common/APIKey.txt` に保管してください。  
-   手順 → [Docs/gemini-ai-studio-setup.md](../../Docs/gemini-ai-studio-setup.md)
+   手順 → [Assets/Docs/gemini-ai-studio-setup.md](../Docs/gemini-ai-studio-setup.md)
 2. スピーカーまたはヘッドホンで再生音が聞こえる状態にしてください。
 
 入力は画面に描いた絵だけなので、マイクとカメラは使いません。

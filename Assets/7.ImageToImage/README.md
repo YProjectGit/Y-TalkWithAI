@@ -2,7 +2,7 @@
 
 画像生成に元画像を添え、テキストと画像を一緒に送ります。ゼロから作るのではなく、いまあるものを変える形の生成ができます。
 
-シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
+シリーズ全体の位置づけ → [Assets/Docs/demo-series-overview.md](../Docs/demo-series-overview.md)
 
 ---
 
@@ -18,8 +18,8 @@
 ## 事前準備
 
 1. Google AI Studio から Gemini の API にアクセスするための APIキーを取得し、`Assets/Common/APIKey.txt` に保管してください。  
-   手順 → [Docs/gemini-ai-studio-setup.md](../../Docs/gemini-ai-studio-setup.md)  
-   無料枠で 429 が出たら、有料への移り方と値段の目安 → [Docs/gemini-api-pricing.md](../../Docs/gemini-api-pricing.md)
+   手順 → [Assets/Docs/gemini-ai-studio-setup.md](../Docs/gemini-ai-studio-setup.md)  
+   無料枠で 429 が出たら、有料への移り方と値段の目安 → [Assets/Docs/gemini-api-pricing.md](../Docs/gemini-api-pricing.md)
 2. PC にカメラがつながり、Unity から使える状態にしてください（OS のカメラ権限を含む）。
 
 このデモは 6 と同じ画像生成モデル（既定は `gemini-3.1-flash-image`）を使います。無料枠も課金も、テキスト用の Lite とは別に数えます。

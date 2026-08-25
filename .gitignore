@@ -112,15 +112,11 @@ InitTestScene*.unity*
 .claude/
 .codex/
 
-# 2C sherpa-onnx の配布物（Docs/sherpa-onnx-setup.md で配置）
-/Assets/2C.(SpeechToTextSherpa)/Resource/models/*.onnx
-/Assets/2C.(SpeechToTextSherpa)/Resource/Plugins/**/*.dll
-/Assets/2C.(SpeechToTextSherpa)/Resource/Plugins/**/*.dylib
-/Assets/2C.(SpeechToTextSherpa)/Resource/Plugins/**/*.so
-/Assets/2C.(SpeechToTextSherpa)/Resource/Plugins/**/*.so.*
-
-# 2D whisper.unity の配布物（Docs/whisper-unity-setup.md で配置）
-/Assets/2D.(SpeechToTextWhisper)/Resource/models/*.bin
+# 2C / 2D の Resource（モデル・ネイティブライブラリは各自配置）
+/Assets/2C.(SpeechToTextWhisper)/Resource/
+/Assets/2C.(SpeechToTextWhisper)/Resource.meta
+/Assets/2D.(SpeechToTextSherpa)/Resource/
+/Assets/2D.(SpeechToTextSherpa)/Resource.meta
 
 # Python
 __pycache__/

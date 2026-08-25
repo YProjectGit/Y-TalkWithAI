@@ -2,7 +2,7 @@
 
 Gemini とテキストだけをやり取りする、いちばん基本の形です。送った内容と返ってきた内容をそのまま見ることで、AI との対話がどう成り立っているかをつかめます。
 
-シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
+シリーズ全体の位置づけ → [Assets/Docs/demo-series-overview.md](../Docs/demo-series-overview.md)
 
 ---
 
@@ -20,8 +20,8 @@ Gemini とテキストだけをやり取りする、いちばん基本の形で�
 ## 事前準備
 
 Google AI Studio から Gemini の API にアクセスするための APIキーを取得し、`Assets/Common/APIKey.txt` に保管してください。  
-手順 → [Docs/gemini-ai-studio-setup.md](../../Docs/gemini-ai-studio-setup.md)  
-無料枠で 429 が出たら、有料への移り方と値段の目安 → [Docs/gemini-api-pricing.md](../../Docs/gemini-api-pricing.md)
+手順 → [Assets/Docs/gemini-ai-studio-setup.md](../Docs/gemini-ai-studio-setup.md)  
+無料枠で 429 が出たら、有料への移り方と値段の目安 → [Assets/Docs/gemini-api-pricing.md](../Docs/gemini-api-pricing.md)
 
 ---
 

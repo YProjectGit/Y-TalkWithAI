@@ -2,7 +2,7 @@
 
 Gemini Live API に送る入力を、音声から映像へ広げます。カメラが捉えたものについて話せるようになります。
 
-シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
+シリーズ全体の位置づけ → [Assets/Docs/demo-series-overview.md](../Docs/demo-series-overview.md)
 
 ---
 
@@ -18,7 +18,7 @@ Gemini Live API に送る入力を、音声から映像へ広げます。カメ�
 ## 事前準備
 
 1. Google AI Studio から Gemini の API にアクセスするための APIキーを取得し、`Assets/Common/APIKey.txt` に保管してください。  
-   手順 → [Docs/gemini-ai-studio-setup.md](../../Docs/gemini-ai-studio-setup.md)
+   手順 → [Assets/Docs/gemini-ai-studio-setup.md](../Docs/gemini-ai-studio-setup.md)
 2. PC にカメラがつながり、Unity から使える状態にしてください（OS のカメラ権限を含む）。
 3. スピーカーまたはヘッドホンで再生音が聞こえる状態にしてください。
 

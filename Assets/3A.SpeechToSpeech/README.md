@@ -2,7 +2,7 @@
 
 返事を文字ではなく、音声で受け取ります。Gemini の TTS モデルを加えることで、画面を見ないやり取りが成り立ちます。
 
-シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
+シリーズ全体の位置づけ → [Assets/Docs/demo-series-overview.md](../Docs/demo-series-overview.md)
 
 ---
 
@@ -20,7 +20,7 @@
 ## 事前準備
 
 1. Google AI Studio から Gemini の API にアクセスするための APIキーを取得し、`Assets/Common/APIKey.txt` に保管してください。  
-   手順 → [Docs/gemini-ai-studio-setup.md](../../Docs/gemini-ai-studio-setup.md)
+   手順 → [Assets/Docs/gemini-ai-studio-setup.md](../Docs/gemini-ai-studio-setup.md)
 2. PC にマイクがつながり、Unity から使える状態にしてください（OS のマイク権限を含む）。
 3. スピーカーまたはヘッドホンで再生音が聞こえる状態にしてください。
 
@@ -32,9 +32,10 @@ Project ウィンドウで `Assets/3A.SpeechToSpeech/SpeechToSpeech.unity` を�
 
 ### 1. Space で話してみる
 
-1. **Space を押したまま**短い文を話し、**離してください**。
-2. Status が「録音中」→「1. Request」→「3. Request」→「5. Request」→「再生中」と進むことを見てください。
-3. 左に吹き出しが出たあと、Gemini の返答が声で再生されることを確認してください。
+1. Play したら、左の Message 下の横棒が声に合わせて伸びることを見てください。
+2. **Space を押したまま**短い文を話し、**離してください**。
+3. Status が「録音中」→「1. Request」→「3. Request」→「5. Request」→「再生中」と進むことを見てください。
+4. 左に吹き出しが出たあと、Gemini の返答が声で再生されることを確認してください。
 
 ### 2. 発生順（1〜6）で Request / Response を追う
 
@@ -120,6 +121,7 @@ Microphone → AudioClip → WAV → Base64 → 1. Request（Audio）
 | [`GeminiKey`](../Common/Script/GeminiKey.cs) | APIキーの読込・マスク・generateContent の URL |
 | [`GeminiTextResponse`](../Common/Script/GeminiTextResponse.cs) | レスポンスから candidates[0] のテキストを取り出す |
 | [`AudioCodec`](../Common/Script/AudioCodec.cs) | AudioClip ⇄ WAV / PCM16 の変換 |
+| [`MicLevel`](../Common/Script/MicLevel.cs) | マイク直近窓の RMS → 横棒の 0〜1 |
 | [`HttpDisplay`](../Common/Script/HttpDisplay.cs) | Request / Response ペインに出す文字列の整形 |
 | [`ChatBubble`](../Common/Script/ChatBubble.cs) | 吹き出し1件分の見た目（Prefab: [`MessageBubble.prefab`](Prefab/MessageBubble.prefab)） |
 

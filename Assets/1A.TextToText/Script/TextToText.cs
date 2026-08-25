@@ -183,7 +183,9 @@ public class TextToText : MonoBehaviour
 
             // サーバ応答待ち。このあいだ Status を点滅させる
             SetStatus("応答待ち", true);
+            float sendStarted = Time.realtimeSinceStartup; // 送信開始。返信までの計測用
             yield return request.SendWebRequest();
+            ResponseTime.Log("合計", sendStarted);
 
             long statusCode = request.responseCode;
             string responseBody = request.downloadHandler != null

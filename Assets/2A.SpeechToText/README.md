@@ -2,7 +2,7 @@
 
 入力を文字から声に広げます。Gemini が声を文字にしてくれるので、キーボードを使わないやり取りが作れます。
 
-シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
+シリーズ全体の位置づけ → [Assets/Docs/demo-series-overview.md](../Docs/demo-series-overview.md)
 
 ---
 
@@ -20,7 +20,7 @@
 ## 事前準備
 
 1. Google AI Studio から Gemini の API にアクセスするための APIキーを取得し、`Assets/Common/APIKey.txt` に保管してください。  
-   手順 → [Docs/gemini-ai-studio-setup.md](../../Docs/gemini-ai-studio-setup.md)
+   手順 → [Assets/Docs/gemini-ai-studio-setup.md](../Docs/gemini-ai-studio-setup.md)
 2. PC にマイクがつながり、Unity から使える状態にしてください（OS のマイク権限を含む）。
 
 ---
@@ -31,9 +31,10 @@ Project ウィンドウで `Assets/2A.SpeechToText/SpeechToText.unity` を開き
 
 ### 1. Space で話してみる
 
-1. **Space を押したまま**短い文を話し、**離してください**。
-2. Status が「録音中」→「音声データ変換中」→「1. Request」→「3. Request」と進むことを見てください。
-3. 左に認識されたあなたの発言と Gemini の返答が出ること、中央・右に番号 1〜4 の欄があることを確認してください。
+1. Play したら、左の Message 下の横棒が声に合わせて伸びることを見てください。
+2. **Space を押したまま**短い文を話し、**離してください**。
+3. Status が「録音中」→「音声データ変換中」→「1. Request」→「3. Request」と進むことを見てください。
+4. 左に認識されたあなたの発言と Gemini の返答が出ること、中央・右に番号 1〜4 の欄があることを確認してください。
 
 ### 2. 発生順（1〜4）で Request / Response を追う
 
@@ -66,9 +67,9 @@ Base64
   → そのバイト列を文字にして JSON に載せる
 ```
 
-このデモのポイントは、その変換を隠さず Status と **1. Request - GenerateContent（Audio）** で見せていることです。左の吹き出しだけ見ると「声が文字になった」ように見えますが、Request を見ると「まず WAV のバイト列を送り、文字起こししている」ことが追えます。
+このデモのポイントは、その変換を隠さず Status と **1. Request - GenerateContent（Audio）** で見せていることです。左の吹き出しだけ見ると「声が文字になった」ように見えますが、Request を見ると「まず WAV のバイト列を送り、文字起こししている」ことが追えます。左の横棒は、AudioClip に書き込まれている音の大きさをその場で見せます。
 
-試し方: Space で録音したあと、Status に「音声データ変換中」が出ることと、1. Request の `inlineData` を見比べる。
+試し方: Play 直後から横棒が声で動くこと、Space で録音したあと Status に「音声データ変換中」が出ることと、1. Request の `inlineData` を見比べる。
 
 ---
 
@@ -91,16 +92,18 @@ Base64
 通信は **UnityWebRequest**（HTTP の送受信）と **コルーチン**（`IEnumerator` + `yield`）による **非同期処理** です。コルーチンは `Update` などのメインスレッドの処理とは独立した時間軸で進むので、応答待ちのあいだも画面が固まりません。Space の押し話し検知だけは `Update` で、**旧 Input Manager**（`Input.GetKeyDown` / `GetKeyUp`）を使います。
 
 1. **起動時の準備をする**  
-   `Start` — APIキー読込、`SystemInstruction.txt` → UI、マイク確認、録音案内の表示
+   `Start` — APIキー読込、`SystemInstruction.txt` → UI、マイク確認、レベル監視開始、録音案内の表示
 2. **Space 押し話しを検知する**  
    `UpdatePushToTalk` — 押しているあいだ録音、離したら変換へ（System Instruction 編集中は録音しない）
-3. **マイクで録音する**  
-   `BeginRecording` / `EndRecordingAndSend` — `Microphone.Start` → `End` → 録れたサンプルだけ切り出し
-4. **音声データに変換する**  
+3. **マイク音量を横棒で見せる**  
+   `UpdateLevelMeter` — `MicLevel` で直近サンプルの大きさを 0〜1 にし、`fillAmount` にする。待機中は短いループ録音、Space 中は送信用クリップを見る
+4. **マイクで録音する**  
+   `BeginRecording` / `EndRecordingAndSend` — 監視を止めて `Microphone.Start` → `End` → 監視再開 → 録れたサンプルだけ切り出し
+5. **音声データに変換する**  
    `AudioCodec.ClipToWav` — float サンプルを 16-bit PCM にし、WAV ヘッダを付けて `byte[]` にする → Base64（共通スクリプト）
-5. **1→2. GenerateContent（Audio）**  
+6. **1→2. GenerateContent（Audio）**  
    `SendSpeechPipelineCoroutine` の前半 — 音声付き JSON を POST し、文字起こしを取り出す
-6. **3→4. GenerateContent（Text）**  
+7. **3→4. GenerateContent（Text）**  
    同コルーチンの後半 — 認識テキストと会話履歴を POST し、返答を吹き出しへ
 
 ### 共通スクリプト（`Assets/Common/Script/`）
@@ -113,6 +116,7 @@ Base64
 | [`GeminiKey`](../Common/Script/GeminiKey.cs) | APIキーの読込・マスク・generateContent の URL |
 | [`GeminiTextResponse`](../Common/Script/GeminiTextResponse.cs) | レスポンスから candidates[0] のテキストを取り出す |
 | [`AudioCodec`](../Common/Script/AudioCodec.cs) | AudioClip ⇄ WAV / PCM16 の変換 |
+| [`MicLevel`](../Common/Script/MicLevel.cs) | マイク直近窓の RMS → 横棒の 0〜1 |
 | [`HttpDisplay`](../Common/Script/HttpDisplay.cs) | Request / Response ペインに出す文字列の整形 |
 | [`ChatBubble`](../Common/Script/ChatBubble.cs) | 吹き出し1件分の見た目（Prefab: [`MessageBubble.prefab`](Prefab/MessageBubble.prefab)） |
 

@@ -47,6 +47,7 @@ public class SpeechToJSON : MonoBehaviour
     // ===== インスペクタ: 左ペイン =====
 
     public TMP_Text recordHintText; // 「Space を押しているあいだ録音」などの案内
+    public Image levelMeterFill; // マイク音量の横棒（Image Type = Filled）
     public TMP_Text transcriptText; // 直近の認識テキスト（STT 結果）
     public TMP_Text statusText; // 待機中 / 録音中 / STT / 応答待ち などの状態
 
@@ -63,8 +64,11 @@ public class SpeechToJSON : MonoBehaviour
     bool isSending; // STT〜構造化出力の処理中（二重送信・二重録音防止）
     bool isRecording; // Space 押し話しで録音中か
     string microphoneDevice; // 使うマイク名（null なら利用不可）
-    AudioClip recordingClip; // Microphone.Start が書き込むクリップ
+    AudioClip recordingClip; // Microphone.Start が書き込むクリップ（押し話し中）
+    AudioClip monitorClip; // 待機中のレベル表示用。1秒ループでマイクを見続ける
     float recordingStartedTime; // 録音開始時刻（短すぎ防止・上限判定用）
+    float displayedLevel; // 横棒の現在値（上がりはすぐ、下りはゆっくり）
+    readonly float[] meterSamples = new float[MicLevel.WindowSamples]; // 直近サンプルの読み出し先
     bool statusBlink; // 応答待ちのとき Status を点滅させる
     const float StatusBlinkSpeed = 6f; // 点滅の速さ（大きいほど速い）
     const int DisplayBase64MaxChars = 96; // Request ペインで Base64 を省略表示する長さ
@@ -166,6 +170,7 @@ public class SpeechToJSON : MonoBehaviour
         }
 
         SetupMicrophone();
+        StartMonitor();
         if (recordHintText != null)
         {
             recordHintText.text = "Space を押しているあいだ録音します（離すと色が変わります）";
@@ -203,12 +208,19 @@ public class SpeechToJSON : MonoBehaviour
         RestoreCameraViewport();
     }
 
-    // 応答待ちの点滅、キューブ回転、Space 押し話し
+    // 応答待ちの点滅、キューブ回転、Space 押し話し、マイクレベルの横棒
     void Update()
     {
         UpdateStatusBlink();
         RotateCube();
         UpdatePushToTalk();
+        UpdateLevelMeter();
+    }
+
+    // 終了時にマイクを解放する（待機中の監視も含む）
+    void OnDestroy()
+    {
+        StopMicrophone();
     }
 
     // UI レイアウト後に、描画矩形を Preview へ追従させる
@@ -264,7 +276,30 @@ public class SpeechToJSON : MonoBehaviour
         Debug.Log("[SpeechToJSON] マイクを使用します: " + microphoneDevice);
     }
 
-    // Space 押し始め: Microphone.Start で AudioClip への書き込みを開始する
+    // 待機中もレベルを出すため、1秒ループでマイクを開き続ける
+    void StartMonitor()
+    {
+        if (microphoneDevice == null)
+        {
+            return;
+        }
+
+        StopMicrophone();
+        monitorClip = Microphone.Start(microphoneDevice, true, 1, sampleRate);
+    }
+
+    // Microphone.End して監視／録音クリップの参照を捨てる
+    void StopMicrophone()
+    {
+        if (microphoneDevice != null && Microphone.IsRecording(microphoneDevice))
+        {
+            Microphone.End(microphoneDevice);
+        }
+
+        monitorClip = null;
+    }
+
+    // Space 押し始め: 監視を止めて、送信用の AudioClip への書き込みを開始する
     void BeginRecording()
     {
         if (microphoneDevice == null)
@@ -279,10 +314,13 @@ public class SpeechToJSON : MonoBehaviour
             return;
         }
 
+        StopMicrophone();
+
         recordingClip = Microphone.Start(microphoneDevice, false, maxRecordingSeconds, sampleRate);
         if (recordingClip == null)
         {
             ShowError("Microphone.Start に失敗しました。", audioResponseText);
+            StartMonitor();
             return;
         }
 
@@ -303,6 +341,7 @@ public class SpeechToJSON : MonoBehaviour
         float elapsed = Time.time - recordingStartedTime;
         int positionSamples = Microphone.GetPosition(microphoneDevice);
         Microphone.End(microphoneDevice);
+        StartMonitor();
 
         if (elapsed < minRecordingSeconds || positionSamples <= 0)
         {
@@ -338,6 +377,7 @@ public class SpeechToJSON : MonoBehaviour
     IEnumerator SendSpeechPipelineCoroutine(string audioBase64, int wavByteLength, float audioSeconds)
     {
         isSending = true;
+        float pipelineStarted = Time.realtimeSinceStartup; // 入力開始。STT→JSON 全体の計測用
         SetPanelPlaceholder(textRequestText, "（Audio 完了後に表示）");
         SetPanelPlaceholder(textResponseText, "（Audio 完了後に表示）");
 
@@ -353,7 +393,7 @@ public class SpeechToJSON : MonoBehaviour
 
         SetStatus("1. Request 送信中", false);
         HttpResult sttResult = new HttpResult();
-        yield return StartCoroutine(PostJsonCoroutine(url, sttRequestJson, sttResult));
+        yield return StartCoroutine(PostJsonCoroutine(url, sttRequestJson, sttResult, "STT"));
         SetPanelPlaceholder(audioResponseText, HttpDisplay.FormatResponse(sttResult.statusCode, sttResult.body));
 
         if (!sttResult.ok)
@@ -390,7 +430,7 @@ public class SpeechToJSON : MonoBehaviour
 
         SetStatus("3. Request 送信中", false);
         HttpResult jsonResult = new HttpResult();
-        yield return StartCoroutine(PostJsonCoroutine(url, structuredRequestJson, jsonResult));
+        yield return StartCoroutine(PostJsonCoroutine(url, structuredRequestJson, jsonResult, "JSON"));
 
         string structuredJson;
         if (!TryExtractText(jsonResult.body, out structuredJson))
@@ -423,12 +463,13 @@ public class SpeechToJSON : MonoBehaviour
             yield break;
         }
 
+        ResponseTime.Log("合計", pipelineStarted);
         SetStatus("完了（Space で録音）", false);
         isSending = false;
     }
 
     // JSON を POST し、結果を result に書き込む
-    IEnumerator PostJsonCoroutine(string url, string requestJson, HttpResult result)
+    IEnumerator PostJsonCoroutine(string url, string requestJson, HttpResult result, string stepName)
     {
         byte[] bodyRaw = Encoding.UTF8.GetBytes(requestJson);
         using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
@@ -438,7 +479,9 @@ public class SpeechToJSON : MonoBehaviour
             request.SetRequestHeader("Content-Type", "application/json; charset=utf-8");
             request.SetRequestHeader("x-goog-api-key", apiKey);
             SetStatus("応答待ち", true);
+            float sendStarted = Time.realtimeSinceStartup; // 送信開始。返信までの計測用
             yield return request.SendWebRequest();
+            ResponseTime.Log(stepName, sendStarted);
             result.statusCode = request.responseCode;
             result.body = request.downloadHandler != null ? request.downloadHandler.text : string.Empty;
             result.ok = request.result == UnityWebRequest.Result.Success;
@@ -715,6 +758,21 @@ public class SpeechToJSON : MonoBehaviour
         }
 
         Debug.Log("[SpeechToJSON] APIキーを読み込みました（長さ " + apiKey.Length + "）。キー自体はログに出しません。");
+    }
+
+    // 直近サンプルの大きさを横棒の長さにする（計算は MicLevel、Image 更新だけここ）
+    void UpdateLevelMeter()
+    {
+        if (levelMeterFill == null)
+        {
+            return;
+        }
+
+        AudioClip clip = isRecording ? recordingClip : monitorClip;
+        int position = microphoneDevice != null ? Microphone.GetPosition(microphoneDevice) : -1;
+        float target = MicLevel.ReadBar(clip, position, meterSamples, !isRecording, displayedLevel);
+        displayedLevel = MicLevel.Smooth(displayedLevel, target, Time.deltaTime);
+        levelMeterFill.fillAmount = displayedLevel;
     }
 
     // Status 欄の Value を日本語で更新する（タイトルはシーン側の固定文言）

@@ -2,7 +2,7 @@
 
 声で受け取った指示を、フォーマット化されたデータとして返します。話しかけるだけで、アプリの見た目や設定を変えられます。
 
-シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
+シリーズ全体の位置づけ → [Assets/Docs/demo-series-overview.md](../Docs/demo-series-overview.md)
 
 ---
 
@@ -18,7 +18,7 @@
 ## 事前準備
 
 1. Google AI Studio から Gemini の API にアクセスするための APIキーを取得し、`Assets/Common/APIKey.txt` に保管してください。  
-   手順 → [Docs/gemini-ai-studio-setup.md](../../Docs/gemini-ai-studio-setup.md)
+   手順 → [Assets/Docs/gemini-ai-studio-setup.md](../Docs/gemini-ai-studio-setup.md)
 2. PC にマイクがつながり、Unity から使える状態にしてください（OS のマイク権限を含む）。
 
 ---
@@ -29,9 +29,10 @@ Project ウィンドウで `Assets/2B.SpeechToJSON/SpeechToJSON.unity` を開き
 
 ### 1. Space で色を変えてみる
 
-1. **Space を押したまま**、たとえば「キューブは夕焼けのオレンジ、背景は夜の紺」と話し、**離してください**。
-2. Status が「録音中」→「音声データ変換中」→「1. Request」→「3. Request」と進むことを見てください。
-3. 左の **3D キューブの色** と **背景色** が変わること、認識テキスト欄に文字起こしが出ることを確認してください。
+1. Play したら、左の Message 下の横棒が声に合わせて伸びることを見てください。
+2. **Space を押したまま**、たとえば「キューブは夕焼けのオレンジ、背景は夜の紺」と話し、**離してください**。
+3. Status が「録音中」→「音声データ変換中」→「1. Request」→「3. Request」と進むことを見てください。
+4. 左の **3D キューブの色** と **背景色** が変わること、認識テキスト欄に文字起こしが出ることを確認してください。
 
 ### 2. 発生順（1〜4）で Request / Response を追う
 
@@ -90,6 +91,7 @@ Project ウィンドウで `Assets/2B.SpeechToJSON/SpeechToJSON.unity` を開き
 | [`GeminiJson`](../Common/Script/GeminiJson.cs) | JSON のエスケープ・整形・省略表示 |
 | [`GeminiKey`](../Common/Script/GeminiKey.cs) | APIキーの読込・マスク・generateContent の URL |
 | [`AudioCodec`](../Common/Script/AudioCodec.cs) | AudioClip ⇄ WAV / PCM16 の変換 |
+| [`MicLevel`](../Common/Script/MicLevel.cs) | マイク直近窓の RMS → 横棒の 0〜1 |
 | [`HttpDisplay`](../Common/Script/HttpDisplay.cs) | Request / Response ペインに出す文字列の整形 |
 
 これらは他のデモも使っています。挙動を変えたくなったら Common を直さず、そのファイルをこのデモの `Script/` にコピーしてクラス名を変えてください。

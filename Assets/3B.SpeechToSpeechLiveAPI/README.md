@@ -2,7 +2,7 @@
 
 声のやり取りを、Gemini Live API のひとつのセッションで行います。送っては待つ形ではなくなり、人と話すのに近いテンポになります。
 
-シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
+シリーズ全体の位置づけ → [Assets/Docs/demo-series-overview.md](../Docs/demo-series-overview.md)
 
 ---
 
@@ -20,7 +20,7 @@
 ## 事前準備
 
 1. Google AI Studio から Gemini の API にアクセスするための APIキーを取得し、`Assets/Common/APIKey.txt` に保管してください。  
-   手順 → [Docs/gemini-ai-studio-setup.md](../../Docs/gemini-ai-studio-setup.md)
+   手順 → [Assets/Docs/gemini-ai-studio-setup.md](../Docs/gemini-ai-studio-setup.md)
 2. PC にマイクがつながり、Unity から使える状態にしてください（OS のマイク権限を含む）。
 3. スピーカーまたはヘッドホンで再生音が聞こえる状態にしてください。
 
@@ -37,7 +37,7 @@ Project ウィンドウで `Assets/3B.SpeechToSpeechLiveAPI/SpeechToSpeechLiveAP
 
 ### 2. Space で話してみる（手動モード）
 
-1. **Space を押したまま**短い文を話し、**離してください**。
+1. **Space を押したまま**短い文を話し、**離してください**。左の横棒が声に合わせて伸びます。
 2. 段階バーが `Send PCM` → `Receive PCM` → `Play` と進むこと、中央に送信チャンクログ、右に受信チャンクログが増えることを見てください。
 3. 左に吹き出し（transcription）が出て、返答が声で再生されることを確認してください。
 
@@ -139,6 +139,7 @@ PCM とは、音を時刻ごとの振幅の数字列として表した音声デ�
 | [`GeminiJsonScan`](../Common/Script/GeminiJsonScan.cs) | Live API の受信 JSON からキーを頼りに文字列を拾う |
 | [`GeminiKey`](../Common/Script/GeminiKey.cs) | APIキーの読込・マスク・generateContent の URL |
 | [`AudioCodec`](../Common/Script/AudioCodec.cs) | AudioClip ⇄ WAV / PCM16 の変換 |
+| [`MicLevel`](../Common/Script/MicLevel.cs) | マイク直近窓の RMS → 横棒の 0〜1 |
 | [`ChatBubble`](../Common/Script/ChatBubble.cs) | 吹き出し1件分の見た目（Prefab: [`MessageBubble.prefab`](Prefab/MessageBubble.prefab)） |
 
 これらは他のデモも使っています。挙動を変えたくなったら Common を直さず、そのファイルをこのデモの `Script/` にコピーしてクラス名を変えてください。

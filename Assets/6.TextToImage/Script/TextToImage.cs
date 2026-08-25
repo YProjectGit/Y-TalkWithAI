@@ -133,7 +133,7 @@ public class TextToImage : MonoBehaviour
 
         if (string.IsNullOrEmpty(apiKey))
         {
-            ShowError("APIキーが空です。Docs/gemini-ai-studio-setup.md を参照してください。");
+            ShowError("APIキーが空です。Assets/Docs/gemini-ai-studio-setup.md を参照してください。");
             return;
         }
 
@@ -166,7 +166,9 @@ public class TextToImage : MonoBehaviour
             request.SetRequestHeader("x-goog-api-key", apiKey);
 
             SetStatus("応答待ち", true);
+            float sendStarted = Time.realtimeSinceStartup; // 送信開始。返信までの計測用
             yield return request.SendWebRequest();
+            ResponseTime.Log("合計", sendStarted);
 
             long statusCode = request.responseCode;
             string responseBody = request.downloadHandler != null

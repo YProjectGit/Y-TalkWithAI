@@ -2,7 +2,7 @@
 
 返事をテキストや音声ではなく、画像として受け取ります。Gemini の画像生成モデルで、言葉から絵を作れます。
 
-シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
+シリーズ全体の位置づけ → [Assets/Docs/demo-series-overview.md](../Docs/demo-series-overview.md)
 
 ---
 
@@ -20,8 +20,8 @@
 ## 事前準備
 
 Google AI Studio から Gemini の API にアクセスするための APIキーを取得し、`Assets/Common/APIKey.txt` に保管してください。  
-手順 → [Docs/gemini-ai-studio-setup.md](../../Docs/gemini-ai-studio-setup.md)  
-無料枠で 429 が出たら、有料への移り方と値段の目安 → [Docs/gemini-api-pricing.md](../../Docs/gemini-api-pricing.md)
+手順 → [Assets/Docs/gemini-ai-studio-setup.md](../Docs/gemini-ai-studio-setup.md)  
+無料枠で 429 が出たら、有料への移り方と値段の目安 → [Assets/Docs/gemini-api-pricing.md](../Docs/gemini-api-pricing.md)
 
 このデモは画像生成モデル（既定は `gemini-3.1-flash-image`）を使います。無料枠も課金も、テキスト用の Lite とは別に数えます。
 

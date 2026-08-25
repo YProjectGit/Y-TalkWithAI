@@ -1,103 +1,109 @@
-// SpeechToText.cs
-// 1A.TextToText の派生デモ。入力だけ「Space 押し話し → マイク録音 → WAV → STT → LLM」に拡張する。
-// 左ペインに会話、中央に Request、右に Response の生データを出し、通信の流れを追えるようにする。
+// SpeechToTextWhisper.cs
+// 2A.SpeechToText の派生デモ。STT だけ Whisper（ローカル）に差し替える。
+// Chat は 2A と同じ Gemini generateContent。
 //
 // 上からの流れ:
-//   Start → APIキー読込・systemInstruction 読込・マイク確認・レベル監視開始・UI初期化
-//   Update → 直近サンプルの大きさ（RMS）を横棒の fillAmount へ
-//   Space 押下 → 監視を止めて Microphone.Start（録音中。棒は録音クリップを見る）
-//   Space 解放 → Microphone.End → 監視再開 → AudioClip 切り出し → WAV バイト列 → Base64
-//     → STT（generateContent + inlineData）で文字起こし
-//     → 認識テキストを user として Chat（1A と同型）へ
+//   Start → APIキー読込・systemInstruction 読込・マイク確認・Whisper 初期化
+//   Space 押下 → Microphone.Start（録音中）
+//   Space 解放 → Microphone.End → float サンプル
+//     → WhisperManager.GetTextAsync（端末）
+//     → 認識テキストを user として Chat（2A と同型）へ
 //
-// 会話コンテキストは常に送る（Option Toggle は置かない）。
-//
-// systemInstruction（事前指示）:
-//   Chat リクエスト（3. Request - GenerateContent（Text））にだけ載せる。空ならキーごと省略。
+// 会話コンテキストは常に送る。
+// systemInstruction は Chat リクエストにだけ載せる。空ならキーごと省略。
 
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.Networking;
 using UnityEngine.UI;
+using Whisper;
 
 /// <summary>
-/// マイク録音と Gemini STT / チャットで、声入力からテキスト返答までを可視化する。
+/// マイク録音とローカル STT / Gemini チャットで、声入力からテキスト返答までを可視化する。
 /// </summary>
-public class SpeechToText : MonoBehaviour
+public class SpeechToTextWhisper : MonoBehaviour
 {
     // ===== インスペクタ: 設定 =====
 
-    public string modelName = "gemini-3.1-flash-lite"; // 使う Gemini モデル名（URL の一部になる）
+    public string modelName = "gemini-3.1-flash-lite"; // Chat に使う Gemini モデル名
     public string apiKeyRelativePath = "Common/APIKey.txt"; // Assets/ からの相対パス
-    public string systemInstructionRelativePath = "Common/SystemInstruction.txt"; // Assets/ からの相対パス（事前指示）
+    public string systemInstructionRelativePath = "Common/SystemInstruction.txt";
     public int sampleRate = 16000; // マイク録音のサンプルレート（Hz）
-    public int maxRecordingSeconds = 30; // Space 押し話しの上限秒数
-    public float minRecordingSeconds = 0.3f; // これより短い録音は送らない
+    public int maxRecordingSeconds = 30;
+    public float minRecordingSeconds = 0.3f;
+    public string whisperModelRelativePath = "2C.(SpeechToTextWhisper)/Resource/models/ggml-base.bin"; // Assets/ からの相対パス
+    public string whisperLanguage = "ja"; // Whisper に渡す言語コード。空や auto で自動判定
 
     // ===== インスペクタ: 左ペイン（チャット UI） =====
 
-    public TMP_InputField systemInstructionField; // systemInstruction（事前指示）。空なら Chat に載せない
-    public TMP_Text recordHintText; // 「Space を押しているあいだ録音」などの案内
+    public TMP_InputField systemInstructionField;
+    public TMP_Text recordHintText;
     public Image levelMeterFill; // マイク音量の横棒（Image Type = Filled）
-    public Transform messageContent; // バブルを並べる ScrollView の Content
-    public ChatBubble messageBubblePrefab; // 1メッセージ分の Prefab（見た目は 1A と同型）
-    public ScrollRect chatScrollRect; // 新着時に下端へスクロールするため
+    public Transform messageContent;
+    public ChatBubble messageBubblePrefab;
+    public ScrollRect chatScrollRect;
 
-    // ===== インスペクタ: 通信可視化（中央 Request / 右 Response は上下2段、Status は左下） =====
+    // ===== インスペクタ: 通信可視化（1/2 はローカル STT、3/4 は Gemini Chat） =====
 
-    public TMP_Text statusText; // 待機中 / 録音中 / STT / 応答待ち などの状態
-    public TMP_Text sttRequestText; // 1. Request - GenerateContent（Audio）
+    public TMP_Text statusText;
+    public TMP_Text sttRequestText; // 1. Local STT（Whisper）
     public TMP_Text llmRequestText; // 3. Request - GenerateContent（Text）
-    public TMP_Text sttResponseText; // 2. Response - GenerateContent（Audio）
+    public TMP_Text sttResponseText; // 2. Local STT 結果
     public TMP_Text llmResponseText; // 4. Response - GenerateContent（Text）
 
     // ===== 内部状態 =====
 
-    string apiKey; // Assets/Common/APIKey.txt から読んだキー（画面には出さない）
-    readonly List<ChatTurn> turns = new List<ChatTurn>(); // API に送る会話履歴（吹き出し表示とは別）
-    bool isSending; // STT〜Chat の処理中（二重送信・二重録音防止）
-    bool isRecording; // Space 押し話しで録音中か
-    string microphoneDevice; // 使うマイク名（null なら利用不可）
-    AudioClip recordingClip; // Microphone.Start が書き込むクリップ（押し話し中）
+    string apiKey;
+    readonly List<ChatTurn> turns = new List<ChatTurn>();
+    bool isSending;
+    bool isRecording;
+    string microphoneDevice;
+    AudioClip recordingClip;
     AudioClip monitorClip; // 待機中のレベル表示用。1秒ループでマイクを見続ける
-    float recordingStartedTime; // 録音開始時刻（短すぎ防止・上限判定用）
-    float displayedLevel; // 横棒の現在値（上がりはすぐ、下りはゆっくり）
-    readonly float[] meterSamples = new float[MicLevel.WindowSamples]; // 直近サンプルの読み出し先
-    DateTime systemInstructionFileWriteTimeUtc; // 最後に同期した SystemInstruction.txt の更新時刻
-    bool statusBlink; // 応答待ちのとき Status を点滅させる
-    const float StatusBlinkSpeed = 6f; // 点滅の速さ（大きいほど速い）
-    const int DisplayBase64MaxChars = 96; // Request ペインで Base64 を省略表示する長さ
+    float recordingStartedTime;
+    float displayedLevel; // 横棒の現在値
+    readonly float[] meterSamples = new float[MicLevel.WindowSamples];
+    DateTime systemInstructionFileWriteTimeUtc;
+    bool statusBlink;
+    const float StatusBlinkSpeed = 6f;
 
-    // STT 用の固定指示（音声 → テキストだけ。会話の返答は次の Chat で行う）
-    const string SttPromptText =
-        "この音声を日本語で文字起こししてください。前置きや説明は付けず、発話の本文だけを返してください。";
+    WhisperManager whisper; // パッケージの認識マネージャ。Play 中は使い回す
+    string whisperLastError; // モデル未配置など、初期化失敗の理由
 
-    // Gemini contents の1要素（role + text）。履歴に載せる user は必ずテキスト（音声は載せない）
     class ChatTurn
     {
-        public string role; // "user" または "model"
-        public string text; // そのターンの本文
+        public string role;
+        public string text;
     }
 
-    // UnityWebRequest の結果をコルーチンから受け取る入れ物
     class HttpResult
     {
-        public long statusCode; // HTTP ステータスコード
-        public string body; // レスポンス本文
-        public bool ok; // UnityWebRequest が Success か
-        public string error; // 失敗時の error 文字列
+        public long statusCode;
+        public string body;
+        public bool ok;
+        public string error;
+    }
+
+    class WhisperAsrResult
+    {
+        public string text;
+        public string language;
+        public string error;
+        public long elapsedMilliseconds;
+        public float audioSeconds;
+        public float realtimeFactor;
     }
 
     // ----- エントリポイント -----
 
-    // 起動時: キー・事前指示・マイクを用意し、録音案内を出す
-    void Start()
+    IEnumerator Start()
     {
         LoadApiKey();
         LoadSystemInstructionFromFile();
@@ -110,19 +116,30 @@ public class SpeechToText : MonoBehaviour
         StartMonitor();
         if (recordHintText != null)
         {
-            recordHintText.text = "Space を押しているあいだ録音します（離すと文字起こし → 返信）";
+            recordHintText.text = "Space を押しているあいだ録音します（離すとローカルで文字起こし → 返信）";
         }
 
-        SetStatus(microphoneDevice != null ? "待機中（Space で録音）" : "マイクなし", false);
-        SetPanelPlaceholder(sttRequestText, "（まだ送っていません）");
-        SetPanelPlaceholder(llmRequestText, "（まだ送っていません）");
-        SetPanelPlaceholder(sttResponseText, "（まだ応答がありません）");
-        SetPanelPlaceholder(llmResponseText, "（まだ応答がありません）");
+        SetStatus("モデル読み込み中", true);
+        yield return StartCoroutine(SetupWhisperCoroutine());
 
+        if (whisper == null || !whisper.IsLoaded)
+        {
+            SetStatus("whisper 未配置", false);
+            SetPanelPlaceholder(sttRequestText, whisperLastError);
+            SetPanelPlaceholder(sttResponseText, "Assets/Docs/whisper-unity-setup.md を見て ggml モデルを配置してください。");
+        }
+        else
+        {
+            SetStatus(microphoneDevice != null ? "待機中（Space で録音）" : "マイクなし", false);
+            SetPanelPlaceholder(sttRequestText, "（まだ認識していません）");
+            SetPanelPlaceholder(sttResponseText, "（まだ認識していません）");
+        }
+
+        SetPanelPlaceholder(llmRequestText, "（まだ送っていません）");
+        SetPanelPlaceholder(llmResponseText, "（まだ応答がありません）");
         SetSending(false);
     }
 
-    // Space 押し話しの検知、マイクレベルの横棒、Status 点滅
     void Update()
     {
         UpdateStatusBlink();
@@ -130,13 +147,12 @@ public class SpeechToText : MonoBehaviour
         UpdateLevelMeter();
     }
 
-    // 終了時にマイクを解放する（待機中の監視も含む）
     void OnDestroy()
     {
         StopMicrophone();
     }
 
-    // 旧 Input Manager で Space の押し始め／離しを見る（新 Input System API は使わない）
+    // 旧 Input Manager で Space の押し始め／離しを見る
     void UpdatePushToTalk()
     {
         if (isSending)
@@ -144,7 +160,6 @@ public class SpeechToText : MonoBehaviour
             return;
         }
 
-        // System Instruction 編集中の Space は文字入力として扱い、録音しない
         if (IsTypingInSystemInstruction())
         {
             return;
@@ -161,7 +176,6 @@ public class SpeechToText : MonoBehaviour
             return;
         }
 
-        // 上限秒に達したら自動で止めて送信する
         if (Time.time - recordingStartedTime >= maxRecordingSeconds)
         {
             EndRecordingAndSend();
@@ -174,7 +188,6 @@ public class SpeechToText : MonoBehaviour
         }
     }
 
-    // System Instruction 欄にフォーカスがあるか（EventSystem の選択も見る）
     bool IsTypingInSystemInstruction()
     {
         if (systemInstructionField != null && systemInstructionField.isFocused)
@@ -191,23 +204,66 @@ public class SpeechToText : MonoBehaviour
                && EventSystem.current.currentSelectedGameObject == systemInstructionField.gameObject;
     }
 
+    // ----- Whisper 初期化（パッケージの WhisperManager） -----
+
+    // 非アクティブな子に足してからパスをセットし、起こす。Awake より先にモデルパスを変えたいため
+    IEnumerator SetupWhisperCoroutine()
+    {
+        string modelPath = Path.Combine(Application.dataPath, whisperModelRelativePath);
+        if (!File.Exists(modelPath))
+        {
+            whisperLastError =
+                "ggml モデルがありません: " + modelPath
+                + "\nAssets/Docs/whisper-unity-setup.md を見て配置してください。";
+            Debug.LogError("[SpeechToTextWhisper] " + whisperLastError);
+            yield break;
+        }
+
+        GameObject whisperGo = new GameObject("WhisperManager");
+        whisperGo.transform.SetParent(transform, false);
+        whisperGo.SetActive(false);
+        whisper = whisperGo.AddComponent<WhisperManager>();
+        whisper.IsModelPathInStreamingAssets = false;
+        whisper.ModelPath = modelPath;
+        whisper.language = whisperLanguage;
+        whisperGo.SetActive(true);
+
+        float timeout = 120f;
+        float started = Time.realtimeSinceStartup;
+        while (whisper.IsLoading || (!whisper.IsLoaded && Time.realtimeSinceStartup - started < 0.5f))
+        {
+            if (Time.realtimeSinceStartup - started > timeout)
+            {
+                break;
+            }
+
+            yield return null;
+        }
+
+        if (!whisper.IsLoaded)
+        {
+            whisperLastError =
+                "Whisper モデルの読み込みに失敗しました: " + modelPath
+                + "\nコンソールと Assets/Docs/whisper-unity-setup.md を確認してください。";
+            Debug.LogError("[SpeechToTextWhisper] " + whisperLastError);
+        }
+    }
+
     // ----- マイク録音（押し話し） -----
 
-    // 利用可能なマイクを1つ選ぶ。無ければ以降の録音はエラー表示だけする
     void SetupMicrophone()
     {
         if (Microphone.devices == null || Microphone.devices.Length == 0)
         {
             microphoneDevice = null;
-            Debug.LogWarning("[SpeechToText] マイクデバイスが見つかりません。");
+            Debug.LogWarning("[SpeechToTextWhisper] マイクデバイスが見つかりません。");
             return;
         }
 
         microphoneDevice = Microphone.devices[0];
-        Debug.Log("[SpeechToText] マイクを使用します: " + microphoneDevice);
+        Debug.Log("[SpeechToTextWhisper] マイクを使用します: " + microphoneDevice);
     }
 
-    // 待機中もレベルを出すため、1秒ループでマイクを開き続ける
     void StartMonitor()
     {
         if (microphoneDevice == null)
@@ -219,7 +275,6 @@ public class SpeechToText : MonoBehaviour
         monitorClip = Microphone.Start(microphoneDevice, true, 1, sampleRate);
     }
 
-    // Microphone.End して監視／録音クリップの参照を捨てる（録音データは呼び出し側が先に持つ）
     void StopMicrophone()
     {
         if (microphoneDevice != null && Microphone.IsRecording(microphoneDevice))
@@ -230,7 +285,6 @@ public class SpeechToText : MonoBehaviour
         monitorClip = null;
     }
 
-    // Space 押し始め: 監視を止めて、送信用の AudioClip への書き込みを開始する
     void BeginRecording()
     {
         if (microphoneDevice == null)
@@ -239,15 +293,24 @@ public class SpeechToText : MonoBehaviour
             return;
         }
 
+        if (whisper == null || !whisper.IsLoaded)
+        {
+            ShowError(
+                whisperLastError != null
+                    ? whisperLastError
+                    : "Whisper が初期化されていません。Assets/Docs/whisper-unity-setup.md を見てください。",
+                sttResponseText);
+            return;
+        }
+
         if (string.IsNullOrEmpty(apiKey))
         {
-            ShowError("APIキーがありません。Assets/Common/APIKey.txt を確認してください。");
+            ShowError("APIキーがありません。Assets/Common/APIKey.txt を確認してください（Chat 用）。");
             return;
         }
 
         StopMicrophone();
 
-        // loop=false: 最大秒数ぶんのクリップを用意し、そこにマイクがサンプルを書き込む
         recordingClip = Microphone.Start(microphoneDevice, false, maxRecordingSeconds, sampleRate);
         if (recordingClip == null)
         {
@@ -261,7 +324,7 @@ public class SpeechToText : MonoBehaviour
         SetStatus("録音中", true);
     }
 
-    // Space 解放（または上限）: 録音を止め、WAV 化して STT→Chat コルーチンへ渡す
+    // Space 解放: 録音を止め、float サンプルをローカル STT → Chat へ渡す
     void EndRecordingAndSend()
     {
         if (!isRecording)
@@ -272,7 +335,6 @@ public class SpeechToText : MonoBehaviour
         isRecording = false;
         float elapsed = Time.time - recordingStartedTime;
 
-        // マイクへの書き込みを止める。この時点の書き込み位置が「実際に録れた長さ」
         int positionSamples = Microphone.GetPosition(microphoneDevice);
         Microphone.End(microphoneDevice);
         StartMonitor();
@@ -284,101 +346,73 @@ public class SpeechToText : MonoBehaviour
             return;
         }
 
-        // 送信直前に事前指示をファイルと同期（Chat で使う）
         SyncSystemInstructionBeforeSend();
 
-        AudioClip trimmedClip = AudioCodec.TrimClip(recordingClip, positionSamples);
+        float[] samples = AudioCodec.CopyClipSamples(recordingClip, positionSamples);
         recordingClip = null;
-        if (trimmedClip == null)
+        if (samples == null || samples.Length == 0)
         {
             ShowError("録音データの切り出しに失敗しました。");
             return;
         }
 
-        // float サンプル → 16-bit PCM WAV バイト列（ここが「音声データ」になる）
-        SetStatus("音声データ変換中", false);
-        byte[] wavBytes = AudioCodec.ClipToWav(trimmedClip);
-        Destroy(trimmedClip);
-
-        if (wavBytes == null || wavBytes.Length == 0)
-        {
-            ShowError("WAV への変換に失敗しました。");
-            return;
-        }
-
-        string audioBase64 = Convert.ToBase64String(wavBytes);
-        StartCoroutine(SendSpeechPipelineCoroutine(audioBase64, wavBytes.Length, elapsed));
+        StartCoroutine(RecognizeThenChatCoroutine(samples, elapsed));
     }
 
-    // ----- 通信本体（STT → Chat） -----
+    // ----- 通信本体（ローカル STT → Chat） -----
 
-    // 音声 Base64 を STT し、認識テキストで Chat する一連の流れ
-    IEnumerator SendSpeechPipelineCoroutine(string audioBase64, int wavByteLength, float audioSeconds)
+    IEnumerator RecognizeThenChatCoroutine(float[] samples, float audioSeconds)
     {
         SetSending(true);
-        float pipelineStarted = Time.realtimeSinceStartup; // 入力開始。STT→Chat 全体の計測用
-
-        // 新しい発話のたびに LLM 側はクリアし、STT から順に埋めていく
+        float pipelineStarted = Time.realtimeSinceStartup; // 入力開始。ローカル STT→Chat 全体の計測用
         SetPanelPlaceholder(llmRequestText, "（STT 完了後に表示）");
         SetPanelPlaceholder(llmResponseText, "（STT 完了後に表示）");
 
-        string url = GeminiKey.BuildGenerateContentUrl(modelName);
-
-        // --- 1) STT: 音声 inlineData を送り、文字起こしテキストだけ受け取る ---
-        string sttRequestJson = BuildSttRequestJson(audioBase64);
         if (sttRequestText != null)
         {
-            sttRequestText.text =
-                "audio/wav bytes=" + wavByteLength
-                + " / ~" + audioSeconds.ToString("0.0") + "s\n\n"
-                + HttpDisplay.FormatRequest(url, sttRequestJson, apiKey, DisplayBase64MaxChars);
+            sttRequestText.text = BuildLocalSttRequestText(samples.Length, audioSeconds);
         }
 
-        SetStatus("1. Request 送信中", false);
-        HttpResult sttResult = new HttpResult();
-        yield return StartCoroutine(PostJsonCoroutine(url, sttRequestJson, sttResult, "STT"));
+        SetStatus("ローカル STT 中", true);
+        WhisperAsrResult asr = null;
+        float sttStarted = Time.realtimeSinceStartup; // ローカル STT 開始。返信までの計測用
+        yield return StartCoroutine(RecognizeWhisperCoroutine(samples, value => { asr = value; }));
+        ResponseTime.Log("Whisper STT", sttStarted);
 
-        if (sttResponseText != null)
+        if (sttResponseText != null && asr != null)
         {
-            sttResponseText.text = HttpDisplay.FormatResponse(sttResult.statusCode, sttResult.body);
+            sttResponseText.text = BuildLocalSttResponseText(asr);
         }
 
-        if (!sttResult.ok)
+        if (asr == null || !string.IsNullOrEmpty(asr.error))
         {
-            ShowError("STT HTTP エラー: " + sttResult.statusCode + " / " + sttResult.error, sttResponseText);
+            string message = asr != null ? asr.error : "認識結果を受け取れませんでした。";
+            ShowError(message, sttResponseText);
             SetSending(false);
             yield break;
         }
 
-        string transcript;
-        if (!GeminiTextResponse.TryExtractText(sttResult.body, "[SpeechToText]", out transcript))
-        {
-            ShowError("STT 応答から文字起こしを取り出せませんでした。2. Response を確認してください。", sttResponseText);
-            SetSending(false);
-            yield break;
-        }
-
-        transcript = transcript.Trim();
+        string transcript = asr.text != null ? asr.text.Trim() : string.Empty;
         if (string.IsNullOrEmpty(transcript))
         {
-            ShowError("文字起こし結果が空でした。もう一度話してみてください。", sttResponseText);
+            ShowError("文字起こし結果が空でした。日本語でもう一度話してみてください。", sttResponseText);
             SetSending(false);
             yield break;
         }
 
-        // --- 2) LLM: 認識テキストを会話履歴付きで送り、返答を得る ---
         turns.Add(new ChatTurn { role = "user", text = transcript });
         AddBubble("You", transcript, true);
 
+        string url = GeminiKey.BuildGenerateContentUrl(modelName);
         string chatRequestJson = BuildChatRequestJson();
         if (llmRequestText != null)
         {
-            llmRequestText.text = HttpDisplay.FormatRequest(url, chatRequestJson, apiKey, DisplayBase64MaxChars);
+            llmRequestText.text = HttpDisplay.FormatRequest(url, chatRequestJson, apiKey, 0);
         }
 
         SetStatus("3. Request 送信中", false);
         HttpResult chatResult = new HttpResult();
-        yield return StartCoroutine(PostJsonCoroutine(url, chatRequestJson, chatResult, "Chat"));
+        yield return StartCoroutine(PostJsonCoroutine(url, chatRequestJson, chatResult));
 
         if (llmResponseText != null)
         {
@@ -395,7 +429,7 @@ public class SpeechToText : MonoBehaviour
         }
 
         string assistantText;
-        if (!GeminiTextResponse.TryExtractText(chatResult.body, "[SpeechToText]", out assistantText))
+        if (!GeminiTextResponse.TryExtractText(chatResult.body, "[SpeechToTextWhisper]", out assistantText))
         {
             ShowError("LLM 応答 JSON からテキストを取り出せませんでした。4. Response を確認してください。", llmResponseText);
             RemoveLastTurnIfUser();
@@ -411,8 +445,84 @@ public class SpeechToText : MonoBehaviour
         SetSending(false);
     }
 
-    // JSON を POST し、結果を result に書き込む
-    IEnumerator PostJsonCoroutine(string url, string requestJson, HttpResult result, string stepName)
+    // WhisperManager.GetTextAsync を待ち、終わるまで画面は固めていない
+    IEnumerator RecognizeWhisperCoroutine(float[] samples, Action<WhisperAsrResult> onDone)
+    {
+        WhisperAsrResult result = new WhisperAsrResult();
+        result.audioSeconds = sampleRate > 0 ? samples.Length / (float)sampleRate : 0f;
+
+        Task<WhisperResult> task = whisper.GetTextAsync(samples, sampleRate, 1);
+        DateTime startedUtc = DateTime.UtcNow;
+        while (!task.IsCompleted)
+        {
+            yield return null;
+        }
+
+        result.elapsedMilliseconds = (long)(DateTime.UtcNow - startedUtc).TotalMilliseconds;
+        if (result.audioSeconds > 0f)
+        {
+            result.realtimeFactor = (result.elapsedMilliseconds / 1000f) / result.audioSeconds;
+        }
+
+        if (task.IsFaulted)
+        {
+            Exception inner = task.Exception != null ? task.Exception.GetBaseException() : null;
+            result.error = inner != null ? inner.Message : "Whisper 認識に失敗しました。";
+            onDone(result);
+            yield break;
+        }
+
+        WhisperResult whisperResult = task.Result;
+        if (whisperResult == null)
+        {
+            result.error = "認識結果を受け取れませんでした。モデル配置を確認してください。";
+            onDone(result);
+            yield break;
+        }
+
+        result.text = whisperResult.Result;
+        result.language = whisperResult.Language;
+        onDone(result);
+    }
+
+    string BuildLocalSttRequestText(int sampleCount, float audioSeconds)
+    {
+        StringBuilder sb = new StringBuilder();
+        sb.AppendLine("engine: Whisper WhisperManager");
+        sb.AppendLine("model: " + Path.GetFileName(whisperModelRelativePath) + "（多言語）");
+        sb.AppendLine("language: " + whisperLanguage);
+        sb.AppendLine("sampleRate: " + sampleRate);
+        sb.AppendLine("samples: " + sampleCount + " / ~" + audioSeconds.ToString("0.0") + "s");
+        sb.AppendLine();
+        sb.AppendLine("weights: " + Path.GetFileName(whisperModelRelativePath));
+        sb.AppendLine("path: " + Path.Combine(Application.dataPath, whisperModelRelativePath));
+        return sb.ToString();
+    }
+
+    static string BuildLocalSttResponseText(WhisperAsrResult asr)
+    {
+        StringBuilder sb = new StringBuilder();
+        if (!string.IsNullOrEmpty(asr.error))
+        {
+            sb.AppendLine("[Error]");
+            sb.Append(asr.error);
+            return sb.ToString();
+        }
+
+        sb.AppendLine("elapsedMs: " + asr.elapsedMilliseconds);
+        sb.AppendLine("audioSeconds: " + asr.audioSeconds.ToString("0.00"));
+        sb.AppendLine("RTF: " + asr.realtimeFactor.ToString("0.000"));
+        if (!string.IsNullOrEmpty(asr.language))
+        {
+            sb.AppendLine("detectedLanguage: " + asr.language);
+        }
+
+        sb.AppendLine();
+        sb.Append(asr.text);
+        return sb.ToString();
+    }
+
+    IEnumerator PostJsonCoroutine(string url, string requestJson, HttpResult result)
     {
         byte[] bodyRaw = Encoding.UTF8.GetBytes(requestJson);
         using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
@@ -425,7 +535,7 @@ public class SpeechToText : MonoBehaviour
             SetStatus("応答待ち", true);
             float sendStarted = Time.realtimeSinceStartup; // 送信開始。返信までの計測用
             yield return request.SendWebRequest();
-            ResponseTime.Log(stepName, sendStarted);
+            ResponseTime.Log("Chat", sendStarted);
 
             result.statusCode = request.responseCode;
             result.body = request.downloadHandler != null ? request.downloadHandler.text : string.Empty;
@@ -434,24 +544,6 @@ public class SpeechToText : MonoBehaviour
         }
     }
 
-    // ----- リクエスト JSON -----
-
-    // STT 用: 指示テキスト + 音声 inlineData（Base64）。systemInstruction / 履歴は載せない
-    string BuildSttRequestJson(string audioBase64)
-    {
-        StringBuilder sb = new StringBuilder();
-        sb.Append("{\"contents\":[{\"role\":\"user\",\"parts\":[");
-        sb.Append("{\"text\":\"");
-        sb.Append(GeminiJson.Escape(SttPromptText));
-        sb.Append("\"},");
-        sb.Append("{\"inlineData\":{\"mimeType\":\"audio/wav\",\"data\":\"");
-        sb.Append(audioBase64);
-        sb.Append("\"}}");
-        sb.Append("]}]}");
-        return sb.ToString();
-    }
-
-    // Chat 用: 会話履歴をすべて contents にまとめ、事前指示があれば付ける（コンテキストは常にON）
     string BuildChatRequestJson()
     {
         StringBuilder sb = new StringBuilder();
@@ -485,7 +577,6 @@ public class SpeechToText : MonoBehaviour
         return sb.ToString();
     }
 
-    // UI 欄の現在テキスト（トリム済み）。空ならリクエストに載せない
     string GetSystemInstructionText()
     {
         if (systemInstructionField == null)
@@ -498,7 +589,7 @@ public class SpeechToText : MonoBehaviour
             : string.Empty;
     }
 
-    // ----- systemInstruction ファイル同期（1A と同型） -----
+    // ----- systemInstruction ファイル同期（2A と同型） -----
 
     string GetSystemInstructionFilePath()
     {
@@ -516,7 +607,7 @@ public class SpeechToText : MonoBehaviour
         DateTime writeTimeUtc;
         if (!TryReadSystemInstructionFile(out text, out writeTimeUtc))
         {
-            Debug.LogWarning("[SpeechToText] SystemInstruction.txt がありません: " + GetSystemInstructionFilePath());
+            Debug.LogWarning("[SpeechToTextWhisper] SystemInstruction.txt がありません: " + GetSystemInstructionFilePath());
             systemInstructionField.text = string.Empty;
             systemInstructionFileWriteTimeUtc = DateTime.MinValue;
             return;
@@ -524,7 +615,6 @@ public class SpeechToText : MonoBehaviour
 
         systemInstructionField.text = text;
         systemInstructionFileWriteTimeUtc = writeTimeUtc;
-        Debug.Log("[SpeechToText] SystemInstruction.txt を読み込みました（長さ " + text.Length + "）。");
     }
 
     void ReloadSystemInstructionFromFileIfChanged()
@@ -548,14 +638,12 @@ public class SpeechToText : MonoBehaviour
 
         systemInstructionField.text = text;
         systemInstructionFileWriteTimeUtc = writeTimeUtc;
-        Debug.Log("[SpeechToText] SystemInstruction.txt の変更を UI に反映しました。");
     }
 
     bool TryReadSystemInstructionFile(out string text, out DateTime writeTimeUtc)
     {
         text = string.Empty;
         writeTimeUtc = DateTime.MinValue;
-
         string path = GetSystemInstructionFilePath();
         if (!File.Exists(path))
         {
@@ -607,25 +695,18 @@ public class SpeechToText : MonoBehaviour
         SaveSystemInstructionFromField();
     }
 
-    // ----- APIキー -----
-
     void LoadApiKey()
     {
         string error;
         if (!GeminiKey.TryRead(apiKeyRelativePath, out apiKey, out error))
         {
-            Debug.LogError("[SpeechToText] " + error);
-            SetStatus("エラー", false);
-            SetPanelPlaceholder(sttResponseText, error);
+            Debug.LogError("[SpeechToTextWhisper] " + error);
             return;
         }
-
-        Debug.Log("[SpeechToText] APIキーを読み込みました（長さ " + apiKey.Length + "）。キー自体はログに出しません。");
     }
 
     // ----- UI 更新 -----
 
-    // 直近サンプルの大きさを横棒の長さにする（計算は MicLevel、Image 更新だけここ）
     void UpdateLevelMeter()
     {
         if (levelMeterFill == null)
@@ -667,7 +748,6 @@ public class SpeechToText : MonoBehaviour
         statusText.color = color;
     }
 
-    // プレースホルダ文言を1ペインに出す
     static void SetPanelPlaceholder(TMP_Text target, string message)
     {
         if (target != null)
@@ -676,10 +756,9 @@ public class SpeechToText : MonoBehaviour
         }
     }
 
-    // チャットにエラー吹き出しを出し、該当レスポンス欄にも追記する
     void ShowError(string message, TMP_Text responsePanel = null)
     {
-        Debug.LogError("[SpeechToText] " + message);
+        Debug.LogError("[SpeechToTextWhisper] " + message);
         SetStatus("エラー", false);
         AddBubble("Error", message, false);
         if (responsePanel != null && !responsePanel.text.Contains(message))
@@ -700,7 +779,7 @@ public class SpeechToText : MonoBehaviour
     {
         if (messageBubblePrefab == null || messageContent == null)
         {
-            Debug.LogWarning("[SpeechToText] messageBubblePrefab または messageContent が未設定です。");
+            Debug.LogWarning("[SpeechToTextWhisper] messageBubblePrefab または messageContent が未設定です。");
             return;
         }
 
@@ -713,7 +792,6 @@ public class SpeechToText : MonoBehaviour
         }
     }
 
-    // 送信中は録音以外の操作を止める
     void SetSending(bool sending)
     {
         isSending = sending;

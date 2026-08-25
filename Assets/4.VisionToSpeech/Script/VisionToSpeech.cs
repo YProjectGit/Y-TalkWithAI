@@ -95,6 +95,7 @@ public class VisionToSpeech : MonoBehaviour
     TMP_Text streamModeButtonLabel; // ボタン上のラベル
     Image streamModeButtonImage; // ボタン色
     string lastSetupJsonForDisplay; // Setup ヘッダ用
+    float replyWaitStarted = -1f; // 送信完了（activityEnd）時刻。未計測は -1
 
     const int MaxLogChars = 8000; // ログ欄の上限
     const float StatusBlinkSpeed = 6f; // 点滅の速さ（大きいほど速い）
@@ -517,6 +518,7 @@ public class VisionToSpeech : MonoBehaviour
 
         yield return StartCoroutine(SendJsonCoroutine("{\"realtimeInput\":{\"activityEnd\":{}}}"));
         AppendOutboundLog("activityEnd");
+        replyWaitStarted = Time.realtimeSinceStartup; // 送信完了。返信までの計測用
 
         AddBubble("You", "（キャプチャ " + width + "x" + height + "）", true);
 
@@ -756,6 +758,12 @@ public class VisionToSpeech : MonoBehaviour
     // ターン完了: 吹き出し確定、ビジー解除、再生段階へ
     void OnTurnComplete()
     {
+        if (replyWaitStarted >= 0f)
+        {
+            ResponseTime.Log("合計", replyWaitStarted);
+            replyWaitStarted = -1f;
+        }
+
         string modelText = (outputTranscriptBuffer ?? string.Empty).Trim();
         if (!string.IsNullOrEmpty(modelText))
         {

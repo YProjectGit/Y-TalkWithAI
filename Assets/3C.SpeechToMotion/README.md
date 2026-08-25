@@ -2,7 +2,7 @@
 
 会話の途中で、Gemini Live API がアプリの機能を呼び出します。会話がそのまま、アプリの操作になります。
 
-シリーズ全体の位置づけ → [Docs/demo-series-overview.md](../../Docs/demo-series-overview.md)
+シリーズ全体の位置づけ → [Assets/Docs/demo-series-overview.md](../Docs/demo-series-overview.md)
 
 ---
 
@@ -18,7 +18,7 @@
 ## 事前準備
 
 1. Google AI Studio から Gemini の API にアクセスするための APIキーを取得し、`Assets/Common/APIKey.txt` に保管してください。  
-   手順 → [Docs/gemini-ai-studio-setup.md](../../Docs/gemini-ai-studio-setup.md)
+   手順 → [Assets/Docs/gemini-ai-studio-setup.md](../Docs/gemini-ai-studio-setup.md)
 2. PC にマイクがつながり、Unity から使える状態にしてください（OS のマイク権限を含む）。
 3. スピーカーまたはヘッドホンで再生音が聞こえる状態にしてください。
 
@@ -36,7 +36,7 @@ Project ウィンドウで `Assets/3C.SpeechToMotion/SpeechToMotion.unity` を�
 
 ### 2. Space で速さと大きさを変える
 
-1. **Space を押したまま**、たとえば「もっと速く回して、大きくして」と話し、**離してください**。
+1. **Space を押したまま**、たとえば「もっと速く回して、大きくして」と話し、**離してください**。左の横棒が声に合わせて伸びます。
 2. 右上 **2. toolCall** に `set_cube_motion` と引数（`angularVelocity` / `size`）が出ることを見てください。
 3. 中央下 **3. 送信** に `toolResponse` が増えること、キューブが目標へなめらかに寄っていくことを確認してください。
 4. 返答が声で再生され、右下 **4. transcription** に文字起こしが出ることを聞いて／見てください。
@@ -113,5 +113,6 @@ toolCall が決めるのは**目標**です。画面の値は毎フレーム、�
 | [`GeminiJsonScan`](../Common/Script/GeminiJsonScan.cs) | Live API の受信 JSON からキーを頼りに文字列を拾う |
 | [`GeminiKey`](../Common/Script/GeminiKey.cs) | APIキーの読込・マスク・generateContent の URL |
 | [`AudioCodec`](../Common/Script/AudioCodec.cs) | AudioClip ⇄ WAV / PCM16 の変換 |
+| [`MicLevel`](../Common/Script/MicLevel.cs) | マイク直近窓の RMS → 横棒の 0〜1 |
 
 これらは他のデモも使っています。挙動を変えたくなったら Common を直さず、そのファイルをこのデモの `Script/` にコピーしてクラス名を変えてください。

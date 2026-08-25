@@ -64,6 +64,7 @@ public class ScreenToSpeech : MonoBehaviour
     bool isTurnBusy; // 1ターン送信中（二重送信防止）
     bool playbackCoroutineRunning; // 再生コルーチン稼働中か
     string outputTranscriptBuffer; // 出力 transcription の蓄積
+    float replyWaitStarted = -1f; // 送信完了（activityEnd）時刻。未計測は -1
 
     const string WsEndpoint =
         "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent";
@@ -277,6 +278,7 @@ public class ScreenToSpeech : MonoBehaviour
         yield return StartCoroutine(SendJsonCoroutine(textJson));
 
         yield return StartCoroutine(SendJsonCoroutine("{\"realtimeInput\":{\"activityEnd\":{}}}"));
+        replyWaitStarted = Time.realtimeSinceStartup; // 送信完了。返信までの計測用
         Debug.Log("[ScreenToSpeech] 送信 " + width + "x" + height + " " + jpegBytes.Length + "B");
     }
 
@@ -496,6 +498,12 @@ public class ScreenToSpeech : MonoBehaviour
     // ターン完了: ビジー解除。字幕は残す
     void OnTurnComplete()
     {
+        if (replyWaitStarted >= 0f)
+        {
+            ResponseTime.Log("合計", replyWaitStarted);
+            replyWaitStarted = -1f;
+        }
+
         isTurnBusy = false;
         if (playbackPcmQueue.IsEmpty && (playbackAudioSource == null || !playbackAudioSource.isPlaying))
         {

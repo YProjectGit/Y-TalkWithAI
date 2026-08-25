@@ -20,6 +20,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
 /// Live API の function calling で、声からキューブの角速度とサイズを更新する。
@@ -52,6 +53,7 @@ public class SpeechToMotion : MonoBehaviour
     // ===== インスペクタ: 左ペイン =====
 
     public TMP_Text recordHintText; // Space 押し話しの案内
+    public Image levelMeterFill; // マイク音量の横棒（Image Type = Filled）
     public TMP_Text motionStateText; // 現在値 → 目標値（角速度 / サイズ）
     public TMP_Text statusText; // 接続・録音・返答待ちなど
 
@@ -78,6 +80,8 @@ public class SpeechToMotion : MonoBehaviour
     bool isMicStreaming; // マイクから PCM を送り続けているか
     string microphoneDevice; // マイク名
     AudioClip micClip; // ループ録音用クリップ
+    float displayedLevel; // 横棒の現在値
+    readonly float[] meterSamples = new float[MicLevel.WindowSamples]; // 直近サンプルの読み出し先
     int lastMicSamplePos; // 前回送ったサンプル位置
     float recordingStartedTime; // 手動録音の開始時刻
     long outboundTotalBytes; // 送信累計バイト
@@ -85,6 +89,7 @@ public class SpeechToMotion : MonoBehaviour
     string outputTranscriptBuffer; // 出力 transcription の蓄積
     bool playbackCoroutineRunning; // 再生コルーチン稼働中か
     bool statusBlink; // Status 点滅中か
+    float replyWaitStarted = -1f; // 送信完了（activityEnd）時刻。未計測は -1
 
     // ===== 内部状態: 運動（目標へ漸近） =====
 
@@ -174,6 +179,7 @@ public class SpeechToMotion : MonoBehaviour
         DrainMainThreadActions();
         UpdatePushToTalk();
         PumpMicrophoneChunksIfStreaming();
+        UpdateLevelMeter();
         UpdateStatusBlink();
         StepMotion();
     }
@@ -459,6 +465,7 @@ public class SpeechToMotion : MonoBehaviour
 
         StartCoroutine(SendJsonCoroutine("{\"realtimeInput\":{\"activityEnd\":{}}}"));
         AppendOutboundLog("activityEnd");
+        replyWaitStarted = Time.realtimeSinceStartup; // 送信完了。返信までの計測用
         SetStatus("返答待ち", true);
     }
 
@@ -852,6 +859,12 @@ public class SpeechToMotion : MonoBehaviour
 
     void OnTurnComplete()
     {
+        if (replyWaitStarted >= 0f)
+        {
+            ResponseTime.Log("合計", replyWaitStarted);
+            replyWaitStarted = -1f;
+        }
+
         string userText = (inputTranscriptBuffer ?? string.Empty).Trim();
         string modelText = (outputTranscriptBuffer ?? string.Empty).Trim();
         if (!string.IsNullOrEmpty(userText) || !string.IsNullOrEmpty(modelText))
@@ -1125,6 +1138,20 @@ public class SpeechToMotion : MonoBehaviour
         }
 
         transcriptionText.text = current;
+    }
+
+    // 送信中クリップの大きさを横棒の長さにする（計算は MicLevel）
+    void UpdateLevelMeter()
+    {
+        if (levelMeterFill == null)
+        {
+            return;
+        }
+
+        int position = microphoneDevice != null ? Microphone.GetPosition(microphoneDevice) : -1;
+        float target = MicLevel.ReadBar(micClip, position, meterSamples, true, displayedLevel);
+        displayedLevel = MicLevel.Smooth(displayedLevel, target, Time.deltaTime);
+        levelMeterFill.fillAmount = displayedLevel;
     }
 
     void SetStatus(string statusJapanese, bool blink)

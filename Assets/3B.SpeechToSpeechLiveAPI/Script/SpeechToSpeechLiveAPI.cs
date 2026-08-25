@@ -46,6 +46,7 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
 
     public TMP_InputField systemInstructionField; // systemInstruction。空なら Setup に載せない
     public TMP_Text recordHintText; // Space / VAD モードの案内
+    public Image levelMeterFill; // マイク音量の横棒（Image Type = Filled）
     public Button vadModeButton; // VAD 自動モードのトグル（Message 行のボタン）
     public Transform messageContent; // バブルを並べる Content
     public ChatBubble messageBubblePrefab; // 1A と同型の吹き出し Prefab
@@ -82,6 +83,8 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
     bool isConnected; // ソケットが Open か
     string microphoneDevice; // マイク名
     AudioClip micClip; // ループ録音用クリップ
+    float displayedLevel; // 横棒の現在値
+    readonly float[] meterSamples = new float[MicLevel.WindowSamples]; // 直近サンプルの読み出し先
     int lastMicSamplePos; // 前回送ったサンプル位置
     float recordingStartedTime; // 手動モードの録音開始時刻
     long outboundTotalBytes; // 送信累計バイト
@@ -97,6 +100,8 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
     TMP_Text vadModeButtonLabel; // ボタン上のラベル（Start で取得）
     Image vadModeButtonImage; // ボタン色（ON/OFF 表示用）
     string lastSetupJsonForDisplay; // Setup ヘッダに添える直近の Setup JSON
+    float replyWaitStarted = -1f; // 送信完了時刻。未計測は -1
+    bool replyWaitFrozen; // VAD 自動で、返信が始まったら起点を動かさない
 
     const int MicClipSeconds = 2; // マイクのリングバッファ長さ（秒）
     const int MaxLogChars = 8000; // ログ欄の上限（古い先頭を捨てる）
@@ -149,6 +154,7 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         DrainMainThreadActions();
         UpdatePushToTalk();
         PumpMicrophoneChunksIfStreaming();
+        UpdateLevelMeter();
         UpdateStatusBlink();
     }
 
@@ -494,6 +500,7 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
 
         StartCoroutine(SendJsonCoroutine("{\"realtimeInput\":{\"activityEnd\":{}}}"));
         AppendOutboundLog("activityEnd");
+        replyWaitStarted = Time.realtimeSinceStartup; // 送信完了。返信までの計測用
         SetOutboundStatus("—");
         SetInboundStatus("受信待ち");
         SetStatus("返答待ち", true);
@@ -821,6 +828,10 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
                         "+audio " + len + "B / total " + inboundTotalBytes + "B  " + playbackSampleRate + "Hz");
                     SetStage(Stage.ReceivePcm);
                     SetInboundStatus("受信中");
+                    if (vadAutoMode)
+                    {
+                        replyWaitFrozen = true;
+                    }
                 });
             }
             catch (FormatException)
@@ -834,6 +845,11 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
     {
         inputTranscriptBuffer = (inputTranscriptBuffer ?? string.Empty) + fragment;
         AppendTranscriptionLog("in: " + fragment);
+        // VAD 自動は activityEnd が無いので、最後の入力 transcription を送信完了とみなす
+        if (vadAutoMode && !replyWaitFrozen)
+        {
+            replyWaitStarted = Time.realtimeSinceStartup;
+        }
     }
 
     void OnOutputTranscription(string fragment)
@@ -841,11 +857,23 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         outputTranscriptBuffer = (outputTranscriptBuffer ?? string.Empty) + fragment;
         AppendTranscriptionLog("out: " + fragment);
         SetStage(Stage.ReceivePcm);
+        if (vadAutoMode)
+        {
+            replyWaitFrozen = true;
+        }
     }
 
     // ターン完了: 吹き出しを確定し、再生段階へ
     void OnTurnComplete()
     {
+        if (replyWaitStarted >= 0f)
+        {
+            ResponseTime.Log("合計", replyWaitStarted);
+            replyWaitStarted = -1f;
+        }
+
+        replyWaitFrozen = false;
+
         string userText = (inputTranscriptBuffer ?? string.Empty).Trim();
         string modelText = (outputTranscriptBuffer ?? string.Empty).Trim();
         if (!string.IsNullOrEmpty(userText))
@@ -1076,6 +1104,20 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         {
             inboundStatusText.text = text;
         }
+    }
+
+    // 送信中クリップの大きさを横棒の長さにする（計算は MicLevel）
+    void UpdateLevelMeter()
+    {
+        if (levelMeterFill == null)
+        {
+            return;
+        }
+
+        int position = microphoneDevice != null ? Microphone.GetPosition(microphoneDevice) : -1;
+        float target = MicLevel.ReadBar(micClip, position, meterSamples, true, displayedLevel);
+        displayedLevel = MicLevel.Smooth(displayedLevel, target, Time.deltaTime);
+        levelMeterFill.fillAmount = displayedLevel;
     }
 
     // Status 欄を日本語で更新する。blink=true のとき点滅（接続中 / 応答待ち用）
