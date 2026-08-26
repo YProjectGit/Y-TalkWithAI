@@ -7,6 +7,8 @@
 
 テキストをGeminiのAPIへ送信すると、AIからの返答がテキストで表示されます。
 
+学習のため、通信の生データが見えるようになっています。
+
 <br/>
 
 ---
@@ -37,14 +39,16 @@
 
 ### APIキーの取得
 
-GeminiAPIにアクセスするには、Google AI Studioのアカウントを取得し、自分がGemini API にアクセスするための **APIキー**を取得する必要があります。
+- GeminiAPIにアクセスするには、Google AI Studioのアカウントを取得し、自分がGemini API にアクセスするための **APIキー**を取得する必要があります。
+- アカウント取得からAPIキーの取得するまでの手順はこちらを参照してください。
+  [Assets/Docs/gemini-ai-studio-setup.md](../Docs/gemini-ai-studio-setup.md)  
+- APIキーを取得したら、UnityEditor内にある
+  **`Assets/Common/APIKey.txt`** 
+  にAPIキーをコピペして補完してください。 
+- APIキーは、**自分の課金でAPIに自由にアクセスできるチケット**なので、絶対に他人に見せないでください。アプリを公開することも絶対しないでください。容易にハッキングされます。
+- もし、APIKeyが他人に漏れるような事態になれば **Google AI Studio でAPIKeyを削除し、作り直してください**。 
 
-- `Assets/Common/APIKey.txt` 
 
-に保管してください。 
-
-アカウント取得からAPIキーの取得するまでの手順はこちらを参照してください。
-[Assets/Docs/gemini-ai-studio-setup.md](../Docs/gemini-ai-studio-setup.md)  
 
 <br/>
 
@@ -156,9 +160,9 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
 
 <br/>
 
-例：Gemini2.0（Google Cloudの大規模言語モデル）のAPIへにアクセスするURL
+例：Gemini3.1（Google Cloudの大規模言語モデル）のAPIへにアクセスするURL
 
-`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=(自分のAPIキー)`
+`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=(自分のAPIキー)`
 
 <br/>
 
@@ -199,10 +203,11 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
 
  <br/>
 
-**Gemini2.0へのリクエストのJSON（最小限）**
+**GeminiへのリクエストのJSON（最小限）**
 
 ```json
-{"contents": [
+{
+    "contents": [
     {
       "role": "user",
       "parts": [
@@ -214,6 +219,17 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
   ]
 }
 ```
+
+  <br/>
+
+1. **`contents`**
+   会話の配列。1回の発言が1件のオブジェクトになる。
+2. **`role`**
+   誰の発言か。`user` が自分、`model` が AI。
+3. **`parts`**
+   その発言の部品。このデモではテキスト1つだけを入れる。
+4. **`text`**
+   実際の文章。
 
   <br/>
 
@@ -252,14 +268,21 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
       }
     ]
   },
-  "modelVersion": "gemini-2.0-flash-lite",
+  "modelVersion": "gemini-3.1-flash-lite",
   "responseId": "XweQaLybIregnvgPpaC-qQI"
 }
 ```
 
 <br/>
 
-  
+1. **`candidates`**
+   候補の答えの配列。このデモでは先頭（`candidates[0]`）のテキストを使う。
+2. **`content`**
+   モデルの返答。中の `role` / `parts` / `text` はリクエストと同じ形。
+4. **`usageMetadata`**
+   使ったトークン数（入力・出力・合計）。
+
+<br/>
 
 ---
 
@@ -267,13 +290,37 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
 
   <br/>
 
-会話のメッセージとは別に、「答えるときの前提」をあらかじめ渡す欄です。
+- 返答の方針や口調を、あらかじめ指定する（例：「関西弁で答えて」など）指示文を**SystemInstruction**といいます。
 
-たとえ話で言うと、チャット本文が「今日の質問」なら、事前指示は「この人は丁寧語で、短く答えてください」のような **役割やルールのメモ** です。Gemini はこのメモを踏まえて、あとの質問に答えます。欄が空のときは Request に `"systemInstruction"` 自体が出ず、文字があるときだけ載ります。
-
-試し方: 指示を「必ず一行で、やさしい言葉で答えてください」などに変え、同じ質問を送る。左の答え方と、中央 Request に事前指示が入っているかを見比べる。
+- Gemini APIへのリクエストJSONで以下のように指定されます。
 
   <br/>
+
+**System Instructionを入れたリクエストのJSON**
+
+```json
+{
+  "systemInstruction": {　// ← SytemInstrunctionの指定
+    "parts": [
+      {
+        "text": "必ず一行で、元気な関西弁で答えてください"
+      }
+    ]
+  },
+  "contents": [
+    {
+      "role": "user",
+      "parts": [
+        {
+          "text": "こんにちは、今日の天気を教えてください。"
+        }
+      ]
+    }
+  ]
+}
+```
+
+<br/>
 
 ---
 
@@ -281,27 +328,23 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
 
 <br/>
 
-一般にコンテキストとは、AI が「いまこの答えを出すために見ている範囲」のことです。会話の履歴、直前の指示、コードを書くときの開いているファイルやエラーメッセージなど、判断材料になる情報すべてがここに入ります。
+- **コンテキスト**とは、AI が「**いまこの答えを出すために見ている範囲**」のことです。会話の履歴、直前の指示、添付ファイルなど、判断材料になる情報すべてが対象です。
 
-モデルが一度に見られる量には上限があり、これを **コンテキストウィンドウ**（何トークンまで入るか）と呼びます。最近のコーディング向けモデルには数十万〜100万トークンを扱えるものも多く、大きなプロジェクトのコードや長い会話をまとめて渡せます。ただし上限を超えたぶんは切られたり要約されたりします。「全部覚えてくれている」わけではありません。
+- 自分が前に話したことをAIが覚えているように見えるのは、AIが勝手に内部で会話記憶しているからではなく、**メッセージの送信のたびに、これまでの会話履歴をコンテキストとして全て送り直している**からです。
 
-チャットで「さっきの名前、覚えてる？」が通じるのも、AI が勝手に記憶しているからではなく、**こちらがこれまでのやりとりを毎回一緒に送り直している**からです。このデモでは、その「一緒に送る履歴」をコンテキストと呼び、Option の **コンテキストを送る** で載せ方を切り替えられます。
+- このデモでは 「**コンテキストを送る**」オプションのON／OFFで、コンテキストとして会話履歴を送信するかどうかを切り替えることが出来ます。
+
+- デフォルトはONですが、これをOFFにするとAIはチャットの度に記憶喪失になったかのようにふるまいます。
+
+  
 
 <br/>
 
-**会話履歴込みのGemini2.0へのリクエストのJSON**
+**コンテキスト（会話履歴）ありのGeminiへのリクエストのJSON**
 
 ```json
 {
   "contents": [
-    {
-      "role": "user",
-      "parts": [
-        {
-          "text": "回答は簡潔に150文字以内で答えてください。"
-        }
-      ]
-    },
     {
       "role": "user",
       "parts": [
@@ -325,22 +368,6 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
           "text": "私の好きな動物はなんですか？"
         }
       ]
-    },
-    {
-      "role": "model",
-      "parts": [
-        {
-          "text": "あなたの好きな動物は犬です。"
-        }
-      ]
-    },
-    {
-      "role": "user",
-      "parts": [
-        {
-          "text": "なんでそう思いますか？"
-        }
-      ]
     }
   ]
 }
@@ -348,18 +375,29 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
 
 <br/>
 
-| Option | 意味（体験） | API に載るもの | 左の吹き出し |
-|--------|--------------|----------------|--------------|
-| **ON** | いつものチャット。前の発言を踏まえて答える | これまでのやりとり全部 | そのまま増える |
-| **OFF** | 毎回「初めまして」に近い状態 | **いま打った一文だけ** | 見た目のログとしては残る |
+**コンテキストなしのGeminiへのリクエストのJSON**
+
+```json
+{
+  "contents": [
+    {
+      "role": "user",
+      "parts": [
+        {
+          "text": "私の好きな動物はなんですか？"
+        }
+      ]
+    }
+  ]
+}
+```
+
+
 
 <br/>
 
-試し方:
-
-1. Option を **ON** のまま「私の名前は太郎です」→「私の名前は？」と送る（覚えて答えるはず）
-2. Option を **OFF** にして、同じように名前を伝えたあと「私の名前は？」と聞く（覚えていないように見えることが多い）
-3. 毎回、中央 Request の `contents` が何件あるかを見比べる
+- モデルが一度に見られる量には上限があり、これを **コンテキストウィンドウ**（何トークンまで入るか）と呼びます。
+- 最近のコーディング向けモデルには**数十万〜100万トークン**を扱えるものも多く、大きなプロジェクトのコードや長い会話をまとめて渡せます。ただし上限を超えたぶんは切られたり要約されたりします。
 
 <br/> 
 
@@ -371,33 +409,42 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
 
 ### TextToText（[`TextToText.cs`](Script/TextToText.cs)）
 
+<br/>
+
 デモの本体です。上から、送信後の流れを追うとわかりやすいです。
 
 通信は **UnityWebRequest**（HTTP の送受信）と **コルーチン**（`IEnumerator` + `yield`）による **非同期処理** です。コルーチンは `Update` などのメインスレッドの処理とは独立した時間軸で進むので、応答待ちのあいだも画面が固まりません。
 
+<br/>
+
 1. **起動時の準備をする**  
    `Start` — APIキー読込、`SystemInstruction.txt` → UI、送信ボタン／Enter の購読
+   <br/>
 2. **送信を始める**  
    `OnSendClicked` → `StartCoroutine(SendChatCoroutine)` — 送信の入口（直前に systemInstruction を同期）
+   <br/>
 3. **API と通信する**  
    `SendChatCoroutine` — 通信本体  
    - 履歴に user 追加 → `BuildRequestJson` → `UnityWebRequest` で POST  
    - `yield return request.SendWebRequest()` で応答待ち  
    - Response 表示 → テキスト抽出 → 履歴に model 追加
+     <br/>
 4. **リクエスト JSON を組み立てる**  
    `BuildRequestJson` — `systemInstruction`（空ならキーごと省略）と `contents` を組み立てる（Toggle OFF なら今回の user のみ）
+   <br/>
 5. **返答テキストを取り出す**  
    `GeminiTextResponse.TryExtractText` — レスポンス JSON から返答テキストを取り出す（共通スクリプト）
+   <br/>
 6. **送受信を画面に出す**  
    `ShowRequest` / `ShowResponse` — 中央・右ペインへの可視化
 
 <br/>
 
-### 共通スクリプト（`Assets/Common/Script/`）
+### 共通ライブラリ（`Assets/Common/Script/`）
 
 <br/>
 
-このデモが使っている共通の道具です。シンプルなユーティリティクラスなので**上の流れを追うときに中身を読む必要はありません。**
+このデモが使っている共通のライブラリです。シンプルなユーティリティクラスなので**上の流れを追うときに中身を読む必要はありません。**
 
 | ファイル | 中身 |
 |---|---|
