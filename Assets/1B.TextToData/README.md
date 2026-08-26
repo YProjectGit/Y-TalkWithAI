@@ -1,4 +1,4 @@
-# 1B.TextToJSON
+# 1B.TextToData
 
 自然言語ではなく、フォーマット化されたデータで返事を返します。プログラムがそのまま解釈できる形になるので、多様なインタラクションを実現できます。
 
@@ -27,7 +27,7 @@ Google AI Studio から Gemini の API にアクセスするための APIキー�
 
 ## 動かし方
 
-Project ウィンドウで `Assets/1B.TextToJSON/TextToJSON.unity` を開き、Play を押してください。
+Project ウィンドウで `Assets/1B.TextToData/TextToData.unity` を開き、Play を押してください。
 
 ### 1. 文字を送ってキューブの色を変える
 
@@ -95,7 +95,7 @@ Gemini へのリクエストにこのスキーマを含めると、モデルは�
 
 ## 主要クラス
 
-### TextToJSON（[`TextToJSON.cs`](Script/TextToJSON.cs)）
+### TextToData（[`TextToData.cs`](Script/TextToData.cs)）
 
 デモの本体です。上から、送信後の流れを追うとわかりやすいです。
 

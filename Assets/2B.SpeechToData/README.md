@@ -1,4 +1,4 @@
-# 2B.SpeechToJSON
+# 2B.SpeechToData
 
 声で受け取った指示を、フォーマット化されたデータとして返します。話しかけるだけで、アプリの見た目や設定を変えられます。
 
@@ -25,7 +25,7 @@
 
 ## 動かし方
 
-Project ウィンドウで `Assets/2B.SpeechToJSON/SpeechToJSON.unity` を開き、Play を押してください。
+Project ウィンドウで `Assets/2B.SpeechToData/SpeechToData.unity` を開き、Play を押してください。
 
 ### 1. Space で色を変えてみる
 
@@ -55,7 +55,7 @@ Project ウィンドウで `Assets/2B.SpeechToJSON/SpeechToJSON.unity` を開き
 
 ## 構造化出力とスキーマ
 
-構造化出力とは、自由文ではなく **決まった形の JSON** で返してもらうことです。スキーマはその形の約束で、このデモでは `cubeColor` / `backgroundColor` の `r` / `g` / `b` を **`NUMBER`（0〜1）** で受け取ります（`1B.TextToJSON` と同じ）。
+構造化出力とは、自由文ではなく **決まった形の JSON** で返してもらうことです。スキーマはその形の約束で、このデモでは `cubeColor` / `backgroundColor` の `r` / `g` / `b` を **`NUMBER`（0〜1）** で受け取ります（`1B.TextToData` と同じ）。
 
 3. Request の `generationConfig.responseSchema` と、4. Response の JSON、左のキューブ色を見比べてください。
 
@@ -63,7 +63,7 @@ Project ウィンドウで `Assets/2B.SpeechToJSON/SpeechToJSON.unity` を開き
 
 ## 主要クラス
 
-### SpeechToJSON（[`SpeechToJSON.cs`](Script/SpeechToJSON.cs)）
+### SpeechToData（[`SpeechToData.cs`](Script/SpeechToData.cs)）
 
 デモの本体です。上から、録音〜文字起こし〜構造化 JSON〜色反映の流れを追うとわかりやすいです。
 

@@ -112,6 +112,9 @@ InitTestScene*.unity*
 .claude/
 .codex/
 
+# APIキー（各自配置。リポジトリに実キーを入れない）
+/Assets/Common/APIKey.txt
+
 # 2C の Resource（モデル・ネイティブライブラリは各自配置）
 /Assets/2C.SpeechToTextLocal/Resource/
 /Assets/2C.SpeechToTextLocal/Resource.meta

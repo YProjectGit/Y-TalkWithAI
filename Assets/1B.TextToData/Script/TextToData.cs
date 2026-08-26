@@ -1,4 +1,4 @@
-// TextToJSON.cs
+// TextToData.cs
 // Gemini の構造化出力（JSON）で、3D キューブの色とカメラ背景色を変えるデモの本体。
 // 中央に Schema（形の約束）、右に構造化された Response を出し、パース結果を左の 3D に反映する。
 //
@@ -21,7 +21,7 @@ using UnityEngine.UI;
 /// <summary>
 /// Gemini generateContent の構造化出力で色を受け取り、キューブとカメラ背景へ反映する。
 /// </summary>
-public class TextToJSON : MonoBehaviour
+public class TextToData : MonoBehaviour
 {
     // ===== インスペクタ: 設定 =====
 
@@ -464,7 +464,7 @@ public class TextToJSON : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogError("[TextToJSON] 応答 JSON 解析失敗: " + e.Message);
+            Debug.LogError("[TextToData] 応答 JSON 解析失敗: " + e.Message);
             return false;
         }
 
@@ -493,7 +493,7 @@ public class TextToJSON : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogError("[TextToJSON] 構造化 JSON のパース失敗: " + e.Message);
+            Debug.LogError("[TextToData] 構造化 JSON のパース失敗: " + e.Message);
             return false;
         }
 
@@ -512,7 +512,7 @@ public class TextToJSON : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("[TextToJSON] cubeRenderer が未設定です。");
+            Debug.LogWarning("[TextToData] cubeRenderer が未設定です。");
         }
 
         Camera cam = targetCamera != null ? targetCamera : Camera.main;
@@ -527,7 +527,7 @@ public class TextToJSON : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("[TextToJSON] カメラが見つかりません。");
+            Debug.LogWarning("[TextToData] カメラが見つかりません。");
         }
 
         return true;
@@ -551,7 +551,7 @@ public class TextToJSON : MonoBehaviour
         string error;
         if (!GeminiKey.TryRead(apiKeyRelativePath, out apiKey, out error))
         {
-            Debug.LogError("[TextToJSON] " + error);
+            Debug.LogError("[TextToData] " + error);
             SetStatus("エラー", false);
             if (responseText != null)
             {
@@ -561,7 +561,7 @@ public class TextToJSON : MonoBehaviour
             return;
         }
 
-        Debug.Log("[TextToJSON] APIキーを読み込みました（長さ " + apiKey.Length + "）。キー自体はログに出しません。");
+        Debug.Log("[TextToData] APIキーを読み込みました（長さ " + apiKey.Length + "）。キー自体はログに出しません。");
     }
 
     // ----- UI 更新 -----
@@ -633,7 +633,7 @@ public class TextToJSON : MonoBehaviour
     // エラーを Status と Response に出す（吹き出しは使わない）
     void ShowError(string message)
     {
-        Debug.LogError("[TextToJSON] " + message);
+        Debug.LogError("[TextToData] " + message);
         SetStatus("エラー", false);
         if (responseText != null)
         {

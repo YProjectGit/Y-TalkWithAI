@@ -1,4 +1,4 @@
-// SpeechToJSON.cs
+// SpeechToData.cs
 // 2A の音声入力と 1B の構造化出力を組み合わせた派生デモ。
 // Space 押し話し → マイク録音 → WAV → STT → スキーマ付き JSON → キューブ／背景色。
 //
@@ -27,7 +27,7 @@ using UnityEngine.UI;
 /// <summary>
 /// マイク発話を文字起こしし、構造化 JSON でキューブ色と背景色を更新する。
 /// </summary>
-public class SpeechToJSON : MonoBehaviour
+public class SpeechToData : MonoBehaviour
 {
     // ===== インスペクタ: 設定 =====
 
@@ -268,12 +268,12 @@ public class SpeechToJSON : MonoBehaviour
         if (Microphone.devices == null || Microphone.devices.Length == 0)
         {
             microphoneDevice = null;
-            Debug.LogWarning("[SpeechToJSON] マイクデバイスが見つかりません。");
+            Debug.LogWarning("[SpeechToData] マイクデバイスが見つかりません。");
             return;
         }
 
         microphoneDevice = Microphone.devices[0];
-        Debug.Log("[SpeechToJSON] マイクを使用します: " + microphoneDevice);
+        Debug.Log("[SpeechToData] マイクを使用します: " + microphoneDevice);
     }
 
     // 待機中もレベルを出すため、1秒ループでマイクを開き続ける
@@ -537,7 +537,7 @@ public class SpeechToJSON : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogError("[SpeechToJSON] JSON 解析失敗: " + e.Message);
+            Debug.LogError("[SpeechToData] JSON 解析失敗: " + e.Message);
             return false;
         }
 
@@ -566,7 +566,7 @@ public class SpeechToJSON : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogError("[SpeechToJSON] 構造化 JSON のパース失敗: " + e.Message);
+            Debug.LogError("[SpeechToData] 構造化 JSON のパース失敗: " + e.Message);
             return false;
         }
 
@@ -584,7 +584,7 @@ public class SpeechToJSON : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("[SpeechToJSON] cubeRenderer が未設定です。");
+            Debug.LogWarning("[SpeechToData] cubeRenderer が未設定です。");
         }
 
         Camera cam = targetCamera != null ? targetCamera : Camera.main;
@@ -599,7 +599,7 @@ public class SpeechToJSON : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("[SpeechToJSON] カメラが見つかりません。");
+            Debug.LogWarning("[SpeechToData] カメラが見つかりません。");
         }
 
         return true;
@@ -751,13 +751,13 @@ public class SpeechToJSON : MonoBehaviour
         string error;
         if (!GeminiKey.TryRead(apiKeyRelativePath, out apiKey, out error))
         {
-            Debug.LogError("[SpeechToJSON] " + error);
+            Debug.LogError("[SpeechToData] " + error);
             SetStatus("エラー", false);
             SetPanelPlaceholder(audioResponseText, error);
             return;
         }
 
-        Debug.Log("[SpeechToJSON] APIキーを読み込みました（長さ " + apiKey.Length + "）。キー自体はログに出しません。");
+        Debug.Log("[SpeechToData] APIキーを読み込みました（長さ " + apiKey.Length + "）。キー自体はログに出しません。");
     }
 
     // 直近サンプルの大きさを横棒の長さにする（計算は MicLevel、Image 更新だけここ）
@@ -817,7 +817,7 @@ public class SpeechToJSON : MonoBehaviour
     // エラーを Status と該当レスポンス欄に出す
     void ShowError(string message, TMP_Text responsePanel)
     {
-        Debug.LogError("[SpeechToJSON] " + message);
+        Debug.LogError("[SpeechToData] " + message);
         SetStatus("エラー", false);
         if (responsePanel != null && !responsePanel.text.Contains(message))
         {

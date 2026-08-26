@@ -1,4 +1,4 @@
-// SpeechToMotion.cs
+// SpeechToFunction.cs
 // 3B の Live API（WebSocket・音声↔音声）に、function calling でキューブの運動を載せるデモ。
 // 声の指示 → toolCall（set_cube_motion）→ 目標の角速度 XYZ / サイズ XYZ を更新 → toolResponse → 声で確認。
 // 画面上の値は目標へ lerp（指数減衰）で漸近する。向きと速さは符号付き角速度（ワールド XYZ）。
@@ -25,13 +25,13 @@ using UnityEngine.UI;
 /// <summary>
 /// Live API の function calling で、声からキューブの角速度とサイズを更新する。
 /// </summary>
-public class SpeechToMotion : MonoBehaviour
+public class SpeechToFunction : MonoBehaviour
 {
     // ===== インスペクタ: 設定 =====
 
     public string modelName = "gemini-3.1-flash-live-preview"; // Live モデル名（Setup の models/ 以下）
     public string apiKeyRelativePath = "Common/APIKey.txt"; // Assets/ からの相対パス
-    public string systemInstructionRelativePath = "3C.SpeechToMotion/Resource/SystemInstruction.txt"; // このデモ用の事前指示
+    public string systemInstructionRelativePath = "3C.SpeechToFunction/Resource/SystemInstruction.txt"; // このデモ用の事前指示
     public int sampleRate = 16000; // 送信 PCM のサンプルレート（Hz）
     public int maxRecordingSeconds = 30; // Space 押し話しの上限秒数
     public float minRecordingSeconds = 0.3f; // これより短い発話は送らない
@@ -422,7 +422,7 @@ public class SpeechToMotion : MonoBehaviour
         isConnected = true;
         SetStatus("接続済み（Space で送信）", false);
         AppendOutboundLog("setupComplete 受信");
-        Debug.Log("[SpeechToMotion] Live セッション準備完了（tools: set_cube_motion）");
+        Debug.Log("[SpeechToFunction] Live セッション準備完了（tools: set_cube_motion）");
     }
 
     // Setup: 手動 VAD + AUDIO + transcription + functionDeclarations
@@ -1367,7 +1367,7 @@ public class SpeechToMotion : MonoBehaviour
 
     void ShowError(string message)
     {
-        Debug.LogError("[SpeechToMotion] " + message);
+        Debug.LogError("[SpeechToFunction] " + message);
         SetStatus("エラー", false);
         AppendOutboundLog("[Error] " + message);
     }
@@ -1379,12 +1379,12 @@ public class SpeechToMotion : MonoBehaviour
         if (Microphone.devices == null || Microphone.devices.Length == 0)
         {
             microphoneDevice = null;
-            Debug.LogWarning("[SpeechToMotion] マイクがありません。");
+            Debug.LogWarning("[SpeechToFunction] マイクがありません。");
             return;
         }
 
         microphoneDevice = Microphone.devices[0];
-        Debug.Log("[SpeechToMotion] マイク: " + microphoneDevice);
+        Debug.Log("[SpeechToFunction] マイク: " + microphoneDevice);
     }
 
     void EnsurePlaybackAudioSource()
@@ -1414,7 +1414,7 @@ public class SpeechToMotion : MonoBehaviour
         string error;
         if (!GeminiKey.TryRead(apiKeyRelativePath, out apiKey, out error))
         {
-            Debug.LogError("[SpeechToMotion] " + error);
+            Debug.LogError("[SpeechToFunction] " + error);
             return;
         }
     }
@@ -1454,7 +1454,7 @@ public class SpeechToMotion : MonoBehaviour
             }
             catch (Exception e)
             {
-                Debug.LogError("[SpeechToMotion] メインスレッド処理例外: " + e.Message);
+                Debug.LogError("[SpeechToFunction] メインスレッド処理例外: " + e.Message);
             }
         }
     }

@@ -1,4 +1,4 @@
-# 3C.SpeechToMotion
+# 3C.SpeechToFunction
 
 会話の途中で、Gemini Live API がアプリの機能を呼び出します。会話がそのまま、アプリの操作になります。
 
@@ -26,7 +26,7 @@
 
 ## 動かし方
 
-Project ウィンドウで `Assets/3C.SpeechToMotion/SpeechToMotion.unity` を開き、Play を押してください。
+Project ウィンドウで `Assets/3C.SpeechToFunction/SpeechToFunction.unity` を開き、Play を押してください。
 
 ### 1. 接続と初期の回転を見る
 
@@ -57,7 +57,7 @@ Function calling とは、モデルが自由文だけで答えるのではなく
 
 1B / 2B の構造化出力は、JSON が**答えそのもの**でした。こちらは JSON が**動作の依頼**で、クライアントが実行し、結果を会話に戻します。このデモでは Setup の `systemInstruction` で「いつこの関数を使うか」を伝え、`tools.functionDeclarations` に `set_cube_motion` の形を載せます。声の指示はその引数になります。
 
-宣言は [`SpeechToMotion.cs`](Script/SpeechToMotion.cs) の `FunctionDeclarationJson` です。説明文は英語で送り、中央の **1. Setup** に同じものが出ます。
+宣言は [`SpeechToFunction.cs`](Script/SpeechToFunction.cs) の `FunctionDeclarationJson` です。説明文は英語で送り、中央の **1. Setup** に同じものが出ます。
 
 ### `set_cube_motion`
 
@@ -118,7 +118,7 @@ toolCall が決めるのは**目標**です。画面の値は毎フレーム、�
 
 ## 主要クラス
 
-### SpeechToMotion（[`SpeechToMotion.cs`](Script/SpeechToMotion.cs)）
+### SpeechToFunction（[`SpeechToFunction.cs`](Script/SpeechToFunction.cs)）
 
 デモの本体です。上から、接続〜発話〜 toolCall 実行〜漸近の順に追うとわかりやすいです。
 
