@@ -43,7 +43,7 @@
 - アカウント取得からAPIキーの取得するまでの手順はこちらを参照してください。
   [Assets/Docs/gemini-ai-studio-setup.md](../Docs/gemini-ai-studio-setup.md)  
 - APIキーを取得したら、UnityEditor内にある
-  **`Assets/Common/APIKey.txt`** 
+  `Assets/Common/APIKey.txt`
   にAPIキーをコピペして補完してください。 
 - APIキーは、**自分の課金でAPIに自由にアクセスできるチケット**なので、絶対に他人に見せないでください。アプリを公開することも絶対しないでください。容易にハッキングされます。
 - もし、APIKeyが他人に漏れるような事態になれば **Google AI Studio でAPIKeyを削除し、作り直してください**。 
@@ -59,6 +59,10 @@
  <br/>
 
 Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、Playしてください。
+
+
+
+![image-20260826135250665](../Common/Image/image-20260826135250665.png)
 
 ### 1. チャットをしてみる
 
