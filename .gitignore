@@ -115,9 +115,18 @@ InitTestScene*.unity*
 # APIキー（プレースホルダのみリポジトリに含める。実キーはコミットしない）
 /Assets/Common/APIKey.txt
 
-# 2C の Resource（モデル・ネイティブライブラリは各自配置）
+# 2C の Resource（モデル・ネイティブライブラリは各自配置。フォルダ骨格は残す）
 /Assets/2C.SpeechToTextLocal/Resource/
 /Assets/2C.SpeechToTextLocal/Resource.meta
+/Assets/2C.(SpeechToTextLocal)/Resource/models/*
+!/Assets/2C.(SpeechToTextLocal)/Resource/models/.gitkeep
+!/Assets/2C.(SpeechToTextLocal)/Resource/models/.gitkeep.meta
+/Assets/2C.(SpeechToTextLocal)/Resource/Plugins/**/*.dll
+/Assets/2C.(SpeechToTextLocal)/Resource/Plugins/**/*.dll.meta
+/Assets/2C.(SpeechToTextLocal)/Resource/Plugins/**/*.dylib
+/Assets/2C.(SpeechToTextLocal)/Resource/Plugins/**/*.dylib.meta
+/Assets/2C.(SpeechToTextLocal)/Resource/Plugins/**/*.so
+/Assets/2C.(SpeechToTextLocal)/Resource/Plugins/**/*.so.meta
 
 # Python
 __pycache__/

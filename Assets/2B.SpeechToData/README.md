@@ -1,101 +1,89 @@
-# 2B.SpeechToData
-
-
+# 2B. SpeechToData
 
 ![speech-to-data](../Docs/Image/speech-to-data.png)
 
-声で受け取った指示を、フォーマット化されたデータとして返します。話しかけるだけで、アプリの見た目や設定を変えられます。
+<br/>
 
-シリーズ全体の位置づけ → [Assets/Docs/demo-series-overview.md](../Docs/demo-series-overview.md)
+声で受け取った指示を、文章ではなく**プログラム内で解釈できるJSON形式データ**として受け取るアプリケーションです。
 
----
+マイクで話した内容が文字起こしされたあと、**1B.TextToDataのデモ**と同じく3Dキューブと背景の色が変わります。
 
-## このデモで学べること
-
-- **音声入力と構造化出力**  
-  声で受け取った指示を、決まった形の JSON にして返す
-- **パラメータへの反映**  
-  受け取った値を、アプリの見た目や動作につなげる
+<br/>
 
 ---
 
-## 事前準備
+## このデモで学ぶこと
 
-1. Google AI Studio から Gemini の API にアクセスするための APIキーを取得し、`Assets/Common/APIKey.txt` に保管してください。  
-   手順 → [Assets/Docs/gemini-ai-studio-setup.md](../Docs/gemini-ai-studio-setup.md)
-2. PC にマイクがつながり、Unity から使える状態にしてください（OS のマイク権限を含む）。
+<br/>
 
----
+このデモは、これまでの **[TextToData](../1B.TextToData/README.md)**と、**[SpeechToText](../2A.SpeechToText/README.md)**の組み合わせです。
 
-## 動かし方
+下記の要素それぞれについては、上記のリンクから参照してください。
 
-Project ウィンドウで `Assets/2B.SpeechToData/SpeechToData.unity` を開き、Play を押してください。
+- ### STT（Speech-to-Text）
 
-### 1. Space で色を変えてみる
+- ### 構造化出力
 
-1. Play したら、左の Message 下の横棒が声に合わせて伸びることを見てください。
-2. **Space を押したまま**、たとえば「キューブは夕焼けのオレンジ、背景は夜の紺」と話し、**離してください**。
-3. Status が「録音中」→「音声データ変換中」→「1. Request」→「3. Request」と進むことを見てください。
-4. 左の **3D キューブの色** と **背景色** が変わること、認識テキスト欄に文字起こしが出ることを確認してください。
-
-### 2. 発生順（1〜4）で Request / Response を追う
-
-どちらも Gemini の `generateContent` です。番号は呼ばれた順番です。
-
-1. **1. Request - GenerateContent（Audio）** … 音声（`inlineData` / `audio/wav`）を送る  
-2. **2. Response - GenerateContent（Audio）** … 文字起こしが返る  
-3. **3. Request - GenerateContent（Text）** … 認識テキスト＋`responseSchema`（rgb は `NUMBER`）を送る  
-4. **4. Response - GenerateContent（Text）** … 構造化 JSON が返り、色へ反映される  
+<br/>
 
 ---
 
-## マイク入力と音声データ
+## コードの解説
 
-マイク入力とは、PC のマイクが拾った音を、プログラムが扱える数字の列として取り込むことです。このデモでは Unity の `Microphone` が録音中の音を **AudioClip** へ書き込み、WAV（16-bit PCM）→ Base64 にして 1. Request の `inlineData` に載せます。
-
-試し方: Space で録音したあと、1. Request に `mimeType: audio/wav` があるかを見る。
-
----
-
-## 構造化出力とスキーマ
-
-構造化出力とは、自由文ではなく **決まった形の JSON** で返してもらうことです。スキーマはその形の約束で、このデモでは `cubeColor` / `backgroundColor` の `r` / `g` / `b` を **`NUMBER`（0〜1）** で受け取ります（`1B.TextToData` と同じ）。
-
-3. Request の `generationConfig.responseSchema` と、4. Response の JSON、左のキューブ色を見比べてください。
-
----
-
-## 主要クラス
+<br/>
 
 ### SpeechToData（[`SpeechToData.cs`](Script/SpeechToData.cs)）
 
-デモの本体です。上から、録音〜文字起こし〜構造化 JSON〜色反映の流れを追うとわかりやすいです。
+<br/>
 
-通信は **UnityWebRequest**（HTTP の送受信）と **コルーチン**（`IEnumerator` + `yield`）による **非同期処理** です。コルーチンは `Update` などのメインスレッドの処理とは独立した時間軸で進むので、応答待ちのあいだも画面が固まりません。Space の押し話し検知だけは `Update` で、**旧 Input Manager**（`Input.GetKeyDown` / `GetKeyUp`）を使います。2A との違いは、チャット返答ではなく **スキーマ付き JSON をパースしてキューブ色と背景色へ反映する**ところです。
+デモの本体です。上から、録音から色反映までの流れを追うとわかりやすいです。
+
+通信は **UnityWebRequest**（HTTPの送受信）と **コルーチン**（`IEnumerator` + `yield`）による **非同期処理** です。コルーチンは `Update` などのメインスレッド処理とは独立した時間軸で進むので、応答待ちのあいだも画面が固まりません。Spaceキーの押し離しの検知だけは `Update` の中で、**旧 Input Manager**（`Input.GetKeyDown` / `GetKeyUp`）を使っています。
+
+<br/>
 
 1. **起動時の準備をする**  
-   `Start` — APIキー読込、マイク確認、3D プレビュー、案内文言
-2. **Space 押し話しを検知する**  
-   `UpdatePushToTalk` — 押しているあいだ録音、離したら変換へ
-3. **マイクで録音する**  
-   `BeginRecording` / `EndRecordingAndSend` — `Microphone.Start` → `End` → 録れたサンプルだけ切り出し
-4. **音声データに変換する**  
-   `AudioCodec.ClipToWav` — float サンプルを 16-bit PCM にし、WAV ヘッダを付けて `byte[]` にする → Base64（共通スクリプト）
-5. **1→2. GenerateContent（Audio）**  
-   `SendSpeechPipelineCoroutine` の前半 — 音声付き JSON を POST し、文字起こしを認識テキスト欄へ
-6. **3→4. GenerateContent（Text）**  
-   同コルーチンの後半 — スキーマ付きで構造化 JSON を受け取り、色へ反映
+   `Start` — APIキーの読込、マイクの選択、3Dプレビュー、レベル表示の開始
+   <br/>
+2. **Spaceキーの押し離しを見る**  
+   `UpdatePushToTalk` — 押した瞬間に録音を始め、離した瞬間に送信へ進む
+   <br/>
+3. **マイクの音量を横棒で見せる**  
+   `UpdateLevelMeter` — `MicLevel` で直近の音の大きさを0〜1にし、横棒の長さへ反映する
+   <br/>
+4. **マイクで録音する**  
+   `BeginRecording` / `EndRecordingAndSend` — `Microphone.Start` で録音し、`Microphone.End` で止めて、実際に録れた長さだけ切り出す
+   <br/>
+5. **音声データに変換する**  
+   `AudioCodec.ClipToWav` — AudioClipを16-bit PCMのWAVバイト列にし、`Convert.ToBase64String` で文字列にする
+   <br/>
+6. **音声を送って文字起こしを受け取る（1→2）**  
+   `SendSpeechPipelineCoroutine` の前半 — `BuildSttRequestJson` で `inlineData` 付きのJSONを組み立ててPOSTし、返ってきたテキストを取り出す
+   <br/>
+7. **テキストを送って構造化JSONを受け取る（3→4）**  
+   同じコルーチンの後半 — `BuildStructuredRequestJson` で `responseMimeType` と `responseSchema` を載せてPOSTする
+   <br/>
+8. **JSONをパースして色を変える**  
+   `TryParseAndApply` — `cubeColor` / `backgroundColor` を読み、キューブとカメラ背景へ適用する
+   <br/>
+9. **送受信を画面に出す**  
+   `HttpDisplay.FormatRequest` / `FormatResponse` — 中央・右ペインへ見やすく整形して表示する
 
-### 共通スクリプト（`Assets/Common/Script/`）
+<br/>
 
-このデモが使っている共通の道具です。どれも入力と出力だけの小さな関数なので、**上の流れを追うときに中身を読む必要はありません。**
+### 共通ライブラリ（`Assets/Common/Script/`）
+
+<br/>
+
+このデモが使っている共通のライブラリです。シンプルなユーティリティクラスなので、**上の流れを追うときに中身を読む必要はありません。**
 
 | ファイル | 中身 |
 |---|---|
-| [`GeminiJson`](../Common/Script/GeminiJson.cs) | JSON のエスケープ・整形・省略表示 |
-| [`GeminiKey`](../Common/Script/GeminiKey.cs) | APIキーの読込・マスク・generateContent の URL |
+| [`GeminiJson`](../Common/Script/GeminiJson.cs) | JSONのエスケープ・整形・省略表示 |
+| [`GeminiKey`](../Common/Script/GeminiKey.cs) | APIキーの読込・マスク・generateContentのURL |
 | [`AudioCodec`](../Common/Script/AudioCodec.cs) | AudioClip ⇄ WAV / PCM16 の変換 |
-| [`MicLevel`](../Common/Script/MicLevel.cs) | マイク直近窓の RMS → 横棒の 0〜1 |
+| [`MicLevel`](../Common/Script/MicLevel.cs) | マイクの直近の音の大きさを0〜1にする |
 | [`HttpDisplay`](../Common/Script/HttpDisplay.cs) | Request / Response ペインに出す文字列の整形 |
+| [`ResponseTime`](../Common/Script/ResponseTime.cs) | 送信から返信までの経過時間をConsoleへ表示 |
 
-これらは他のデモも使っています。挙動を変えたくなったら Common を直さず、そのファイルをこのデモの `Script/` にコピーしてクラス名を変えてください。
+これらは他のデモも使っています。挙動を変えたくなったらCommonを直さず、そのファイルをこのデモの `Script/` にコピーしてクラス名を変えてください。

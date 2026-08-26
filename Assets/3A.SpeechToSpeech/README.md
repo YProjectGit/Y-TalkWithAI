@@ -1,130 +1,305 @@
-# 3A.SpeechToSpeech
+# 3A. SpeechToSpeech
 
-![speech-to-speech](../Docs/Image/speech-to-speech.png)
+<img src="../Docs/Image/speech-to-speech.png" alt="speech-to-speech" style="zoom: 50%;" />
 
-返事を文字ではなく、音声で受け取ります。Gemini の TTS モデルを加えることで、画面を見ないやり取りが成り立ちます。
+<br/>
 
-シリーズ全体の位置づけ → [Assets/Docs/demo-series-overview.md](../Docs/demo-series-overview.md)
+音声で話し、その返事も音声で受け取るAIチャットのアプリケーションです。
+
+上図の①②までは[2Aのサンプル](../2A.SpeechToText/README.md)と同様ですが、そこからさらに、③ **TTS（Text-to-Speech）**でテキストを音声にして再生します。
+
+学習のため、STT・チャット・TTS の3回分の通信が見えるようになっています。
+
+<br/>
 
 ---
 
-## このデモで学べること
+## このデモで学ぶこと
 
-- **TTS（Text-to-Speech）**  
-  テキストを音声データにして返してもらう
-- **responseModalities**  
-  テキストではなく音声を返すよう、リクエストで指定する
-- **speechConfig**  
-  読み上げに使う声を選ぶ
+<br/>
+
+- ### TTS（Text-to-Speech）
+
+  テキストを音声データに変換します。
+
+- ### responseModalities
+
+  レスポンスをテキストではなく音声で返すよう、リクエストの中で指定する方法を学びます。
+
+- ### speechConfig
+
+  読み上げに使う声を指定し、トーンや速度は読み上げさせる文章で指示する方法を学びます。
+
+<br/>
 
 ---
 
 ## 事前準備
 
-1. Google AI Studio から Gemini の API にアクセスするための APIキーを取得し、`Assets/Common/APIKey.txt` に保管してください。  
-   手順 → [Assets/Docs/gemini-ai-studio-setup.md](../Docs/gemini-ai-studio-setup.md)
-2. PC にマイクがつながり、Unity から使える状態にしてください（OS のマイク権限を含む）。
-3. スピーカーまたはヘッドホンで再生音が聞こえる状態にしてください。
+<br/>
+
+### スピーカーの準備
+
+- スピーカーまたはヘッドホンで、再生音が聞こえる状態にしてください。
+
+<br/>
 
 ---
 
-## 動かし方
+## 動かしてみる
 
-Project ウィンドウで `Assets/3A.SpeechToSpeech/SpeechToSpeech.unity` を開き、Play を押してください。
+<br/>
 
-### 1. Space で話してみる
+Project ウィンドウで `Assets/3A.SpeechToSpeech/SpeechToSpeech.unity` を開き、Playしてください。
 
-1. Play したら、左の Message 下の横棒が声に合わせて伸びることを見てください。
-2. **Space を押したまま**短い文を話し、**離してください**。
-3. Status が「録音中」→「1. Request」→「3. Request」→「5. Request」→「再生中」と進むことを見てください。
-4. 左に吹き出しが出たあと、Gemini の返答が声で再生されることを確認してください。
+### 1. Spaceを押して話す
 
-### 2. 発生順（1〜6）で Request / Response を追う
+- 左ペインのMessage欄の下にあるボリュームゲージが、自分の声に合わせて動くことを確認してください。
+- **Spaceキーを押したまま**短い文を話し、話し終えたらキーを**離して**ください。
+- 左ペインに吹き出しが出たあと、Geminiの返答が声で再生されることを確認してください。
 
-どれも Gemini の `generateContent` です。番号は呼ばれた順番です。
+### 2. 3回の通信を順番に追う
 
-1. **1. Request - GenerateContent（Audio）** … 音声（`inlineData` / `audio/wav`）を送る  
-2. **2. Response - GenerateContent（Audio）** … 文字起こしが返る  
-3. **3. Request - GenerateContent（Text）** … 認識テキストを会話として送る  
-4. **4. Response - GenerateContent（Text）** … チャットの返答テキストが返る  
-5. **5. Request - GenerateContent（TTS）** … その返答テキストを TTS モデルへ送る  
-6. **6. Response - GenerateContent（TTS）** … 音声バイトが返り、再生に使う  
-
-次の3点を確認してください。
-
-- **5** の欄の先頭に `ttsModel` / `voice` / `responseModalities` の設定行が出ている
-- **5** の本文の `responseModalities` に `AUDIO` が入っている
-- **6** の欄には MIME（データの種類を表す名前。ここでは音声の形式）とバイト数の要約だけが出ている（音声本体は再生に回すため）
+- **1. Request** で音声をSTTに送り、**2. Response** で文字起こしが返っていることを確認してください。
+- **3. Request** で、文字起こしされたテキストがチャットとして送られていることを確認してください。
+- **5. Request** を見て、`responseModalities` に `AUDIO` が入っていること、先頭に `ttsModel` / `voice` が出ていることを確認してください。
+- **6. Response** には MIME とバイト数の要約だけが出ます。音声本体は再生に回すため、ここに載せていません。
 
 ### 3. 声を変えてみる
 
-1. Hierarchy でデモ本体（`SpeechToSpeech`）を選び、Inspector の **Tts Voice Name**（`ttsVoiceName`）を変更してください（初期値は `Kore`）。
-2. Space で話し、**5. Request** 欄先頭の `voice:` が新しい名前になっていることを確認してください。
+- Hierarchyでデモ本体（`SpeechToSpeech`）を選び、Inspectorの **Tts Voice Name**（`ttsVoiceName`）を変更してください（初期値は `Kore`）。
+- 使える声の名前は [Gemini API: Voice options](https://ai.google.dev/gemini-api/docs/speech-generation#voices) を参照してください。
 
-声はリクエストのたびに送るので、Play 中に変えてもそのまま次の TTS から反映されます（Live API を使う 3B / 4 / 5 とは違い、Stop → Play は要りません）。  
-使える声の名前一覧 → [Gemini API: Text-to-speech（Voice options）](https://ai.google.dev/gemini-api/docs/speech-generation#voices)
+<br/>
+
+---
+
+## 解説
+
+<br/>
+
+### マイク入力と音声データ
+
+-　入口側（1→2）の変換は [2A.SpeechToText](../2A.SpeechToText/README.md) と同じです。マイクの音をAudioClipへ書き込み、WAVにしてBase64で送ります。
+
+-　出口側（5→6）では逆向きの変換が起きます。APIから来たPCM（またはWAV）をAudioClipにし、`AudioSource` で再生します。
+
+```text
+マイク入力 → AudioClip → WAV → Base64 
+→ 1. Request（STT）
+
+2. Response（文字起こし）
+→ 3. Request（Chat）→ 4. Response（返答テキスト）
+
+5. Request（TTS）
+→ 6. Response（音声バイト）
+→ AudioClip → AudioSource で再生
+```
+
+<br/>
 
 ---
 
 ## TTS（Text-to-Speech）
 
-テキストを音声データに変換することです。このデモでは、Chat（3→4）で得た返答文を、**別の TTS 向けモデル**の `generateContent` に渡し、`responseModalities: ["AUDIO"]` で音声バイトを受け取ります。声色はリクエスト内の `speechConfig`（`ttsVoiceName`）で指定します。
+<br/>
 
-2A までは「声 → 文字 → 文字の返答」で終わりました。3A ではその返答をもう一度 API に渡し、「文字 → 声」にしてスピーカーで再生します。画面の 1→2→3→4→5→6 がその順番です。
+-　**TTS (Text To Speech)** とは、テキストを音声データへ変換することです。「音声合成」と呼ばれます。
 
-試し方: 左の Gemini 吹き出しの文を聞いた声と照らし合わせる。5. Request の本文に同じ文が載っているかを見る。Inspector で声を変えて聞き比べる（手順は「動かし方」の節）。
+-　2Aまでは「声 → 文字 → 文字の返答」で終わりました。このデモでは、チャットで得た返答文を**別のTTS向けモデル**へ渡し、「文字 → 声」にしてスピーカーで再生します。
+
+-　STTとChatはこれまでと同じ `generateContent` です。(TTSだけ、モデル名が `gemini-3.1-flash-tts-preview` に変わります)
+
+-　1回の発話につき通信は3回です。画面の番号1〜6が、その順番に対応しています。
+
+| 番号 | 内容 |
+|---|---|
+| **1. Request** | 音声（`inlineData` / `audio/wav`）を送る |
+| **2. Response** | 文字起こしされたテキストが返る |
+| **3. Request** | そのテキストを、チャットのメッセージとして送信する |
+| **4. Response** | チャットの返答テキストが返る |
+| **5. Request** | その返答テキストを、TTSモデルへ送る |
+| **6. Response** | 音声バイトが返り、再生に使う |
+
+<br/>
+
+3往復の通信を介しているので、インタラクションとしてかなり遅いと感じると思います。
+
+（この問題は、次の[3Bのデモ](../3B.SpeechToSpeechLiveAPI/README.md)で解消します）
+
+<br/>
 
 ---
 
-## マイク入力と音声データ
+## responseModalities
 
-マイク入力とは、PC のマイクが拾った音を、プログラムが扱える数字の列として取り込むことです。入口側（1→2）の変換は `2A.SpeechToText` と同じです。
+<br/>
 
-```text
-Microphone → AudioClip → WAV → Base64 → 1. Request（Audio）
+**responseModalities** とは、AIからのレスポンスをどの種類で受け取りたいかを指定する設定です。指定しないとテキストが返ります。このデモのTTSリクエストでは、音声を表す `AUDIO` を指定しています。
+
+<br/>
+
+**TTSのリクエストのJSON**
+
+```json
+{
+  "contents": [
+    {
+      "role": "user",
+      "parts": [
+        {
+          "text": "次の文を自然な日本語で読み上げてください。\n\nこんにちは。"
+        }
+      ]
+    }
+  ],
+  "generationConfig": {
+    "responseModalities": ["AUDIO"], //　←ResponseModalitiesの設定
+    "speechConfig": {
+      "voiceConfig": {
+        "prebuiltVoiceConfig": {
+          "voiceName": "Kore"
+        }
+      }
+    }
+  }
+}
 ```
 
-出口側（5→6）では逆向きの変換が起きます。API から来た PCM（または WAV）を `AudioClip` にして `AudioSource` で再生します。
+1. **`contents`**  
+   読み上げてほしい文章です。このデモでは、チャットの返答文をそのまま載せます。
+2. **`responseModalities`**  
+   返してほしいデータの種類です。`AUDIO` を指定すると、テキストではなく音声が返ります。
+3. **`speechConfig`**  
+   どの声で読むかを指定します。トーンや速度は、ここの項目ではなく読み上げ文章で指定します。
 
-試し方: Status に「再生中」が出るタイミングと、6. Response の `mimeType` / `audio bytes` を見比べる。
+<br/>
+
+返ってきた音声は、レスポンスJSONの `inlineData` にBase64で入っています。画面の **6. Response** では、中身そのものではなく `mimeType` とバイト数だけを表示します。
+
+<br/>
 
 ---
 
-## 主要クラス
+## speechConfig
+
+<br/>
+
+**speechConfig** とは、読み上げに使う声を指定する項目です。このデモでは `prebuiltVoiceConfig.voiceName` に、あらかじめ用意された声の名前を入れます。初期値は `Kore` です。
+
+使える声の名前は [Gemini API: Voice options](https://ai.google.dev/gemini-api/docs/speech-generation#voices) を参照してください。
+
+<br/>
+
+### 文章でトーンと速度を指定する
+
+-　トーン（口調）と速度は、`speechConfig` の数値項目としてはありません。読み上げさせる**文章**で指示します。
+
+-　JSONのキーのような決まった書式はありません。本文の前に、**どんな声で・どの速さで読んでほしいかを自然な言葉で書きます**。
+
+-　公式の短い例は、指示と本文を `:` でつなぐ書き方です。`:` は必須の記号ではなく、「ここからが読む文」をはっきりさせるための区切りです。区切りが曖昧だと、指示文まで読み上げてしまうことがあります。
+
+```text
+Say cheerfully: Have a wonderful day!
+```
+
+-　改行で分けても同じです。このデモはではなく、指示のあとに空行を置いて本文を続けています。
+
+```text
+元気よく、少し早めに読んでください。
+
+こんにちは、今日はいい天気ですね。
+```
+
+```text
+ゆっくり、落ち着いた口調で読んでください。
+
+大切な話があります。
+```
+
+<br/>
+
+### オーディオタグで一部分だけ変える
+
+-　`[whispers]` や `[very fast]` のように、角括弧のタグを本文に挟むと、その直後の読み方だけを変えられます。公式では、日本語の本文でもタグは英語にするのが推奨です。
+
+```text
+[excitedly] こんにちは！ [very slow] 大事な話があります。 [whispers] これは秘密です。
+```
+
+よく使われるタグの例は、`[excitedly]`（元気に）、`[whispers]`（ささやき）、`[very fast]` / `[very slow]`（速さ）、`[tired]`（疲れた調子）です。決まった一覧はなく、試しながら選ぶ、と公式に書かれています。
+
+<br/>
+
+参照:
+
+- [Gemini API: Text-to-speech（generateContent）](https://ai.google.dev/gemini-api/docs/generate-content/speech-generation)
+- [Controlling speech style with prompts](https://ai.google.dev/gemini-api/docs/generate-content/speech-generation#controlling-speech-style-with-prompts)
+- [Prompting guide（Audio tags）](https://ai.google.dev/gemini-api/docs/generate-content/speech-generation#prompting-guide)
+- [Voice options](https://ai.google.dev/gemini-api/docs/speech-generation#voices)
+
+<br/>
+
+---
+
+## コードの解説
+
+<br/>
 
 ### SpeechToSpeech（[`SpeechToSpeech.cs`](Script/SpeechToSpeech.cs)）
 
-デモの本体です。上から、録音〜STT（Speech-to-Text）〜Chat〜TTS〜再生の流れを追うとわかりやすいです。
+<br/>
 
-通信は **UnityWebRequest**（HTTP の送受信）と **コルーチン**（`IEnumerator` + `yield`）による **非同期処理** です。コルーチンは `Update` などのメインスレッドの処理とは独立した時間軸で進むので、応答待ちのあいだも画面が固まりません。Space の押し話し検知だけは `Update` で、**旧 Input Manager**（`Input.GetKeyDown` / `GetKeyUp`）を使います。
+デモの本体です。上から、録音から再生までの流れを追うとわかりやすいです。
+
+通信は **UnityWebRequest**（HTTPの送受信）と **コルーチン**（`IEnumerator` + `yield`）による **非同期処理** です。コルーチンは `Update` などのメインスレッド処理とは独立した時間軸で進むので、応答待ちのあいだも画面が固まりません。Spaceキーの押し離しの検知だけは `Update` の中で、**旧 Input Manager**（`Input.GetKeyDown` / `GetKeyUp`）を使っています。
+
+<br/>
 
 1. **起動時の準備をする**  
-   `Start` — APIキー読込、`SystemInstruction.txt` → UI、マイク確認、`AudioSource` 確保、録音案内の表示
-2. **Space 押し話しを検知する**  
-   `UpdatePushToTalk` — 押しているあいだ録音、離したら変換へ（System Instruction 編集中は録音しない）
-3. **マイクで録音する**  
-   `BeginRecording` / `EndRecordingAndSend` — `Microphone.Start` → `End` → 録れたサンプルだけ切り出し
-4. **音声データに変換する**  
-   `AudioCodec.ClipToWav` — float サンプルを 16-bit PCM にし、WAV ヘッダを付けて `byte[]` にする → Base64（共通スクリプト）
-5. **1→2. GenerateContent（Audio）**  
-   `SendSpeechPipelineCoroutine` の前半 — 音声付き JSON を POST し、文字起こしを取り出す
-6. **3→4. GenerateContent（Text）**  
-   同コルーチンの中盤 — 認識テキストと会話履歴を POST し、返答を吹き出しへ
-7. **5→6. GenerateContent（TTS）→ 再生**  
-   同コルーチンの後半 — 返答テキストを TTS モデルへ POST し、PCM/WAV を `AudioClip` 化して `AudioSource.Play`
+   `Start` — APIキーの読込、`SystemInstruction.txt` の読込、マイクの選択、`AudioSource` の確保、レベル表示の開始
+   <br/>
+2. **Spaceキーの押し離しを見る**  
+   `UpdatePushToTalk` — 押した瞬間に録音を始め、離した瞬間に送信へ進む
+   <br/>
+3. **マイクの音量を横棒で見せる**  
+   `UpdateLevelMeter` — `MicLevel` で直近の音の大きさを0〜1にし、横棒の長さへ反映する
+   <br/>
+4. **マイクで録音する**  
+   `BeginRecording` / `EndRecordingAndSend` — `Microphone.Start` で録音し、`Microphone.End` で止めて、実際に録れた長さだけ切り出す
+   <br/>
+5. **音声データに変換する**  
+   `AudioCodec.ClipToWav` — AudioClipを16-bit PCMのWAVバイト列にし、`Convert.ToBase64String` で文字列にする
+   <br/>
+6. **音声を送って文字起こしを受け取る（1→2）**  
+   `SendSpeechPipelineCoroutine` の前半 — `BuildSttRequestJson` で `inlineData` 付きのJSONを組み立ててPOSTし、返ってきたテキストを取り出す
+   <br/>
+7. **テキストを送って返答を受け取る（3→4）**  
+   同じコルーチンの中盤 — `BuildChatRequestJson` で会話履歴込みのJSONを組み立ててPOSTし、返答を吹き出しへ表示する
+   <br/>
+8. **返答テキストを音声にして再生する（5→6）**  
+   同じコルーチンの後半 — `BuildTtsRequestJson` で `responseModalities: AUDIO` と `speechConfig` を載せてPOSTし、PCM/WAVを `AudioClip` にして `AudioSource.Play`
+   <br/>
+9. **送受信を画面に出す**  
+   `HttpDisplay.FormatRequest` / `FormatResponse` — 中央・右ペインへ見やすく整形して表示する（TTSの応答は音声本体ではなく要約）
 
-### 共通スクリプト（`Assets/Common/Script/`）
+<br/>
 
-このデモが使っている共通の道具です。**上の流れを追うときに中身を読む必要はありません。**
+### 共通ライブラリ（`Assets/Common/Script/`）
+
+<br/>
+
+このデモが使っている共通のライブラリです。シンプルなユーティリティクラスなので、**上の流れを追うときに中身を読む必要はありません。**
 
 | ファイル | 中身 |
 |---|---|
-| [`GeminiJson`](../Common/Script/GeminiJson.cs) | JSON のエスケープ・整形・省略表示 |
-| [`GeminiKey`](../Common/Script/GeminiKey.cs) | APIキーの読込・マスク・generateContent の URL |
+| [`GeminiJson`](../Common/Script/GeminiJson.cs) | JSONのエスケープ・整形・省略表示 |
+| [`GeminiKey`](../Common/Script/GeminiKey.cs) | APIキーの読込・マスク・generateContentのURL |
 | [`GeminiTextResponse`](../Common/Script/GeminiTextResponse.cs) | レスポンスから candidates[0] のテキストを取り出す |
 | [`AudioCodec`](../Common/Script/AudioCodec.cs) | AudioClip ⇄ WAV / PCM16 の変換 |
-| [`MicLevel`](../Common/Script/MicLevel.cs) | マイク直近窓の RMS → 横棒の 0〜1 |
+| [`MicLevel`](../Common/Script/MicLevel.cs) | マイクの直近の音の大きさを0〜1にする |
 | [`HttpDisplay`](../Common/Script/HttpDisplay.cs) | Request / Response ペインに出す文字列の整形 |
 | [`ChatBubble`](../Common/Script/ChatBubble.cs) | 吹き出し1件分の見た目（Prefab: [`MessageBubble.prefab`](Prefab/MessageBubble.prefab)） |
+| [`ResponseTime`](../Common/Script/ResponseTime.cs) | 送信から返信までの経過時間をConsoleへ表示 |
 
-これらは他のデモも使っています。挙動を変えたくなったら Common を直さず、そのファイルをこのデモの `Script/` にコピーしてクラス名を変えてください。
+これらは他のデモも使っています。挙動を変えたくなったらCommonを直さず、そのファイルをこのデモの `Script/` にコピーしてクラス名を変えてください。
