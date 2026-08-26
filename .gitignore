@@ -112,7 +112,7 @@ InitTestScene*.unity*
 .claude/
 .codex/
 
-# APIキー（各自配置。リポジトリに実キーを入れない）
+# APIキー（プレースホルダのみリポジトリに含める。実キーはコミットしない）
 /Assets/Common/APIKey.txt
 
 # 2C の Resource（モデル・ネイティブライブラリは各自配置）
