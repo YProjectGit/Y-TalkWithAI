@@ -1,19 +1,19 @@
 # 1A. TextToText
 
-  
+  <br/>
 
 
 基本的な「AIチャット」のアプリケーションです。
 
 テキストをGeminiのAPIへ送信すると、AIからの返答がテキストで表示されます。
 
-  
+<br/>
 
 ---
 
 ## このデモで学ぶこと
 
-  
+  <br/>
 
 - ### Web APIの基本：リクエストとレスポンス
 
@@ -27,13 +27,13 @@
 
   まるで自分とAIとで、一連の会話が行われているように感じる仕組みとして、「コンテキスト」があります。このコンテキストとは何かが解ると、AIのコミュニケーションへの理解が深まります。
 
-    
+<br/>
 
 ---
 
 ## 事前準備
 
-  
+<br/>
 
 ### APIキーの取得
 
@@ -46,13 +46,13 @@ GeminiAPIにアクセスするには、Google AI Studioのアカウントを取�
 アカウント取得からAPIキーの取得するまでの手順はこちらを参照してください。
 [Assets/Docs/gemini-ai-studio-setup.md](../Docs/gemini-ai-studio-setup.md)  
 
-  
+<br/>
 
 ---
 
 ## 動かしてみる
 
-  
+ <br/>
 
 Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、Playしてください。
 
@@ -79,19 +79,19 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
 
 4. 比較のため、Option を ON に戻して同じことを試し、差を見てください。
 
-  
+<br/>
 
 ------
 
 ## 基礎知識
 
-
+<br/>
 
 ### インターネット
 
 世界中のコンピューター端末同士を相互に接続し、定められた**通信プロトコル**によって、データを送受信する仕組み。
 
-  
+ <br/>
 
 ### 通信プロトコル
 
@@ -106,7 +106,7 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
 | **インターネット層** | 通信の経路を決定                       | **IP**（通信の経路を決める。ルーティング）                   |
 | **リンク層**         | 物理的な送受信を担当                   | **Ethernet**（LANケーブル）<br /> **Wi-Fi**（無線LAN）       |
 
-  
+ <br/>
 
 ## HTTP
 
@@ -115,7 +115,7 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
 - URLに「http://」と書かれている謎の呪文の正体
 - クライアントとサーバーの間で「リクエスト／レスポンス」をやり取りするための仕組み
 
-  
+<br/>
 
 ## リクエストとレスポンス
 
@@ -125,7 +125,7 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
 2. サーバー はリクエストを処理し、HTTP レスポンスを返送
 3. クライアントはレスポンスを受け取り、HTML を描画したり画像を表示したりする
 
-  
+ <br/>
 
 ### 主な HTTP リクエスト
 
@@ -141,7 +141,8 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
   - 送る情報（フォームの内容など）はリクエスト本文（ボディ）に入れる
   - 送信内用はURL には表示されず、詳しい中身は隠せる
 
-  
+
+<br/>
 
 ## **Web API ** 
 
@@ -153,13 +154,13 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
 - そのデータ形式として、**JSON**やXMLのようなテキストフォーマットが使われる。
 - 利用には認証が必要な場合が多く、**API キー**などによってアクセスが制限される。
 
-  
+<br/>
 
 例：Gemini2.0（Google Cloudの大規模言語モデル）のAPIへにアクセスするURL
 
 `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=(自分のAPIキー)`
 
-
+<br/>
 
 ## **JSON**
 
@@ -169,7 +170,8 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
 
 - **オブジェクト**（キーと値のペア）や**配列**（順序付きリスト）を入れ子構造で表現できる。
 
-  
+
+<br/>
 
 ### 基本構文
 
@@ -195,7 +197,7 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
 3. **値の型**
    - 文字列（`"文字列"`）、数値（`123`）、真偽値（`true`/`false`）、`null` も可能
 
-  
+ <br/>
 
 **Gemini2.0へのリクエストのJSON（最小限）**
 
@@ -213,7 +215,7 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
 }
 ```
 
-  
+  <br/>
 
 **GeminiからのレスポンスのJSON（最小限）**
 
@@ -255,7 +257,7 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
 }
 ```
 
-
+<br/>
 
   
 
@@ -263,7 +265,7 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
 
 ## System Instruction（事前指示）
 
-  
+  <br/>
 
 会話のメッセージとは別に、「答えるときの前提」をあらかじめ渡す欄です。
 
@@ -271,13 +273,13 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
 
 試し方: 指示を「必ず一行で、やさしい言葉で答えてください」などに変え、同じ質問を送る。左の答え方と、中央 Request に事前指示が入っているかを見比べる。
 
-  
+  <br/>
 
 ---
 
 ## コンテキスト
 
-  
+<br/>
 
 一般にコンテキストとは、AI が「いまこの答えを出すために見ている範囲」のことです。会話の履歴、直前の指示、コードを書くときの開いているファイルやエラーメッセージなど、判断材料になる情報すべてがここに入ります。
 
@@ -285,7 +287,7 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
 
 チャットで「さっきの名前、覚えてる？」が通じるのも、AI が勝手に記憶しているからではなく、**こちらがこれまでのやりとりを毎回一緒に送り直している**からです。このデモでは、その「一緒に送る履歴」をコンテキストと呼び、Option の **コンテキストを送る** で載せ方を切り替えられます。
 
-
+<br/>
 
 **会話履歴込みのGemini2.0へのリクエストのJSON**
 
@@ -344,14 +346,14 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
 }
 ```
 
-  
+<br/>
 
 | Option | 意味（体験） | API に載るもの | 左の吹き出し |
 |--------|--------------|----------------|--------------|
 | **ON** | いつものチャット。前の発言を踏まえて答える | これまでのやりとり全部 | そのまま増える |
 | **OFF** | 毎回「初めまして」に近い状態 | **いま打った一文だけ** | 見た目のログとしては残る |
 
-
+<br/>
 
 試し方:
 
@@ -359,15 +361,13 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
 2. Option を **OFF** にして、同じように名前を伝えたあと「私の名前は？」と聞く（覚えていないように見えることが多い）
 3. 毎回、中央 Request の `contents` が何件あるかを見比べる
 
-
-
-  
+<br/> 
 
 ---
 
 ## コードの解説
 
-
+<br/>
 
 ### TextToText（[`TextToText.cs`](Script/TextToText.cs)）
 
@@ -391,9 +391,11 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
 6. **送受信を画面に出す**  
    `ShowRequest` / `ShowResponse` — 中央・右ペインへの可視化
 
-
+<br/>
 
 ### 共通スクリプト（`Assets/Common/Script/`）
+
+<br/>
 
 このデモが使っている共通の道具です。シンプルなユーティリティクラスなので**上の流れを追うときに中身を読む必要はありません。**
 
