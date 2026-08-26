@@ -144,7 +144,7 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
 
 <br/>
 
-## **Web API ** 
+## Web API
 
 - **API = Application Programming Interface**
 
