@@ -1,5 +1,7 @@
 # 3A.SpeechToSpeech
 
+![speech-to-speech](../Docs/Image/speech-to-speech.png)
+
 返事を文字ではなく、音声で受け取ります。Gemini の TTS モデルを加えることで、画面を見ないやり取りが成り立ちます。
 
 シリーズ全体の位置づけ → [Assets/Docs/demo-series-overview.md](../Docs/demo-series-overview.md)

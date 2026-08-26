@@ -71,6 +71,7 @@ public class SherpaOfflineAsr
                 "sherpa モデルがありません: " + missing
                 + "\nAssets/Docs/sherpa-onnx-setup.md の手順で配置してください。\n"
                 + "配置先: " + ModelDirectory;
+            UnityEngine.Debug.LogError("[SherpaOfflineAsr] " + lastError);
             return false;
         }
 
@@ -81,18 +82,21 @@ public class SherpaOfflineAsr
             if (recognizer == null)
             {
                 lastError = "OfflineRecognizer の作成に失敗しました。ネイティブ lib の配置を確認してください。";
+                UnityEngine.Debug.LogError("[SherpaOfflineAsr] " + lastError);
                 return false;
             }
         }
         catch (Exception e)
         {
             lastError =
-                "sherpa-onnx の初期化に失敗しました: " + e.Message
+                "sherpa-onnx の初期化に失敗しました: " + e.GetType().Name + ": " + e.Message
                 + "\nAssets/Docs/sherpa-onnx-setup.md を確認してください。";
+            UnityEngine.Debug.LogError("[SherpaOfflineAsr] " + lastError);
             DisposeRecognizer();
             return false;
         }
 
+        UnityEngine.Debug.Log("[SherpaOfflineAsr] 初期化に成功しました: " + encoderFileName);
         return true;
     }
 
@@ -107,6 +111,7 @@ public class SherpaOfflineAsr
         if (recognizer == null)
         {
             result.error = lastError != null ? lastError : "recognizer が初期化されていません。";
+            UnityEngine.Debug.LogError("[SherpaOfflineAsr] " + result.error);
             return result;
         }
 
@@ -129,7 +134,8 @@ public class SherpaOfflineAsr
         }
         catch (Exception e)
         {
-            result.error = "認識中にエラー: " + e.Message;
+            result.error = "認識中にエラー: " + e.GetType().Name + ": " + e.Message;
+            UnityEngine.Debug.LogError("[SherpaOfflineAsr] " + result.error);
         }
 
         watch.Stop();

@@ -1,5 +1,9 @@
 # 3C.SpeechToFunction
 
+![speech-to-function](../Docs/Image/speech-to-function.png)
+
+
+
 会話の途中で、Gemini Live API がアプリの機能を呼び出します。会話がそのまま、アプリの操作になります。
 
 シリーズ全体の位置づけ → [Assets/Docs/demo-series-overview.md](../Docs/demo-series-overview.md)

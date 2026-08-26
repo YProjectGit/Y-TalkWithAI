@@ -1,6 +1,8 @@
 # 1A. TextToText
 
-  <br/>
+![text-to-text](../Docs/Image/text-to-text.png)  
+
+<br/>
 
 
 基本的な「AIチャット」のアプリケーションです。
@@ -60,7 +62,7 @@
 
 Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、Playしてください。
 
-![text-to-text-ui](../Common/Image/text-to-text-ui.png)
+![text-to-text-ui](../Docs/Image/text-to-text-ui.png)
 
  <br/>
 

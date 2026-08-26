@@ -1,130 +1,256 @@
-# 1B.TextToData
+# 1B. TextToData
 
-自然言語ではなく、フォーマット化されたデータで返事を返します。プログラムがそのまま解釈できる形になるので、多様なインタラクションを実現できます。
+![text-to-data](../Docs/Image/text-to-data.png)
 
-シリーズ全体の位置づけ → [Assets/Docs/demo-series-overview.md](../Docs/demo-series-overview.md)
+<br/>
 
----
+AIからの返答を、文章ではなく**プログラム内で解釈できるJSON形式データ**として受け取るアプリケーションです。
 
-## このデモで学べること
+入力した言葉のイメージに合わせて、3Dキューブと背景の色を変えます。
 
-- **構造化出力**  
-  AI からのレスポンスを「文章」ではなく、「あるフォーマットに沿ったデータ（JSON）」として受け取る
-- **スキーマ**  
-  返してほしい JSON の構造を先に定義する
-- **パース**  
-  返ってきた JSON を読み取り、プログラムの動作につなげる
+<br/>
 
 ---
 
-## 事前準備
+## このデモで学ぶこと
 
-Google AI Studio から Gemini の API にアクセスするための APIキーを取得し、`Assets/Common/APIKey.txt` に保管してください。  
-手順 → [Assets/Docs/gemini-ai-studio-setup.md](../Docs/gemini-ai-studio-setup.md)  
-無料枠で 429 が出たら、有料への移り方と値段の目安 → [無料枠を使い切ったとき](../Docs/gemini-ai-studio-setup.md#無料枠を使い切ったとき)
+<br/>
 
----
+- ### 構造化出力
 
-## 動かし方
+  AIからのレスポンスを文章ではなく、決められたフォーマットのJSONとして受け取る方法を学びます。
 
-Project ウィンドウで `Assets/1B.TextToData/TextToData.unity` を開き、Play を押してください。
+- ### スキーマ
 
-### 1. 文字を送ってキューブの色を変える
+  返してほしいJSONの項目や型を、リクエストの中であらかじめ指定する方法を学びます。
 
-1. 入力欄に、たとえば「キューブは夕焼けのオレンジ、背景は夜の紺」と入れて **送信** を押してください。
-2. 画面上の **3D キューブの色** と **カメラの背景色** が変わることを確認してください。
+- ### パース
 
-### 2. Response の内容と色が対応していることを確認する
+  返ってきたJSONをプログラムで読み取り、画面上の色の変化へつなげる流れを学びます。
 
-1. 右ペインの Response を開き、自由文ではなく **項目の並んだ JSON** が返ってきていることを確認してください。
-2. `cubeColor` の `r` / `g` / `b` とキューブの色、`backgroundColor` と背景色が対応しているかを見比べてください。
-
-### 3. Schema と Response の対応を確認する
-
-1. 中央ペインの **Schema** を開き、返してほしい構造（`cubeColor` と `backgroundColor` など）が書かれていることを確認してください。
-2. さきほど見た Response の JSON が、この Schema と同じ構造になっているかを見比べてください。
+<br/>
 
 ---
 
-## 構造化出力
+## 動かしてみる
 
-AI に自由文で答えてもらうのではなく、**あらかじめ決められたフォーマットのデータ（JSON）** として返してもらうやり方です。
+<br/>
 
-たとえ話で言うと、自由文のチャットが「作文」なら、構造化出力は **記入欄のある用紙** です。作文だとプログラムは文の意味を読み解く必要がありますが、用紙なら「キューブの色」の欄を見れば済みます。このデモでは、その欄が `cubeColor` や `backgroundColor` といったキーにあたります。
+Project ウィンドウで `Assets/1B.TextToData/TextToData.unity` を開き、Playしてください。
 
-このデモのポイントは、返ってきた JSON をプログラムが解釈し、文字の表示ではなく **キューブや背景の色** として画面に反映していることです。TextToText が「返事を読んで見せる」なら、ここでは **返事でプログラムを動かす** が体験の中心です。
+### 1. 文字を送って色を変える
+
+1. 入力欄に、たとえば「キューブは夕焼けのオレンジ、背景は夜の紺」と入力し、**送信** を押してください。
+2. 画面上の3Dキューブと背景の色が変わることを確認してください。
+3. 別の色や雰囲気を入力し、返答に応じて結果が変わることを試してください。
+
+### 2. Responseと画面の色を見比べる
+
+1. 右ペインの **Response** を見て、文章ではなく項目の並んだJSONが返っていることを確認してください。
+2. `cubeColor` の `r` / `g` / `b` と、3Dキューブの色を見比べてください。
+3. `backgroundColor` の `r` / `g` / `b` と、背景の色を見比べてください。
+
+### 3. SchemaとResponseを見比べる
+
+1. 中央ペインの **Schema** を見て、`cubeColor` と `backgroundColor` が定義されていることを確認してください。
+2. 各色の中に、数値を入れる `r` / `g` / `b` が定義されていることを確認してください。
+3. 右ペインのResponseが、中央ペインのSchemaと同じ構造になっていることを見比べてください。
+
+<br/>
+
+---
+
+## 前提知識
+
+<br/>
+
+### 構造化出力
+
+-　AIに自由な文章で答えてもらうのではなく、**あらかじめ決めたフォーマットのデータ**として返してもらう方法です。
+
+-　自由文のチャットが「作文」なら、構造化出力は「**記入欄のある用紙**」にたとえられます。作文は内容を読んで意味を判断する必要がありますが、記入欄が決まっていれば、プログラムは必要な項目を直接探せます。
+
+-　データのフォーマットは、**スキーマ**によって定義します。
+
+-　このデモでは、`cubeColor` と `backgroundColor` という項目を持つJSONを受け取り、返答を文章として表示するのではなく、キューブと背景の色として画面に反映します。
+
+<br/>
 
 ---
 
 ## スキーマ
 
-返してほしい JSON の構造（キー名・型・入れ子など）を、リクエスト時に先に指定しておく定義です。さきほどのたとえで言うと、**記入用紙のフォーマット**（どの欄があるか）にあたります。
+<br/>
 
-このデモのスキーマは、Unity の `Color` に合わせて各色を **0〜1 の r / g / b** で受け取る形です。
+**スキーマ**とは、返してほしいJSONの構造をあらかじめ定めたものです。JSONに含めるキー、値の型、入れ子の構造などを指定します。このデモでは、キューブと背景の色を0.0〜1.0fの `r` / `g` / `b` で受け取るように指定しています。実際にGemini APIへ送っているスキーマは次のとおりです。
+
+<br/>
+
+**リクエストに含めているスキーマ**
 
 ```json
 {
-  "cubeColor": { "r": 1.0, "g": 0.5, "b": 0.2 },
-  "backgroundColor": { "r": 0.1, "g": 0.15, "b": 0.25 }
+  "type": "OBJECT",
+  "properties": {
+    "cubeColor": {
+      "type": "OBJECT",
+      "description": "Color of the 3D cube. Each of r,g,b is 0 to 1.",
+      "properties": {
+        "r": {
+          "type": "NUMBER"
+        },
+        "g": {
+          "type": "NUMBER"
+        },
+        "b": {
+          "type": "NUMBER"
+        }
+      },
+      "required": [
+        "r",
+        "g",
+        "b"
+      ]
+    },
+    "backgroundColor": {
+      "type": "OBJECT",
+      "description": "Camera background color. Each of r,g,b is 0 to 1.",
+      "properties": {
+        "r": {
+          "type": "NUMBER"
+        },
+        "g": {
+          "type": "NUMBER"
+        },
+        "b": {
+          "type": "NUMBER"
+        }
+      },
+      "required": [
+        "r",
+        "g",
+        "b"
+      ]
+    }
+  },
+  "required": [
+    "cubeColor",
+    "backgroundColor"
+  ]
 }
 ```
 
-- `cubeColor` … キューブの色
-- `backgroundColor` … カメラの背景色
+1. **`type`**  
+   その項目の型です。`OBJECT` は複数の項目をまとめた構造、`NUMBER` は数値を表します。
+2. **`properties`**  
+   オブジェクトの中に含める項目を定義します。
+3. **`required`**  
+   レスポンスに必ず含めてほしい項目を指定します。
+4. **`description`**  
+   その項目が何を表すか、モデルへ文章で説明します。
 
-Gemini へのリクエストにこのスキーマを含めると、モデルは自由文ではなく、指定した構造の JSON を返すようになります。中央の Schema ペインには、いま送っているスキーマが表示されます。
+<br/><br/>
 
-| 返し方 | Unity 側でやりやすいこと |
-|--------|--------------------------|
-| **自由文** | そのまま表示する（TextToText） |
-| **構造化** | キーを読んで色などに割り当てる（このデモ） |
+**スキーマに沿ったレスポンスの例**
 
-試し方: 送信後、中央 Schema と右 Response の JSON が同じ構造になっているかを見比べる。
+```json
+{
+  "cubeColor": {
+    "r": 1.0,
+    "g": 0.5,
+    "b": 0.2
+  },
+  "backgroundColor": {
+    "r": 0.1,
+    "g": 0.15,
+    "b": 0.25
+  }
+}
+```
+
+スキーマで `required` に指定した `cubeColor` と `backgroundColor` が含まれ、それぞれの中に `NUMBER` 型の `r` / `g` / `b` が入っています。このJSONをパースし、各数値をUnityの色へ変換します。
+
+<br/>
+
+### responseMimeType
+
+- `responseMimeType` は、AIからのレスポンスをどのデータ形式で受け取りたいか指定する設定です。このデモでは、JSONを表す `application/json` を指定しています。
+
+```json
+"responseMimeType": "application/json"
+```
+
+- `responseMimeType` がレスポンスの**データ形式**を指定し、`responseSchema` がJSONの**中身の構造**を指定します。この2つを組み合わせることで、プログラムが読み取りやすいJSONをGeminiから受け取ります。
+
+<br/>
 
 ---
 
 ## パース
 
-レスポンスとして届いた文字列（JSON）を読み、プログラムが使える値に分解することです。
+<br/>
 
-このデモでは、右に出ている JSON から `cubeColor` と `backgroundColor` を取り出し、キューブのマテリアル色とカメラの背景色に書き込みます。パースに成功すると画面が変わり、形が崩れていると反映できない、という対応関係を追うのがポイントです。
+- **パース**とは、受け取った文字列を読み取り、プログラムで使えるデータへ変換することです。
 
-試し方: Response の `r` / `g` / `b` と、キューブ／背景の見え方を一項目ずつ対応させて見る。
+- Gemini APIから届いた時点のJSONは、文字列として扱われます。このデモでは `JsonUtility` を使ってJSONを読み、`cubeColor` と `backgroundColor` を数値として取り出します。
+
+- 取り出した `r` / `g` / `b` をUnityの `Color` に変換し、キューブのマテリアル色とカメラの背景色へ書き込むことで、AIからの返答が画面上の変化につながります。
+
+<br/>
 
 ---
 
-## 主要クラス
+## コードの解説
+
+<br/>
 
 ### TextToData（[`TextToData.cs`](Script/TextToData.cs)）
 
+<br/>
+
 デモの本体です。上から、送信後の流れを追うとわかりやすいです。
 
-通信は **UnityWebRequest**（HTTP の送受信）と **コルーチン**（`IEnumerator` + `yield`）による **非同期処理** です。コルーチンは `Update` などのメインスレッドの処理とは独立した時間軸で進むので、応答待ちのあいだも画面が固まりません。1A.TextToText との違いは、返答テキストを吹き出しに足すのではなく、**JSON をパースしてキューブ色と背景色へ反映する**ところです。
+通信は **UnityWebRequest**（HTTPの送受信）と **コルーチン**（`IEnumerator` + `yield`）による **非同期処理** です。コルーチンは `Update` などのメインスレッド処理とは独立した時間軸で進むので、応答待ちのあいだも画面が固まりません。
+
+<br/>
 
 1. **起動時の準備をする**  
-   `Start` — APIキー読込、送信ボタン／Enter の購読、キューブとカメラの参照
+   `Start` — APIキーの読込、送信ボタン／Enterの購読、Schemaの初期表示
+   <br/>
 2. **送信を始める**  
-   `OnSendClicked` → `StartCoroutine(SendStructuredCoroutine)` — 送信の入口
-3. **API と通信する**  
+   `OnSendClicked` → `StartCoroutine(SendStructuredCoroutine)` — 入力を確認し、API通信を始める
+   <br/>
+3. **APIと通信する**  
    `SendStructuredCoroutine` — 通信本体  
-   - `BuildRequestJson` でスキーマ込みのリクエストを組み立てる  
-   - `UnityWebRequest` で POST → `yield return` で応答待ち  
-   - 構造化 JSON の表示 → パース → 色の反映
-4. **リクエスト JSON を組み立てる**  
-   `BuildRequestJson` — ユーザー入力と、返してほしい形（スキーマ）を載せる
-5. **構造化の返答を取り出す**  
-   `TryExtractStructuredJson` — レスポンスから構造化された JSON 本文を取り出す
-6. **パースして画面へ反映する**  
-   `TryParseAndApply` — `cubeColor` / `backgroundColor` を読み、キューブとカメラ背景に書く  
-   `ShowSchema` / `ShowResponse` — 中央・右ペインへの可視化
+   - `BuildRequestJson` でユーザー入力とスキーマを含むリクエストを組み立てる
+   - `UnityWebRequest` でGemini APIへPOSTする
+   - `yield return request.SendWebRequest()` で応答を待つ
+   - 構造化されたJSONを取り出し、画面へ反映する
+   <br/>
+4. **リクエストJSONを組み立てる**  
+   `BuildRequestJson` — `responseMimeType` と `responseSchema` を `generationConfig` に載せる
+   <br/>
+5. **構造化された返答を取り出す**  
+   `TryExtractStructuredJson` — レスポンスの `candidates[0].content.parts[0].text` からJSON文字列を取り出す
+   <br/>
+6. **JSONをパースして色を変える**  
+   `TryParseAndApply` — `cubeColor` / `backgroundColor` を読み、キューブとカメラ背景へ適用する
+   <br/>
+7. **スキーマと応答を画面に出す**  
+   `ShowSchema` / `ShowResponse` — 中央・右ペインへ見やすく整形して表示する
 
-### 共通スクリプト（`Assets/Common/Script/`）
+<br/>
 
-このデモが使っている共通の道具です。どれも入力と出力だけの小さな関数なので、**上の流れを追うときに中身を読む必要はありません。**
+### 共通ライブラリ（`Assets/Common/Script/`）
+
+<br/>
+
+このデモが使っている共通のライブラリです。シンプルなユーティリティクラスなので、**上の流れを追うときに中身を読む必要はありません。**
 
 | ファイル | 中身 |
 |---|---|
-| [`GeminiJson`](../Common/Script/GeminiJson.cs) | JSON のエスケープ・整形・省略表示 |
-| [`GeminiKey`](../Common/Script/GeminiKey.cs) | APIキーの読込・マスク・generateContent の URL |
+| [`GeminiJson`](../Common/Script/GeminiJson.cs) | JSONのエスケープ・整形・省略表示 |
+| [`GeminiKey`](../Common/Script/GeminiKey.cs) | APIキーの読込・マスク・generateContentのURL |
+| [`ResponseTime`](../Common/Script/ResponseTime.cs) | 送信から返信までの経過時間をConsoleへ表示 |
 
-これらは他のデモも使っています。挙動を変えたくなったら Common を直さず、そのファイルをこのデモの `Script/` にコピーしてクラス名を変えてください。
+これらは他のデモも使っています。挙動を変えたくなったらCommonを直さず、そのファイルをこのデモの `Script/` にコピーしてクラス名を変えてください。

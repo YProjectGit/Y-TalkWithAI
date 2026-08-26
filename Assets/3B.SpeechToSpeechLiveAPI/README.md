@@ -1,5 +1,7 @@
 # 3B.SpeechToSpeechLiveAPI
 
+![speech-to-speech-live-api](../Docs/Image/speech-to-speech-live-api.png)
+
 声のやり取りを、Gemini Live API のひとつのセッションで行います。送っては待つ形ではなくなり、人と話すのに近いテンポになります。
 
 シリーズ全体の位置づけ → [Assets/Docs/demo-series-overview.md](../Docs/demo-series-overview.md)

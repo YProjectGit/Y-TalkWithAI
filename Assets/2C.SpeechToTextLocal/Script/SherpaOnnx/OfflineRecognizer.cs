@@ -13,12 +13,23 @@ namespace SherpaOnnx
         public OfflineRecognizer(OfflineRecognizerConfig config)
         {
             IntPtr created = SherpaOnnxCreateOfflineRecognizer(ref config);
+            if (created == IntPtr.Zero)
+            {
+                throw new InvalidOperationException(
+                    "SherpaOnnxCreateOfflineRecognizer が null を返しました。モデルパスとネイティブ lib を確認してください。");
+            }
+
             handle = new HandleRef(this, created);
         }
 
         public OfflineStream CreateStream()
         {
             IntPtr stream = SherpaOnnxCreateOfflineStream(handle.Handle);
+            if (stream == IntPtr.Zero)
+            {
+                throw new InvalidOperationException("SherpaOnnxCreateOfflineStream が null を返しました。");
+            }
+
             return new OfflineStream(stream);
         }
 

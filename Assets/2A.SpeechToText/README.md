@@ -1,123 +1,244 @@
-# 2A.SpeechToText
+# 2A. SpeechToText
 
-入力を文字から声に広げます。Gemini が声を文字にしてくれるので、キーボードを使わないやり取りが作れます。
+![speech-to-text](../Docs/Image/speech-to-text.png)<br/>
 
-シリーズ全体の位置づけ → [Assets/Docs/demo-series-overview.md](../Docs/demo-series-overview.md)
+入力を文字から**音声**に広げたAIチャットのアプリケーションです。
+
+マイクで録音した音声をGeminiへ送ると、文字起こしされ、その内容に対する返答が返ってきます。
+
+学習のため、音声を送る通信と、文字で会話する通信の2回分が見えるようになっています。
+
+<br/>
 
 ---
 
-## このデモで学べること
+## このデモで学ぶこと
 
-- **マイク入力**  
-  PC のマイクから音声を取り込み、プログラムが扱えるデータにする
-- **inlineData**  
-  音声を Base64 の文字列にして、リクエストの JSON に埋め込む
-- **STT（Speech-to-Text）**  
-  音声をテキストに変換する
+<br/>
+
+- ### STT（Speech-to-Text）
+
+  音声をテキストへ変換し、その結果をそのままチャットの入力として使う流れを学びます。
+
+- ### マイク入力
+
+  PCのマイクが拾った音を録音し、プログラムが扱えるデータとして取り込む方法を学びます。
+
+- ### 音声データの送信（inlineData）
+
+  音声をBase64という文字列に変換し、リクエストのJSONへ埋め込んで送る方法を学びます。
+
+<br/>
 
 ---
 
 ## 事前準備
 
-1. Google AI Studio から Gemini の API にアクセスするための APIキーを取得し、`Assets/Common/APIKey.txt` に保管してください。  
-   手順 → [Assets/Docs/gemini-ai-studio-setup.md](../Docs/gemini-ai-studio-setup.md)
-2. PC にマイクがつながり、Unity から使える状態にしてください（OS のマイク権限を含む）。
+<br/>
+
+### マイクの準備
+
+- PCにマイクを接続し、音声が入力できる状態にしてください。
+- OSの設定でマイクの使用が許可されていることを確認してください。許可がないと、録音しても無音のデータが送られます。
+
+<br/>
 
 ---
 
-## 動かし方
+## 動かしてみる
 
-Project ウィンドウで `Assets/2A.SpeechToText/SpeechToText.unity` を開き、Play を押してください。
+<br/>
 
-### 1. Space で話してみる
+Project ウィンドウで `Assets/2A.SpeechToText/SpeechToText.unity` を開き、Playしてください。
 
-1. Play したら、左の Message 下の横棒が声に合わせて伸びることを見てください。
-2. **Space を押したまま**短い文を話し、**離してください**。
-3. Status が「録音中」→「音声データ変換中」→「1. Request」→「3. Request」と進むことを見てください。
-4. 左に認識されたあなたの発言と Gemini の返答が出ること、中央・右に番号 1〜4 の欄があることを確認してください。
+### 1. Spaceを押して話す
 
-### 2. 発生順（1〜4）で Request / Response を追う
+1. 左ペインのMessage欄の下にあるボリュームが、自分の声に合わせて動くことを確認してください。
+2. **Spaceキーを押したまま**短い文を話し、話し終えたらキーを**離して**ください。
+3. Statusが「録音中」から「音声データ変換中」へ進み、認識された自分の発言と、Geminiの返答が左に表示されることを確認してください。
 
-どちらも Gemini の `generateContent` です。番号は呼ばれた順番です。
+### 2. 音声データが送られていることを確認する
 
-1. **1. Request - GenerateContent（Audio）** … 音声（`inlineData` / `audio/wav`）を送る  
-2. **2. Response - GenerateContent（Audio）** … 文字起こしが返る  
-3. **3. Request - GenerateContent（Text）** … 認識テキストを会話として送る  
-4. **4. Response - GenerateContent（Text）** … チャットの返答が返る  
+1. 中央ペインの **1. Request** を見て、`inlineData` という項目があることを確認してください。
+2. その中の `mimeType` が `audio/wav` になっていることを確認してください。
+3. `data` に長い文字列（Base64）が入っていることを確認してください。画面では途中が省略して表示されます。
 
-1 の欄で `inlineData` と `mimeType: audio/wav` があること、`data` に長い文字（Base64）が載っていることを確認してください（画面では途中で省略表示されます）。  
-会話の履歴は毎回まとめて送られます（コンテキストは常にオンです）。
+### 3. 2回の通信を順番に追う
+
+1. **1. Request** で音声をSTTに送り、**2. Response** で文字起こしが返っていることを確認してください。
+2. **3. Request** で、文字起こしされたテキストがLLMへと送られていることを確認してください。
+
+<br/>
 
 ---
 
-## マイク入力と音声データ
+## 前提知識
 
-マイク入力とは、PC のマイクが拾った音を、プログラムが扱える数字の列として取り込むことです。このデモでは Unity の `Microphone` が、録音中の音を **AudioClip**（サンプルの集まり）へ書き込みます。
+<br/>
 
-ただし Gemini の API は AudioClip をそのまま受け取りません。送る前に次の変換が必要です。
+### マイク入力
+
+-　PCのマイクが拾った音を、プログラムが扱える数字の列として取り込むことです。
+
+-　Unityでは `Microphone` クラスを使い、録音した音を **AudioClip** という入れ物へ書き込みます。AudioClipの中身は、音の波形を細かく区切って数値にしたもの（サンプル）の集まりです。
+
+-　このデモでは、Spaceキーを押しているあいだだけ録音します。左の横棒は、いま録れている音の大きさをその場で表示しています。
+
+<br/>
+
+### 音声データ
+
+-　AudioClipはUnity内部のデータなので、そのままではAPIへ送れません。送る前に、一般的な音声ファイルの形式へ変換します。
+
+-　このデモでは **WAV** という形式に変換します。WAVは、音の情報（サンプリングレートなど）を記したヘッダと、波形を数値化したデータが並んだ形式です。
+
+-　変換の流れは次のとおりです。
 
 ```text
 Microphone.Start
-  → AudioClip にサンプルが書き込まれる
+  → AudioClip にマイクの音が書き込まれる
 Microphone.End と切り出し
   → 実際に録れた長さだけの AudioClip
 WAV 化
-  → ヘッダ + 16-bit PCM のバイト列（音声データ）
+  → ヘッダ + 16-bit PCM のバイト列
 Base64
   → そのバイト列を文字にして JSON に載せる
 ```
 
-このデモのポイントは、その変換を隠さず Status と **1. Request - GenerateContent（Audio）** で見せていることです。左の吹き出しだけ見ると「声が文字になった」ように見えますが、Request を見ると「まず WAV のバイト列を送り、文字起こししている」ことが追えます。左の横棒は、AudioClip に書き込まれている音の大きさをその場で見せます。
+<br/>
 
-試し方: Play 直後から横棒が声で動くこと、Space で録音したあと Status に「音声データ変換中」が出ることと、1. Request の `inlineData` を見比べる。
+---
+
+## inlineData
+
+<br/>
+
+**inlineData** とは、音声や画像などのファイルを、リクエストのJSONの中に直接埋め込んで送るための項目です。
+
+JSONは文字だけを扱うデータ形式なので、音声のようなバイト列はそのまま書き込めません。そこで **Base64** という方式でバイト列を文字列へ変換し、`data` に載せます。あわせて `mimeType` でデータの種類を伝えます。
+
+<br/>
+
+**音声を送るリクエストのJSON**
+
+```json
+{
+  "contents": [
+    {
+      "role": "user",
+      "parts": [
+        {
+          "text": "この音声を日本語で文字起こししてください。前置きや説明は付けず、発話の本文だけを返してください。"
+        },
+        {
+          "inlineData": {
+            "mimeType": "audio/wav",
+            "data": "UklGRiQAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQAA..."
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+1. **`parts`**  
+   1回の発言に複数の部品を入れられます。ここでは指示文と音声の2つを並べています。
+2. **`text`**  
+   音声に対して何をしてほしいかを、文章で指示します。
+3. **`inlineData`**  
+   埋め込むファイル本体です。`mimeType` で種類を、`data` で中身を伝えます。
+4. **`mimeType`**  
+   データの種類です。WAV形式の音声なので `audio/wav` を指定します。
+5. **`data`**  
+   WAVのバイト列をBase64で文字列にしたものです。実際は非常に長い文字列になります。
+
+<br/>
 
 ---
 
 ## STT（Speech-to-Text）
 
-音声をテキストに変換することです。このデモでは専用の別サービス（Cloud Speech-to-Text）ではなく、Gemini の `generateContent` に音声（`audio/wav`）を載せ、「文字起こしだけ返して」と頼んでいます。
+<br/>
 
-返ってきたテキストを user の発言として扱い、そのあと **もう一度** `generateContent`（Text）でチャット返信を取ります。画面の 1→2→3→4 がその順番です。
+-　**STT** とは、音声をテキストへ変換することです。日本語では「音声認識」「文字起こし」と呼ばれます。
 
-試し方: 同じ発話のあと、2. Response の文字と左の You 吹き出しが一致しているかを見る。
+-　このデモでは文字起こし専用のサービスを使わず、Gemini の `generateContent` に音声を渡し、「文字起こしだけ返してほしい」と指示しています。
+
+-　文字起こしされたテキストは、自分が入力した発言として扱われます。そのうえで**もう一度** `generateContent` を呼び、チャットの返答を受け取ります。
+
+-　つまり、1回の発話につきGemini APIとの通信が2回行われます。画面の番号1〜4が、その順番に対応しています。
+
+| 番号 | 内容 |
+|---|---|
+| **1. Request** | 音声（`inlineData` / `audio/wav`）を送る |
+| **2. Response** | 文字起こしされたテキストが返る |
+| **3. Request** | 文字起こしのテキストを、会話履歴とあわせて送る |
+| **4. Response** | チャットとしての返答が返る |
+
+<br/>
+
+会話履歴は毎回まとめて送られます。1A.TextToTextと違い、コンテキストは常にオンです。
+
+<br/>
 
 ---
 
-## 主要クラス
+## コードの解説
+
+<br/>
 
 ### SpeechToText（[`SpeechToText.cs`](Script/SpeechToText.cs)）
 
-デモの本体です。上から、録音〜送信の流れを追うとわかりやすいです。
+<br/>
 
-通信は **UnityWebRequest**（HTTP の送受信）と **コルーチン**（`IEnumerator` + `yield`）による **非同期処理** です。コルーチンは `Update` などのメインスレッドの処理とは独立した時間軸で進むので、応答待ちのあいだも画面が固まりません。Space の押し話し検知だけは `Update` で、**旧 Input Manager**（`Input.GetKeyDown` / `GetKeyUp`）を使います。
+デモの本体です。上から、録音から送信までの流れを追うとわかりやすいです。
+
+通信は **UnityWebRequest**（HTTPの送受信）と **コルーチン**（`IEnumerator` + `yield`）による **非同期処理** です。コルーチンは `Update` などのメインスレッド処理とは独立した時間軸で進むので、応答待ちのあいだも画面が固まりません。Spaceキーの押し離しの検知だけは `Update` の中で、**旧 Input Manager**（`Input.GetKeyDown` / `GetKeyUp`）を使っています。
+
+<br/>
 
 1. **起動時の準備をする**  
-   `Start` — APIキー読込、`SystemInstruction.txt` → UI、マイク確認、レベル監視開始、録音案内の表示
-2. **Space 押し話しを検知する**  
-   `UpdatePushToTalk` — 押しているあいだ録音、離したら変換へ（System Instruction 編集中は録音しない）
-3. **マイク音量を横棒で見せる**  
-   `UpdateLevelMeter` — `MicLevel` で直近サンプルの大きさを 0〜1 にし、`fillAmount` にする。待機中は短いループ録音、Space 中は送信用クリップを見る
+   `Start` — APIキーの読込、`SystemInstruction.txt` の読込、マイクの選択、レベル表示の開始
+   <br/>
+2. **Spaceキーの押し離しを見る**  
+   `UpdatePushToTalk` — 押した瞬間に録音を始め、離した瞬間に送信へ進む
+   <br/>
+3. **マイクの音量を横棒で見せる**  
+   `UpdateLevelMeter` — `MicLevel` で直近の音の大きさを0〜1にし、横棒の長さへ反映する
+   <br/>
 4. **マイクで録音する**  
-   `BeginRecording` / `EndRecordingAndSend` — 監視を止めて `Microphone.Start` → `End` → 監視再開 → 録れたサンプルだけ切り出し
+   `BeginRecording` / `EndRecordingAndSend` — `Microphone.Start` で録音し、`Microphone.End` で止めて、実際に録れた長さだけ切り出す
+   <br/>
 5. **音声データに変換する**  
-   `AudioCodec.ClipToWav` — float サンプルを 16-bit PCM にし、WAV ヘッダを付けて `byte[]` にする → Base64（共通スクリプト）
-6. **1→2. GenerateContent（Audio）**  
-   `SendSpeechPipelineCoroutine` の前半 — 音声付き JSON を POST し、文字起こしを取り出す
-7. **3→4. GenerateContent（Text）**  
-   同コルーチンの後半 — 認識テキストと会話履歴を POST し、返答を吹き出しへ
+   `AudioCodec.ClipToWav` — AudioClipを16-bit PCMのWAVバイト列にし、`Convert.ToBase64String` で文字列にする
+   <br/>
+6. **音声を送って文字起こしを受け取る（1→2）**  
+   `SendSpeechPipelineCoroutine` の前半 — `BuildSttRequestJson` で `inlineData` 付きのJSONを組み立ててPOSTし、返ってきたテキストを取り出す
+   <br/>
+7. **テキストを送って返答を受け取る（3→4）**  
+   同じコルーチンの後半 — `BuildChatRequestJson` で会話履歴込みのJSONを組み立ててPOSTし、返答を吹き出しへ表示する
+   <br/>
+8. **送受信を画面に出す**  
+   `HttpDisplay.FormatRequest` / `FormatResponse` — 中央・右ペインへ見やすく整形して表示する
 
-### 共通スクリプト（`Assets/Common/Script/`）
+<br/>
 
-このデモが使っている共通の道具です。**上の流れを追うときに中身を読む必要はありません。**
+### 共通ライブラリ（`Assets/Common/Script/`）
+
+<br/>
+
+このデモが使っている共通のライブラリです。シンプルなユーティリティクラスなので、**上の流れを追うときに中身を読む必要はありません。**
 
 | ファイル | 中身 |
 |---|---|
-| [`GeminiJson`](../Common/Script/GeminiJson.cs) | JSON のエスケープ・整形・省略表示 |
-| [`GeminiKey`](../Common/Script/GeminiKey.cs) | APIキーの読込・マスク・generateContent の URL |
+| [`GeminiJson`](../Common/Script/GeminiJson.cs) | JSONのエスケープ・整形・省略表示 |
+| [`GeminiKey`](../Common/Script/GeminiKey.cs) | APIキーの読込・マスク・generateContentのURL |
 | [`GeminiTextResponse`](../Common/Script/GeminiTextResponse.cs) | レスポンスから candidates[0] のテキストを取り出す |
 | [`AudioCodec`](../Common/Script/AudioCodec.cs) | AudioClip ⇄ WAV / PCM16 の変換 |
-| [`MicLevel`](../Common/Script/MicLevel.cs) | マイク直近窓の RMS → 横棒の 0〜1 |
+| [`MicLevel`](../Common/Script/MicLevel.cs) | マイクの直近の音の大きさを0〜1にする |
 | [`HttpDisplay`](../Common/Script/HttpDisplay.cs) | Request / Response ペインに出す文字列の整形 |
 | [`ChatBubble`](../Common/Script/ChatBubble.cs) | 吹き出し1件分の見た目（Prefab: [`MessageBubble.prefab`](Prefab/MessageBubble.prefab)） |
+| [`ResponseTime`](../Common/Script/ResponseTime.cs) | 送信から返信までの経過時間をConsoleへ表示 |
 
-これらは他のデモも使っています。挙動を変えたくなったら Common を直さず、そのファイルをこのデモの `Script/` にコピーしてクラス名を変えてください。
+これらは他のデモも使っています。挙動を変えたくなったらCommonを直さず、そのファイルをこのデモの `Script/` にコピーしてクラス名を変えてください。

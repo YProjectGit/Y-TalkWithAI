@@ -39,23 +39,27 @@ GoogleのAI関連の開発者向けサービス**Google AI Studio** でアカウ
 
 1. 左サイドバー下部の **鍵アイコンのボタン（Get API Key）** を開いてください。
    （直リンク: [https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)）
-
-   ![gemini-ai-studio-setup-get-api-key](../Common/Image/gemini-ai-studio-setup-get-api-key.png)
-
    <br/>
-
+   
+   ![gemini-ai-studio-setup-get-api-key](Image/gemini-ai-studio-setup-get-api-key.png)
+   
+   <br/>
+   
 2. **APIキーを作成** を選択してください。
-   ![gemini-ai-studio-setup-create-api-key](../Common/Image/gemini-ai-studio-setup-create-api-key.png)
-
+   
+   <br/>![gemini-ai-studio-setup-create-api-key](Image/gemini-ai-studio-setup-create-api-key.png)
+   
+   <br/>
+   
+3. プロジェクトを新規作成したのち、そのプロジェクトのAPIキーを作成してください。名前は適当で結構です。
    <br/>
 
-3. プロジェクトを新規作成したのち、そのプロジェクトのAPIキーを作成してください。名前は適当で結構です。
-
-   ![gemini-ai-studio-setup-new-project](../Common/Image/gemini-ai-studio-setup-new-project.png)
+   ![gemini-ai-studio-setup-new-project](Image/gemini-ai-studio-setup-new-project.png)
 
 4. 発行されたキーを **Copy** してください。
-
-   ![gemini-ai-studio-setup-copy-key](../Common/Image/gemini-ai-studio-setup-copy-key.png)
+   <br/>
+   
+   ![gemini-ai-studio-setup-copy-key](Image/gemini-ai-studio-setup-copy-key.png)
 
 <br/>
 
@@ -65,7 +69,7 @@ GoogleのAI関連の開発者向けサービス**Google AI Studio** でアカウ
 
 <br/>
 
-![gemini-ai-studio-setup-unity-apikey](../Common/Image/gemini-ai-studio-setup-unity-apikey.png)
+![gemini-ai-studio-setup-unity-apikey](Image/gemini-ai-studio-setup-unity-apikey.png)
 
 1. `Assets/Common/APIKey.txt` の `Paste Your APIKey Here…` を、自分のキー1行に置き換えてください（前後の空白に注意）。
 2. 本物のキーは Git にコミットしないでください。

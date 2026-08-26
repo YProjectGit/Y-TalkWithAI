@@ -1,5 +1,9 @@
 # 2B.SpeechToData
 
+
+
+![speech-to-data](../Docs/Image/speech-to-data.png)
+
 声で受け取った指示を、フォーマット化されたデータとして返します。話しかけるだけで、アプリの見た目や設定を変えられます。
 
 シリーズ全体の位置づけ → [Assets/Docs/demo-series-overview.md](../Docs/demo-series-overview.md)

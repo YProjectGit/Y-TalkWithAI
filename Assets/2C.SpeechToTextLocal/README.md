@@ -1,5 +1,7 @@
 # 2C.SpeechToTextLocal
 
+![speech-to-text-local](../Docs/Image/speech-to-text-local.png)
+
 文字起こしを、ローカルの音声認識エンジン sherpa-onnx で行います。クラウドとやり取りしないぶん、返事が返るまでが速くなります。
 
 シリーズ全体の位置づけ → [Assets/Docs/demo-series-overview.md](../Docs/demo-series-overview.md)

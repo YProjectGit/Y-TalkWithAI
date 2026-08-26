@@ -120,12 +120,17 @@ public class SpeechToTextLocal : MonoBehaviour
 
         if (!sherpaReady)
         {
+            string message = sherpa.LastError != null
+                ? sherpa.LastError
+                : "sherpa の初期化に失敗しました。Assets/Docs/sherpa-onnx-setup.md を見てください。";
+            Debug.LogError("[SpeechToTextLocal] " + message);
             SetStatus("sherpa 未配置", false);
-            SetPanelPlaceholder(sttRequestText, sherpa.LastError);
+            SetPanelPlaceholder(sttRequestText, message);
             SetPanelPlaceholder(sttResponseText, "Assets/Docs/sherpa-onnx-setup.md を見てモデルとネイティブ lib を配置してください。");
         }
         else
         {
+            Debug.Log("[SpeechToTextLocal] sherpa-onnx の初期化に成功しました。");
             SetStatus(microphoneDevice != null ? "待機中（Space で録音）" : "マイクなし", false);
             SetPanelPlaceholder(sttRequestText, "（まだ認識していません）");
             SetPanelPlaceholder(sttResponseText, "（まだ認識していません）");
