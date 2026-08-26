@@ -21,7 +21,7 @@
    手順 → [Assets/Docs/gemini-ai-studio-setup.md](Assets/Docs/gemini-ai-studio-setup.md)
 3. Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、Play してください。
 
-無料枠で 429 が出たら → [Assets/Docs/gemini-api-pricing.md](Assets/Docs/gemini-api-pricing.md)
+無料枠で 429 が出たら → [無料枠を使い切ったとき](Assets/Docs/gemini-ai-studio-setup.md#無料枠を使い切ったとき)
 
 ---
 

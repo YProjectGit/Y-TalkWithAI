@@ -60,7 +60,7 @@
 
 Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、Playしてください。
 
-![image-20260826135250665](../Common/Image/image-20260826135250665.png)
+![text-to-text-ui](../Common/Image/text-to-text-ui.png)
 
  <br/>
 
