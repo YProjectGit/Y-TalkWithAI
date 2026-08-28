@@ -34,7 +34,7 @@
   マイク入力の音声を文字に変換する
 - **[2B.SpeechToData](../2B.SpeechToData/)**  
   1Bと2Aを組み合わせたサンプル。声でグラフィックを操作する
-- **[2C.SpeechToTextLocal](../2C.SpeechToTextLocal/)**（任意）  
+- **[2C.SpeechToTextLocal](../2C.(SpeechToTextLocal)/)**（任意）  
   音声認識だけローカルPC上のエンジンで行い、レスポンスを向上させる
 - **[3A.SpeechToSpeech](../3A.SpeechToSpeech/)**  
   返事も音声で受け取り、音声と音声のインタラクションを実現する
