@@ -80,6 +80,10 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
     readonly StringBuilder outboundLog = new StringBuilder(); // 送信ログ本文
     readonly StringBuilder inboundLog = new StringBuilder(); // 受信ログ本文
     readonly StringBuilder transcriptionLog = new StringBuilder(); // 文字起こしログ本文
+    ScrollRect setupHeaderScroll; // Setup 欄のスクロール（全文入れ替え → 上端へ）
+    ScrollRect outboundLogScroll; // 送信ログのスクロール（追記 → 下端へ）
+    ScrollRect inboundLogScroll; // 受信ログのスクロール（追記 → 下端へ）
+    ScrollRect transcriptionScroll; // 文字起こし欄のスクロール（追記 → 下端へ）
 
     bool setupComplete; // setupComplete 受信済みか
     bool isMicStreaming; // マイクから PCM を送り続けているか
@@ -153,6 +157,7 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
             levelMeterOnColor = levelMeterFill.color;
         }
 
+        CacheLogScrollRects();
         InitPanelTexts();
         RefreshModeUi();
 
@@ -443,6 +448,8 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
             setupHeaderText.text =
                 BuildSetupSettingsSummary() + "\n\n（接続後に Setup JSON を表示）";
         }
+
+        ScrollToTop(setupHeaderScroll);
     }
 
     void SetVadButtonInteractable(bool interactable)
@@ -822,7 +829,7 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         outboundChunkCount++;
         outboundTotalBytes += pcm.Length;
         AppendOutboundLog(
-            "+chunk " + pcm.Length + "B / total " + outboundTotalBytes + "B  " + sampleRate + "Hz");
+            "+音声chunk " + pcm.Length + " Bytes / total " + outboundTotalBytes + " Bytes");
     }
 
     // ----- 送受信 -----
@@ -1064,7 +1071,7 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
             inboundChunkCount++;
             inboundTotalBytes += len;
             AppendInboundLog(
-                "+audio " + len + "B / total " + inboundTotalBytes + "B  " + GetPlaybackRate() + "Hz");
+                "+音声chunk " + len + " Bytes / total " + inboundTotalBytes + " Bytes");
             SetStage(Stage.ReceivePcm);
             SetInboundStatus("受信中");
             if (vadAutoMode)
@@ -1331,6 +1338,7 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
         setupHeaderText.text =
             BuildSetupSettingsSummary() + "\n\n"
             + GeminiJson.PrettyPrint(GeminiJson.Truncate(setupJson, 400));
+        ScrollToTop(setupHeaderScroll);
     }
 
     void SetInboundHeaderStatic()
@@ -1365,16 +1373,59 @@ public class SpeechToSpeechLiveAPI : MonoBehaviour
     void AppendOutboundLog(string line)
     {
         AppendLog(outboundLog, outboundLogText, line);
+        ScrollToBottom(outboundLogScroll);
     }
 
     void AppendInboundLog(string line)
     {
         AppendLog(inboundLog, inboundLogText, line);
+        ScrollToBottom(inboundLogScroll);
     }
 
     void AppendTranscriptionLog(string line)
     {
         AppendLog(transcriptionLog, transcriptionText, line);
+        ScrollToBottom(transcriptionScroll);
+    }
+
+    // ----- スクロール位置 -----
+
+    // 各欄が入っている ScrollRect を控える（テキストは ScrollRect の Content に付いている）
+    void CacheLogScrollRects()
+    {
+        setupHeaderScroll = FindScrollRect(setupHeaderText);
+        outboundLogScroll = FindScrollRect(outboundLogText);
+        inboundLogScroll = FindScrollRect(inboundLogText);
+        transcriptionScroll = FindScrollRect(transcriptionText);
+    }
+
+    static ScrollRect FindScrollRect(TMP_Text view)
+    {
+        return view != null ? view.GetComponentInParent<ScrollRect>(true) : null;
+    }
+
+    // 追記した欄を下端へ寄せ、最新の行が見えるようにする
+    static void ScrollToBottom(ScrollRect scroll)
+    {
+        SetScrollPosition(scroll, 0f);
+    }
+
+    // 全文が入れ替わった欄を先頭へ戻す
+    static void ScrollToTop(ScrollRect scroll)
+    {
+        SetScrollPosition(scroll, 1f);
+    }
+
+    // テキストを書き換えた直後は Content の高さが未確定なので、レイアウトを確定させてから位置を変える
+    static void SetScrollPosition(ScrollRect scroll, float verticalPosition)
+    {
+        if (scroll == null)
+        {
+            return;
+        }
+
+        Canvas.ForceUpdateCanvases();
+        scroll.verticalNormalizedPosition = verticalPosition;
     }
 
     static void AppendLog(StringBuilder sb, TMP_Text view, string line)

@@ -2529,7 +2529,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u518D\u751F\u4E2D\u30DE\u30A4\u30AFOFF"
+  m_text: "\u518D\u751F\u4E2D\u306F\u30DE\u30A4\u30AF\u3092OFF\u306B\u3059\u308B"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 124f16a11e613cd4ebc18e7a2bf87e90, type: 2}
   m_sharedMaterial: {fileID: -1564414408837547503, guid: 124f16a11e613cd4ebc18e7a2bf87e90, type: 2}
@@ -3698,6 +3698,7 @@ MonoBehaviour:
   playbackSampleRate: 24000
   micResumeDelaySeconds: 0.3
   silenceDurationMs: 0
+  endOfSpeechSensitivity: 0
   systemInstructionField: {fileID: 737174816}
   recordHintText: {fileID: 1718470724}
   levelMeterFill: {fileID: 858319822}
@@ -4386,9 +4387,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.LayoutElement
   m_IgnoreLayout: 0
   m_MinWidth: -1
-  m_MinHeight: 48
+  m_MinHeight: 144
   m_PreferredWidth: -1
-  m_PreferredHeight: 72
+  m_PreferredHeight: 216
   m_FlexibleWidth: -1
   m_FlexibleHeight: 0
   m_LayoutPriority: 1
@@ -7215,7 +7216,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Transcription
+  m_text: "\u6587\u5B57\u8D77\u3053\u3057\uFF08Transcription\uFF09"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 124f16a11e613cd4ebc18e7a2bf87e90, type: 2}
   m_sharedMaterial: {fileID: -1564414408837547503, guid: 124f16a11e613cd4ebc18e7a2bf87e90, type: 2}
@@ -7300,9 +7301,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.LayoutElement
   m_IgnoreLayout: 0
-  m_MinWidth: 62.52
+  m_MinWidth: 210.93
   m_MinHeight: 28
-  m_PreferredWidth: 80.03
+  m_PreferredWidth: 210.93
   m_PreferredHeight: 28
   m_FlexibleWidth: 0
   m_FlexibleHeight: 0
@@ -8941,7 +8942,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: -18}
+  m_AnchoredPosition: {x: 0, y: -18.00003}
   m_SizeDelta: {x: 0, y: -36}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1180211951
@@ -11269,7 +11270,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 2025172528}
   m_HandleRect: {fileID: 2025172527}
   m_Direction: 2
-  m_Value: 0
+  m_Value: 1
   m_Size: 1
   m_NumberOfSteps: 0
   m_OnValueChanged:

@@ -1,5 +1,9 @@
 # 1A. TextToText
 
+
+
+
+
 ![text-to-text](../Docs/Image/text-to-text.png)  
 
 <br/>
@@ -15,7 +19,7 @@
 
 ---
 
-## このデモで学ぶこと
+## 学ぶこと
 
   <br/>
 

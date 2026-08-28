@@ -73,6 +73,10 @@ public class SpeechToFunction : MonoBehaviour
     readonly ConcurrentQueue<byte[]> playbackPcmQueue = new ConcurrentQueue<byte[]>(); // 再生待ち PCM
     readonly StringBuilder outboundLog = new StringBuilder(); // 送信ログ本文
     AudioSource playbackAudioSource; // 受信音声の再生先
+    ScrollRect setupScroll; // 1. Setup のスクロール（全文入れ替え → 上端へ）
+    ScrollRect outboundLogScroll; // 3. 送信のスクロール（追記 → 下端へ）
+    ScrollRect inboundLogScroll; // 2. toolCall のスクロール（全文入れ替え → 上端へ）
+    ScrollRect transcriptionScroll; // 4. transcription のスクロール（追記 → 下端へ）
 
     bool setupComplete; // setupComplete 受信済みか
     bool isConnected; // ソケットが Open か
@@ -110,18 +114,18 @@ public class SpeechToFunction : MonoBehaviour
 
     // ファイルが無いときの事前指示（Resource の txt を優先）
     const string DefaultSystemInstruction =
-        "あなたは set_cube_motion 関数で Unity のキューブを操作します。"
-        + "自転・傾き・大きさを変えてほしいときは、この関数を呼んでください。"
-        + "angularVelocityX / angularVelocityY / angularVelocityZ は、ワールド軸まわりの符号付き角速度（度/秒）です。"
-        + "Y が基本の自転（水平に回る。正は起動時と同じ Y+）です。"
-        + "X は前後に倒す動きです。Z は左右に傾ける動きです。"
-        + "sizeX / sizeY / sizeZ は、ローカル軸ごとのサイズ倍率です（1 が初期の大きさ）。"
-        + "X は横、Y は高さ、Z は奥行きです。"
-        + "size は 3 軸を同じ値にします。書いていない引数は変えません。"
-        + "1 軸だけ逆向きにするときは、その軸の符号を反転して送ってください（直近の tool response にいまの目標が入っています）。"
-        + "軸を言わずに「逆に」と言われたときは、Y を反転してください。"
-        + "「止めて」と言われたときは、角速度 3 軸を 0 にしてください。"
-        + "関数の結果のあとは、日本語で短く確認してください。ほかの関数は作らないでください。";
+        "あなたは Unity のキューブを set_cube_motion 関数で操作するアシスタントです。"
+        + "回転・傾き・大きさを変える依頼には、必ず set_cube_motion を呼んでください。"
+        + "呼び出しは1回にまとめ、変える引数だけを書きます。"
+        + "書かなかった引数はそのまま残ります。"
+        + "値は、直近の tool response に入っている「いまの目標」を基準に決めます。"
+        + "「もっと速く」「少し小さく」のような相対的な依頼は、その値を増減させてください。"
+        + "「逆に」は角速度の符号を反転します（軸の指定がなければ Y）。"
+        + "「止めて」は角速度を 3 軸とも 0 にします。"
+        + "速さの目安は、ゆっくり 10、ふつう 30、速い 120、とても速い 300（度/秒）です。"
+        + "大きさの目安は、小さい 0.5、ふつう 1、大きい 2 です。極端な値は避けてください。"
+        + "関数を呼んだあとは、何をどう変えたかを日本語で一言だけ伝えてください。"
+        + "キューブの操作と関係のない話には、関数を呼ばずに短く答えてください。";
 
     // Setup に載せる関数宣言（中央ペインにも同じものを出す）
     const string FunctionDeclarationJson =
@@ -152,6 +156,7 @@ public class SpeechToFunction : MonoBehaviour
         SetupMicrophone();
         EnsurePlaybackAudioSource();
         InitMotionFromScene();
+        CacheLogScrollRects();
         InitPanelTexts();
 
         if (recordHintText != null)
@@ -634,7 +639,8 @@ public class SpeechToFunction : MonoBehaviour
         StartCoroutine(SendJsonCoroutine(json));
 
         outboundTotalBytes += pcm.Length;
-        AppendOutboundLog("+chunk " + pcm.Length + "B / total " + outboundTotalBytes + "B");
+        AppendOutboundLog(
+            "+音声chunk " + pcm.Length + " Bytes / total " + outboundTotalBytes + " Bytes");
     }
 
     // ----- 送受信 -----
@@ -801,6 +807,7 @@ public class SpeechToFunction : MonoBehaviour
         if (inboundLogText != null)
         {
             inboundLogText.text = GeminiJson.PrettyPrint(GeminiJson.Truncate(json, 1200));
+            ScrollToTop(inboundLogScroll);
         }
 
         List<string> responses = new List<string>();
@@ -826,14 +833,6 @@ public class SpeechToFunction : MonoBehaviour
 
             ApplyMotionArgs(argsJson);
             responses.Add(BuildFunctionResponseJson(id, name, "ok"));
-            AppendOutboundLog(
-                "tool: " + FunctionName
-                + " → ωX=" + targetAngularVelocity.x.ToString("0.0")
-                + " ωY=" + targetAngularVelocity.y.ToString("0.0")
-                + " ωZ=" + targetAngularVelocity.z.ToString("0.0")
-                + " sizeX=" + targetSize.x.ToString("0.00")
-                + " sizeY=" + targetSize.y.ToString("0.00")
-                + " sizeZ=" + targetSize.z.ToString("0.00"));
         }
 
         if (responses.Count == 0)
@@ -842,7 +841,8 @@ public class SpeechToFunction : MonoBehaviour
         }
 
         string payload = "{\"toolResponse\":{\"functionResponses\":[" + string.Join(",", responses.ToArray()) + "]}}";
-        AppendOutboundLog("toolResponse 送信");
+        // 何を返したかを追えるよう、送信する JSON をそのまま整形して出す
+        AppendOutboundLog("toolResponse 送信\n" + GeminiJson.PrettyPrint(GeminiJson.Truncate(payload, 800)));
         StartCoroutine(SendJsonCoroutine(payload));
         SetStatus("関数を実行（漸近中）", true);
     }
@@ -1254,6 +1254,7 @@ public class SpeechToFunction : MonoBehaviour
             + instruction
             + "\n\nfunctionDeclarations:\n"
             + GeminiJson.PrettyPrint("[" + FunctionDeclarationJson + "]");
+        ScrollToTop(setupScroll);
     }
 
     void InitPanelTexts()
@@ -1295,6 +1296,8 @@ public class SpeechToFunction : MonoBehaviour
         {
             outboundLogText.text = outboundLog.ToString();
         }
+
+        ScrollToBottom(outboundLogScroll);
     }
 
     void AppendTranscription(string line)
@@ -1322,6 +1325,47 @@ public class SpeechToFunction : MonoBehaviour
         }
 
         transcriptionText.text = current;
+        ScrollToBottom(transcriptionScroll);
+    }
+
+    // ----- スクロール位置 -----
+
+    // 各欄が入っている ScrollRect を控える（テキストは ScrollRect の Content に付いている）
+    void CacheLogScrollRects()
+    {
+        setupScroll = FindScrollRect(setupHeaderText);
+        outboundLogScroll = FindScrollRect(outboundLogText);
+        inboundLogScroll = FindScrollRect(inboundLogText);
+        transcriptionScroll = FindScrollRect(transcriptionText);
+    }
+
+    static ScrollRect FindScrollRect(TMP_Text view)
+    {
+        return view != null ? view.GetComponentInParent<ScrollRect>(true) : null;
+    }
+
+    // 追記した欄を下端へ寄せ、最新の行が見えるようにする
+    static void ScrollToBottom(ScrollRect scroll)
+    {
+        SetScrollPosition(scroll, 0f);
+    }
+
+    // 全文が入れ替わった欄を先頭へ戻す
+    static void ScrollToTop(ScrollRect scroll)
+    {
+        SetScrollPosition(scroll, 1f);
+    }
+
+    // テキストを書き換えた直後は Content の高さが未確定なので、レイアウトを確定させてから位置を変える
+    static void SetScrollPosition(ScrollRect scroll, float verticalPosition)
+    {
+        if (scroll == null)
+        {
+            return;
+        }
+
+        Canvas.ForceUpdateCanvases();
+        scroll.verticalNormalizedPosition = verticalPosition;
     }
 
     // 送信中クリップの大きさを横棒の長さにする（計算は MicLevel）
