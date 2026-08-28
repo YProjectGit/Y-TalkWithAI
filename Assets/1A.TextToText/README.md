@@ -170,9 +170,11 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
 
 <br/>
 
-例：Gemini3.1（Google Cloudの大規模言語モデル）のAPIへにアクセスするURL
+例：Gemini 3.1（Google Cloudの大規模言語モデル）のAPIへアクセスするURL
 
-`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=(自分のAPIキー)`
+`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent`
+
+APIキーは URL ではなく、リクエストヘッダ `x-goog-api-key` に付けて送ります。
 
 <br/>
 
@@ -191,16 +193,14 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
 
 ```json
 {
-	"date": {
-    "month": 9
+  "date": {
+    "month": 9,
     "day": 25
-  }
-  
+  },
   "users": [
     { "id": 1, "name": "Alice" },
     { "id": 2, "name": "Bob" }
-  ],
-  
+  ]
 }
 ```
 
@@ -250,12 +250,12 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
   "candidates": [
     {
       "content": {
-       "role": "model"
+        "role": "model",
         "parts": [
           {
-            **"text": "今日の東京の天気は、晴れです。最高気温は20℃、最低気温は9℃です。"**
+            "text": "今日の東京の天気は、晴れです。最高気温は20℃、最低気温は9℃です。"
           }
-        ],
+        ]
       },
       "finishReason": "STOP",
       "avgLogprobs": -0.22494593262672424
@@ -289,7 +289,7 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
    候補の答えの配列。このデモでは先頭（`candidates[0]`）のテキストを使う。
 2. **`content`**
    モデルの返答。中の `role` / `parts` / `text` はリクエストと同じ形。
-4. **`usageMetadata`**
+3. **`usageMetadata`**
    使ったトークン数（入力・出力・合計）。
 
 <br/>
@@ -310,7 +310,7 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
 
 ```json
 {
-  "systemInstruction": {　// ← SytemInstrunctionの指定
+  "systemInstruction": {
     "parts": [
       {
         "text": "必ず一行で、元気な関西弁で答えてください"

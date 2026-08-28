@@ -52,7 +52,7 @@ SpeechToText（音声の文字起こし）を、クラウドではなく**自分
 
 <br/>
 
-Project ウィンドウで `Assets/2C.SpeechToTextLocal/SpeechToTextLocal.unity` を開き、Playしてください。
+Project ウィンドウで `Assets/2C.(SpeechToTextLocal)/SpeechToTextLocal.unity` を開き、Playしてください。
 
 ### 1. Spaceを押して話す
 

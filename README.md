@@ -33,7 +33,7 @@ Gemini の API を触って、テキスト・音声のインタラクション�
 | [1B.TextToData](Assets/1B.TextToData/) | 返事を決まったデータ形式（JSON）で受け取り、UI やパラメータに反映する |
 | [2A.SpeechToText](Assets/2A.SpeechToText/) | マイク入力の音声を文字に変換する |
 | [2B.SpeechToData](Assets/2B.SpeechToData/) | 1Bと2Aを組み合わせたサンプル。声でグラフィックを操作する |
-| [2C.SpeechToTextLocal](Assets/2C.SpeechToTextLocal/)（任意） | 音声認識だけローカルPC上のエンジンで行い、レスポンスを向上させる |
+| [2C.SpeechToTextLocal](Assets/2C.(SpeechToTextLocal)/)（任意） | 音声認識だけローカルPC上のエンジンで行い、レスポンスを向上させる |
 | [3A.SpeechToSpeech](Assets/3A.SpeechToSpeech/) | 返事も音声で受け取り、音声と音声のインタラクションを実現する |
 | [3B.SpeechToSpeechLiveAPI](Assets/3B.SpeechToSpeechLiveAPI/) | 音声のコミュニケーションを Live API の1セッションにまとめ、ストリーミング化する |
 | [3C.SpeechToFunction](Assets/3C.SpeechToFunction/) | 会話の途中でアプリの関数を呼び出し、会話で対象を操作する |

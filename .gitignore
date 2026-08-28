@@ -116,8 +116,6 @@ InitTestScene*.unity*
 /Assets/Common/APIKey.txt
 
 # 2C の Resource（モデル・ネイティブライブラリは各自配置。フォルダ骨格は残す）
-/Assets/2C.SpeechToTextLocal/Resource/
-/Assets/2C.SpeechToTextLocal/Resource.meta
 /Assets/2C.(SpeechToTextLocal)/Resource/models/*
 !/Assets/2C.(SpeechToTextLocal)/Resource/models/.gitkeep
 !/Assets/2C.(SpeechToTextLocal)/Resource/models/.gitkeep.meta
