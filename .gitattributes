@@ -169,3 +169,6 @@ Packages/packages-lock.json linguist-generated
 
 # Exceptions for .asset files such as lightning pre-baking
 LightingData.asset     binary
+
+# 教材配布ZIP（git archive）から講師用ルールを除外
+/.cursor/rules/WorkshopMaterial.mdc export-ignore
