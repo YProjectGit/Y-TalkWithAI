@@ -1,4 +1,4 @@
-# 2C. （SpeechToTextLocal）
+# 2C. SpeechToTextLocal
 
 ![speech-to-text-local](../Docs/Image/speech-to-text-local.png)
 
@@ -10,7 +10,7 @@
 
 SpeechToText（音声の文字起こし）を、クラウドではなく**自分のPC上の音声認識エンジン**で行います。
 
-クラウドGemini API経由だと通常1～2秒程度かかっていたSTT処理が、ローカル処理だと0.1秒程度へと高速化します。
+クラウドGemini API経由だと通常1〜2秒程度かかっていたSTT処理が、ローカル処理だと0.1秒程度へと高速化します。
 
 その後の処理については、先の[SpeechToText](../2A.SpeechToText/README.md)のデモと同様です。
 
@@ -63,7 +63,7 @@ Project ウィンドウで `Assets/2C.(SpeechToTextLocal)/SpeechToTextLocal.unit
 ### 2. ローカルSTTの結果を確認する
 
 1. **1. Local STT** を見て、エンジン名、モデル名、サンプル数が並んでいることを確認してください。
-2. **2. Local STT 結果** を見て、認識テキストと経過時間が出ていることを確認してください。
+2. **2. Local STT 結果** を見て、認識テキストと経過時間、**RTF** が出ていることを確認してください。
 
 <br/>
 
@@ -86,7 +86,7 @@ Microphone.Start
   → AudioClip にマイクの音が書き込まれる
 
 Microphone.End と切り出し
-  → float の列（16 kHz）
+  → 実際に録れた長さだけの float の列（16 kHz）
 
 sherpa-onnx OfflineRecognizer
   → 認識テキスト
