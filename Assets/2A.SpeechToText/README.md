@@ -55,6 +55,7 @@ Project ウィンドウで `Assets/2A.SpeechToText/SpeechToText.unity` を開き
 
 1. 左ペインのMessage欄の下にあるボリュームゲージが、自分の声に合わせて動くことを確認してください。
 2. **Spaceキーを押したまま**短い文を話し、話し終えたらキーを**離して**ください。
+3. 左に文字起こしされた自分の発言と、Geminiの返答が出ることを確認してください。
 
 ### 2. 音声データが送られていることを確認する
 
@@ -64,8 +65,10 @@ Project ウィンドウで `Assets/2A.SpeechToText/SpeechToText.unity` を開き
 
 ### 3. 2回の通信を順番に追う
 
-1. **1. Request** で音声をSTTに送り、**2. Response** で文字起こしが返っていることを確認してください。
-2. **3. Request** で、文字起こしされたテキストがLLMへと送られていることを確認してください。
+1. **1. Request** で音声を送り、**2. Response** で文字起こしが返っていることを確認してください。
+2. **3. Request** で、文字起こしされたテキストがチャットのメッセージとして送られていることを確認してください。
+3. **4. Response** で、そのメッセージへの返答が返っていることを確認してください。
+4. 1〜4 の通信先が、どれも同じ `gemini-3.1-flash-lite` であることを見てください。送る中身と指示文が違うだけです。
 
 <br/>
 
@@ -90,10 +93,10 @@ Project ウィンドウで `Assets/2A.SpeechToText/SpeechToText.unity` を開き
 
 ```text
 Microphone.Start
-  → AudioClip にマイクの音が書き込まれる
+  → AudioClip にマイクの音が書き込まれる（16 kHz）
 
 Microphone.End と切り出し
-  → 実際に録れた長さだけの AudioClipが作成される
+  → 実際に録れた長さだけの AudioClip が作成される
 
 WAV化
   → ヘッダ + 16-bit PCM のバイト列
