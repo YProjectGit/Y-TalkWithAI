@@ -80,9 +80,9 @@ Project ウィンドウで `Assets/3A.SpeechToSpeech/SpeechToSpeech.unity` を�
 
 ### マイク入力と音声データ
 
--　入口側（1→2）の変換は [2A.SpeechToText](../2A.SpeechToText/README.md) と同じです。マイクの音をAudioClipへ書き込み、WAVにしてBase64で送ります。
+- 入口側（1→2）の変換は [2A.SpeechToText](../2A.SpeechToText/README.md) と同じです。マイクの音をAudioClipへ書き込み、WAVにしてBase64で送ります。
 
--　出口側（5→6）では逆向きの変換が起きます。APIから来たPCM（またはWAV）をAudioClipにし、`AudioSource` で再生します。
+- 出口側（5→6）では逆向きの変換が起きます。APIから来たPCM（またはWAV）をAudioClipにし、`AudioSource` で再生します。
 
 ```text
 マイク入力 → AudioClip → WAV → Base64 
@@ -104,13 +104,13 @@ Project ウィンドウで `Assets/3A.SpeechToSpeech/SpeechToSpeech.unity` を�
 
 <br/>
 
--　**TTS (Text To Speech)** とは、テキストを音声データへ変換することです。「音声合成」と呼ばれます。
+- **TTS (Text To Speech)** とは、テキストを音声データへ変換することです。「音声合成」と呼ばれます。
 
--　2Aまでは「声 → 文字 → 文字の返答」で終わりました。このデモでは、チャットで得た返答文を**別のTTS向けモデル**へ渡し、「文字 → 声」にしてスピーカーで再生します。
+- 2Aまでは「声 → 文字 → 文字の返答」で終わりました。このデモでは、チャットで得た返答文を**別のTTS向けモデル**へ渡し、「文字 → 声」にしてスピーカーで再生します。
 
--　STTとChatはこれまでと同じ `generateContent` です。(TTSだけ、モデル名が `gemini-3.1-flash-tts-preview` に変わります)
+- STTとChatはこれまでと同じ `generateContent` です。(TTSだけ、モデル名が `gemini-3.1-flash-tts-preview` に変わります)
 
--　1回の発話につき通信は3回です。画面の番号1〜6が、その順番に対応しています。
+- 1回の発話につき通信は3回です。画面の番号1〜6が、その順番に対応しています。
 
 | 番号 | 内容 |
 |---|---|
@@ -154,7 +154,7 @@ Project ウィンドウで `Assets/3A.SpeechToSpeech/SpeechToSpeech.unity` を�
     }
   ],
   "generationConfig": {
-    "responseModalities": ["AUDIO"], //　←ResponseModalitiesの設定
+    "responseModalities": ["AUDIO"],
     "speechConfig": {
       "voiceConfig": {
         "prebuiltVoiceConfig": {
@@ -193,17 +193,17 @@ Project ウィンドウで `Assets/3A.SpeechToSpeech/SpeechToSpeech.unity` を�
 
 ### 文章でトーンと速度を指定する
 
--　トーン（口調）と速度は、`speechConfig` の数値項目としてはありません。読み上げさせる**文章**で指示します。
+- トーン（口調）と速度は、`speechConfig` の数値項目としてはありません。読み上げさせる**文章**で指示します。
 
--　JSONのキーのような決まった書式はありません。本文の前に、**どんな声で・どの速さで読んでほしいかを自然な言葉で書きます**。
+- JSONのキーのような決まった書式はありません。本文の前に、**どんな声で・どの速さで読んでほしいかを自然な言葉で書きます**。
 
--　公式の短い例は、指示と本文を `:` でつなぐ書き方です。`:` は必須の記号ではなく、「ここからが読む文」をはっきりさせるための区切りです。区切りが曖昧だと、指示文まで読み上げてしまうことがあります。
+- 公式の短い例は、指示と本文を `:` でつなぐ書き方です。`:` は必須の記号ではなく、「ここからが読む文」をはっきりさせるための区切りです。区切りが曖昧だと、指示文まで読み上げてしまうことがあります。
 
 ```text
 Say cheerfully: Have a wonderful day!
 ```
 
--　改行で分けても同じです。このデモはではなく、指示のあとに空行を置いて本文を続けています。
+- 改行で分けても同じです。このデモでは `:` を使わず、指示のあとに空行を置いて本文を続けています。
 
 ```text
 元気よく、少し早めに読んでください。
@@ -221,7 +221,7 @@ Say cheerfully: Have a wonderful day!
 
 ### オーディオタグで一部分だけ変える
 
--　`[whispers]` や `[very fast]` のように、角括弧のタグを本文に挟むと、その直後の読み方だけを変えられます。公式では、日本語の本文でもタグは英語にするのが推奨です。
+- `[whispers]` や `[very fast]` のように、角括弧のタグを本文に挟むと、その直後の読み方だけを変えられます。公式では、日本語の本文でもタグは英語にするのが推奨です。
 
 ```text
 [excitedly] こんにちは！ [very slow] 大事な話があります。 [whispers] これは秘密です。

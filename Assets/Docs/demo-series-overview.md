@@ -38,7 +38,7 @@
   音声認識だけローカルPC上のエンジンで行い、レスポンスを向上させる
 - **[3A.SpeechToSpeech](../3A.SpeechToSpeech/)**  
   返事も音声で受け取り、音声と音声のインタラクションを実現する
-  **[3B.SpeechToSpeechLiveAPI](../3B.SpeechToSpeechLiveAPI/)**  
+- **[3B.SpeechToSpeechLiveAPI](../3B.SpeechToSpeechLiveAPI/)**  
   音声のコミュニケーションを Live API の1セッションにまとめ、ストリーミング化する
 - **[3C.SpeechToFunction](../3C.SpeechToFunction/)**  
   会話の途中でアプリの関数を呼び出し、会話で対象を操作する
