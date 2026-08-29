@@ -50,7 +50,7 @@
   [Assets/Docs/gemini-ai-studio-setup.md](../Docs/gemini-ai-studio-setup.md)  
 - APIキーを取得したら、UnityEditor内にある
   `Assets/Common/APIKey.txt`
-  にAPIキーをコピペして補完してください。 
+  にAPIキーを貼り付けて保存してください。
 - APIキーは、**自分の課金でAPIに自由にアクセスできるチケット**なので、絶対に他人に見せないでください。アプリを公開することも絶対しないでください。容易にハッキングされます。
 - もし、APIKeyが他人に漏れるような事態になれば **Google AI Studio でAPIKeyを削除し、作り直してください**。 
 
@@ -95,7 +95,7 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
 
 <br/>
 
-------
+---
 
 ## 基礎知識
 
@@ -122,6 +122,8 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
 
  <br/>
 
+---
+
 ## HTTP
 
 - **HyperText Transfer Protocol** の略
@@ -130,6 +132,8 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
 - クライアントとサーバーの間で「リクエスト／レスポンス」をやり取りするための仕組み
 
 <br/>
+
+---
 
 ## リクエストとレスポンス
 
@@ -153,10 +157,12 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
 
 - **データを「送信する」リクエスト**
   - 送る情報（フォームの内容など）はリクエスト本文（ボディ）に入れる
-  - 送信内用はURL には表示されず、詳しい中身は隠せる
+  - 送信内容は URL には表示されず、中身を見えないようにできる
 
 
 <br/>
+
+---
 
 ## Web API
 
@@ -177,6 +183,8 @@ Project ウィンドウで `Assets/1A.TextToText/TextToText.unity` を開き、P
 APIキーは URL ではなく、リクエストヘッダ `x-goog-api-key` に付けて送ります。
 
 <br/>
+
+---
 
 ## **JSON**
 
