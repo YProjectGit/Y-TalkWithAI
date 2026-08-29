@@ -39,8 +39,8 @@ Project ウィンドウで `Assets/3B.SpeechToSpeechLiveAPI/SpeechToSpeechLiveAP
 
 ### 1. 接続を確認する
 
-1. 中央ペイン上部の **Setup** に、`model` / `voice` / `responseModalities` などの設定行が出ることを確認してください。
-2. 接続後、SetupのJSONが続いていることを見てください。
+1. 中央ペイン上部の **Setup** に、`model` / `voice` / `responseModalities` の設定行（ヘッダ）が出ることを確認してください。
+2. そのすぐ下に、実際に送られたSetupのJSON全文が続いていることを見てください。
 3. 初期状態は **手動モード** です。Setupヘッダの `VAD: manual` を確認してください。
 
 ### 2. Spaceを押して話す（手動モード）
@@ -160,7 +160,7 @@ Project ウィンドウで `Assets/3B.SpeechToSpeechLiveAPI/SpeechToSpeechLiveAP
 1. **`realtimeInput`**  
    セッション中に流す入力です。Setupのあとに何度でも送れます。
 2. **`mimeType`**  
-   WAVではなく、ヘッダのないPCMです。サンプルレートもここに含めます。
+   WAVではなく、ヘッダのないPCMです。サンプルレートもここに含めます。送信は16 kHz、返ってくる音声は24 kHzです。
 3. **`data`**  
    そのチャンクのバイト列をBase64にしたものです。
 
@@ -189,7 +189,7 @@ Project ウィンドウで `Assets/3B.SpeechToSpeechLiveAPI/SpeechToSpeechLiveAP
   - **VAD自動モード**では、Live APIの `automaticActivityDetection` がサーバ側で無音を見てターンを区切ります。クライアントはマイクPCMを流し続けるだけで、`activityStart` / `activityEnd` は送りません。
 - どちらも同じLiveセッションの見た目ですが、ターン境界を誰が決めるかが違います。VADはSetup時の設定のため、切替のたびにセッションを張り直します。
 
-- 無音の切れ方は、Inspectorの **Silence Duration Ms**（無音が何ミリ秒続いたら発話終了とみなす）と **End Of Speech Sensitivity**（切れやすさ）で変えられます。Setup時の設定なので、変えたらStop → Play、またはVADボタンで再接続してください。
+- 無音の切れ方は、Inspectorの **Silence Duration Ms**（無音が何ミリ秒続いたら発話終了とみなす）と **End Of Speech Sensitivity**（切れやすさ）で変えられます。どちらも初期値のままなら Setup に載せず、サーバ既定の切れ方になります（`Silence Duration Ms` は `0`、`End Of Speech Sensitivity` は `Server Default` が「載せない」の意味です）。
 
 <br/>
 
