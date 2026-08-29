@@ -234,7 +234,9 @@ Say cheerfully: Have a wonderful day!
 
 参照:
 
-- [Gemini API: Text-to-speech](https://ai.google.dev/gemini-api/docs/speech-generation)（読み上げ方の指示とオーディオタグも、このページ内で説明されています）
+- [Gemini API: Text-to-speech](https://ai.google.dev/gemini-api/docs/speech-generation)
+- [Controlling speech style with prompts](https://ai.google.dev/gemini-api/docs/speech-generation#controlling-speech-style-with-prompts)
+- [Prompting guide（Audio tags）](https://ai.google.dev/gemini-api/docs/speech-generation#prompting-guide)
 - [Voice options](https://ai.google.dev/gemini-api/docs/speech-generation#voices)
 
 <br/>
