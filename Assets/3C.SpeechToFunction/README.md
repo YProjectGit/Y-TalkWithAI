@@ -99,13 +99,16 @@ Project ウィンドウで `Assets/3C.SpeechToFunction/SpeechToFunction.unity` �
             "parameters": {
               "type": "OBJECT",
               "properties": {
-                "angularVelocityX": { "type": "NUMBER" },
-                "angularVelocityY": { "type": "NUMBER" },
-                "angularVelocityZ": { "type": "NUMBER" },
-                "sizeX": { "type": "NUMBER" },
-                "sizeY": { "type": "NUMBER" },
-                "sizeZ": { "type": "NUMBER" },
-                "size": { "type": "NUMBER" }
+                "angularVelocityX": {
+                  "type": "NUMBER",
+                  "description": "World X angular velocity in degrees per second (pitch)."
+                },
+                "angularVelocityY": { "type": "NUMBER", "description": "…" },
+                "angularVelocityZ": { "type": "NUMBER", "description": "…" },
+                "sizeX": { "type": "NUMBER", "description": "…" },
+                "sizeY": { "type": "NUMBER", "description": "…" },
+                "sizeZ": { "type": "NUMBER", "description": "…" },
+                "size": { "type": "NUMBER", "description": "…" }
               }
             }
           }
@@ -207,7 +210,9 @@ Project ウィンドウで `Assets/3C.SpeechToFunction/SpeechToFunction.unity` �
         "name": "set_cube_motion",
         "response": {
           "result": "ok",
+          "angularVelocityX": 0,
           "angularVelocityY": 40,
+          "angularVelocityZ": 0,
           "sizeX": 1.4,
           "sizeY": 1.4,
           "sizeZ": 1.4
@@ -225,7 +230,7 @@ Project ウィンドウで `Assets/3C.SpeechToFunction/SpeechToFunction.unity` �
    識別子です。元となる toolCall の `id` と同じ値にすることで、どの呼び出しへの結果かを明確にします。
 
 3. **`response`**  
-   実行結果です。`result` に加えて、現在の各変数の状態を返します。
+   実行結果です。`result` に加えて、**変更していない軸も含めた6つの目標値をすべて**返します。次の「もっと速く」「少し小さく」のような相対的な指示を、モデルがこの値を基準に決められるようにするためです。
 
    
 

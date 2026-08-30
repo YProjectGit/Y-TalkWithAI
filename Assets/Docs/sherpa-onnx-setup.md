@@ -24,12 +24,12 @@ https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-z
 
 日本語の ReazonSpeech（Zipformer）です。配布アーカイブの中に、同じモデルの **int8**版 と **fp32**版 が入っています。それぞれの違いは以下の通りです。
 
-| バージョン               | ファイルの合計 | 変換の速さ                 | 変換の精度                     |
+| バージョン               | ファイルの合計 | 認識の速さ                 | 認識の精度                     |
 | ------------------------ | -------------- | -------------------------- | ------------------------------ |
 | **int8**（授業の出発点） | 約 162MB       | 速い                       | 授業の発話なら足りることが多い |
 | **fp32**                 | 約 586MB       | すこし遅い（十分に速いが） | 認識がより安定している         |
 
-上記のいずれかを選択し、それぞれの場合において、下記のファイル群を `Assets/2C.(SpeechToTextLocal)/Resource/models/` にコピーしてください。
+どちらかを選び、下記のファイル群を `Assets/2C.(SpeechToTextLocal)/Resource/models/` にコピーしてください。
 
 <br/>
 
@@ -53,7 +53,7 @@ https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-z
 
 <br/>
 
-デモ（`SpeechToTextLocal`）の設定は、**int8版をデフォルトに設定**しています。**fp32版 を使う場合は、SpeechToTextLocalのインスペクタで、以下の項目を書き換えてください**。
+デモ（`SpeechToTextLocal`）は、**int8版を初期値にしています**。**fp32版 を使う場合は、SpeechToTextLocalのインスペクタで、以下の項目を書き換えてください**。
 
 - `sherpaEncoderFileName` → `encoder-epoch-99-avg-1.onnx`
 - `sherpaDecoderFileName` → `decoder-epoch-99-avg-1.onnx`
@@ -71,7 +71,7 @@ int8 のときは、Inspector の初期値のままで動きます。
 
 ReazonSpeechとは別に、sherpa-onnx 本体（共有ライブラリ）が必要です。
 
-1. 自分のOSに見合った以下のファイルをダウンロードして展開してください。
+1. 自分のOSに合った以下のファイルをダウンロードして展開してください。
 
 | OS | ダウンロード |
 |----|--------------|
@@ -85,7 +85,7 @@ ReazonSpeechとは別に、sherpa-onnx 本体（共有ライブラリ）が必�
 | Windows (x64) | `sherpa-onnx-c-api.dll`<br>`onnxruntime.dll`<br>`onnxruntime_providers_shared.dll` | `Assets/2C.(SpeechToTextLocal)/Resource/Plugins/Windows/x86_64/` |
 | macOS（Apple Silicon） | `libsherpa-onnx-c-api.dylib`<br>`libonnxruntime.dylib` | `Assets/2C.(SpeechToTextLocal)/Resource/Plugins/macOS/ARM64/` |
 
-3. Unity に戻し、Project ウィンドウを一度クリックしてください（置いたファイルが再インポートされます）。必要なら各プラグインのインスペクタで自分の OS だけ有効にしてください。そのあと `SpeechToTextLocal` シーンを Play してください。
+3. Unity に戻り、Project ウィンドウを一度クリックしてください（置いたファイルが再インポートされます）。必要なら各プラグインのインスペクタで自分の OS だけ有効にしてください。そのあと `SpeechToTextLocal` シーンを Play してください。
 
 <br/>
 
@@ -97,7 +97,7 @@ ReazonSpeechとは別に、sherpa-onnx 本体（共有ライブラリ）が必�
 
 Play 直後のコンソール画面に、
 
-```
+```text
 [SpeechToTextLocal] sherpa-onnx の初期化に成功しました。
 ```
 

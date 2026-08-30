@@ -1,6 +1,6 @@
 # 3A. SpeechToSpeech
 
-<img src="../Docs/Image/speech-to-speech.png" alt="speech-to-speech" style="zoom: 50%;" />
+![speech-to-speech](../Docs/Image/speech-to-speech.png)
 
 <br/>
 
@@ -54,21 +54,22 @@ Project ウィンドウで `Assets/3A.SpeechToSpeech/SpeechToSpeech.unity` を�
 
 ### 1. Spaceを押して話す
 
-- 左ペインのMessage欄の下にあるボリュームゲージが、自分の声に合わせて動くことを確認してください。
-- **Spaceキーを押したまま**短い文を話し、話し終えたらキーを**離して**ください。
-- 左ペインに吹き出しが出たあと、Geminiの返答が声で再生されることを確認してください。
+1. 左ペインのMessage欄の下にあるボリュームゲージが、自分の声に合わせて動くことを確認してください。
+2. **Spaceキーを押したまま**短い文を話し、話し終えたらキーを**離して**ください。
+3. 左ペインに吹き出しが出たあと、Geminiの返答が声で再生されることを確認してください。
 
 ### 2. 3回の通信を順番に追う
 
-- **1. Request** で音声をSTTに送り、**2. Response** で文字起こしが返っていることを確認してください。
-- **3. Request** で、文字起こしされたテキストがチャットとして送られていることを確認してください。
-- **5. Request** を見て、`responseModalities` に `AUDIO` が入っていること、先頭に `ttsModel` / `voice` が出ていることを確認してください。
-- **6. Response** には MIME とバイト数の要約だけが出ます。音声本体は再生に回すため、ここに載せていません。
+1. **1. Request** で音声を送り、**2. Response** で文字起こしが返っていることを確認してください。
+2. **3. Request** で、文字起こしされたテキストがチャットのメッセージとして送られていることを確認してください。
+3. **4. Response** で、チャットの返答テキストが返っていることを確認してください。
+4. **5. Request** を見て、`responseModalities` に `AUDIO` が入っていること、先頭に `ttsModel` / `voice` が出ていることを確認してください。
+5. **6. Response** には MIME とバイト数の要約だけが出ます。音声本体は再生に回すため、ここに載せていません。
 
 ### 3. 声を変えてみる
 
-- Hierarchyでデモ本体（`SpeechToSpeech`）を選び、Inspectorの **Tts Voice Name**（`ttsVoiceName`）を変更してください（初期値は `Kore`）。
-- 使える声の名前は [Gemini API: Voice options](https://ai.google.dev/gemini-api/docs/speech-generation#voices) を参照してください。
+1. Hierarchyでデモ本体（`SpeechToSpeech`）を選び、Inspectorの **Tts Voice Name**（`ttsVoiceName`）を変更してください（初期値は `Kore`）。
+2. 使える声の名前は [Gemini API: Voice options](https://ai.google.dev/gemini-api/docs/speech-generation#voices) を参照してください。
 
 <br/>
 
@@ -108,7 +109,7 @@ Project ウィンドウで `Assets/3A.SpeechToSpeech/SpeechToSpeech.unity` を�
 
 - 2Aまでは「声 → 文字 → 文字の返答」で終わりました。このデモでは、チャットで得た返答文を**別のTTS向けモデル**へ渡し、「文字 → 声」にしてスピーカーで再生します。
 
-- STTとChatはこれまでと同じ `generateContent` です。(TTSだけ、モデル名が `gemini-3.1-flash-tts-preview` に変わります)
+- STTとChatはこれまでと同じ `generateContent` です。（TTSだけ、モデル名が `gemini-3.1-flash-tts-preview` に変わります）
 
 - 1回の発話につき通信は3回です。画面の番号1〜6が、その順番に対応しています。
 
@@ -227,15 +228,15 @@ Say cheerfully: Have a wonderful day!
 [excitedly] こんにちは！ [very slow] 大事な話があります。 [whispers] これは秘密です。
 ```
 
-よく使われるタグの例は、`[excitedly]`（元気に）、`[whispers]`（ささやき）、`[very fast]` / `[very slow]`（速さ）、`[tired]`（疲れた調子）です。決まった一覧はなく、試しながら選ぶ、と公式に書かれています。
+よく使われるタグの例は、`[excitedly]`（元気に）、`[whispers]`（ささやき）、`[very fast]` / `[very slow]`（速さ）、`[tired]`（疲れた調子）です。決まった一覧はなく、試しながら選ぶよう公式に書かれています。
 
 <br/>
 
 参照:
 
-- [Gemini API: Text-to-speech（generateContent）](https://ai.google.dev/gemini-api/docs/generate-content/speech-generation)
-- [Controlling speech style with prompts](https://ai.google.dev/gemini-api/docs/generate-content/speech-generation#controlling-speech-style-with-prompts)
-- [Prompting guide（Audio tags）](https://ai.google.dev/gemini-api/docs/generate-content/speech-generation#prompting-guide)
+- [Gemini API: Text-to-speech](https://ai.google.dev/gemini-api/docs/speech-generation)
+- [Controlling speech style with prompts](https://ai.google.dev/gemini-api/docs/speech-generation#controlling-speech-style-with-prompts)
+- [Prompting guide（Audio tags）](https://ai.google.dev/gemini-api/docs/speech-generation#prompting-guide)
 - [Voice options](https://ai.google.dev/gemini-api/docs/speech-generation#voices)
 
 <br/>
