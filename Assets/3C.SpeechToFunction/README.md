@@ -87,25 +87,9 @@ Project ウィンドウで `Assets/3C.SpeechToFunction/SpeechToFunction.unity` �
     "model": "models/gemini-3.1-flash-live-preview",
     "systemInstruction": {
       "parts": [
-        {
-          "text": 
-        "あなたは Unityアプリ内のキューブを set_cube_motion 関数で操作するアシスタントです。
-		回転・傾き・大きさを変える依頼には、必ず set_cube_motion を呼んでください。
-		呼び出しは1回にまとめ、変える引数だけを書きます。
-		書かなかった引数はそのまま残ります。
-		値は、直近の tool response に入っている「いまの目標」を基準に決めます。
-		「もっと速く」「少し小さく」のような相対的な依頼は、その値を増減させてください。
-		「逆に」は角速度の符号を反転します（軸の指定がなければ Y）。
-		「止めて」は角速度を 3 軸とも 0 にします。
-		速さの目安は、ゆっくり 10、ふつう 30、速い 120、とても速い 300（度/秒）です。
-		大きさの目安は、小さい 0.5、ふつう 1、大きい 2 です。
-		極端な値は避けてください。
-		関数を呼んだあとは、何をどう変えたかを日本語で一言だけ伝えてください。
-		キューブの操作と関係のない話には、関数を呼ばずに短く答えてください。"
-        }
+        { "text": "あなたは Unity のキューブを set_cube_motion 関数で操作するアシスタントです。……" }
       ]
     },
-      
     "tools": [
       {
         "functionDeclarations": [
@@ -115,25 +99,47 @@ Project ウィンドウで `Assets/3C.SpeechToFunction/SpeechToFunction.unity` �
             "parameters": {
               "type": "OBJECT",
               "properties": {
-                "angularVelocityX": { "type": "NUMBER" },
-                "angularVelocityY": { "type": "NUMBER" },
-                "angularVelocityZ": { "type": "NUMBER" },
-                "sizeX": { "type": "NUMBER" },
-                "sizeY": { "type": "NUMBER" },
-                "sizeZ": { "type": "NUMBER" },
-                "size": { "type": "NUMBER" }
+                "angularVelocityX": {
+                  "type": "NUMBER",
+                  "description": "World X angular velocity in degrees per second (pitch)."
+                },
+                "angularVelocityY": { "type": "NUMBER", "description": "…" },
+                "angularVelocityZ": { "type": "NUMBER", "description": "…" },
+                "sizeX": { "type": "NUMBER", "description": "…" },
+                "sizeY": { "type": "NUMBER", "description": "…" },
+                "sizeZ": { "type": "NUMBER", "description": "…" },
+                "size": { "type": "NUMBER", "description": "…" }
               }
             }
           }
         ]
       }
     ],
-      
     "generationConfig": {
       "responseModalities": ["AUDIO"]
     }
   }
 }
+```
+
+<br/>
+
+`systemInstruction` の本文（[`SystemInstruction.txt`](Resource/SystemInstruction.txt)）は次のとおりです。
+
+```text
+あなたは Unity のキューブを set_cube_motion 関数で操作するアシスタントです。
+回転・傾き・大きさを変える依頼には、必ず set_cube_motion を呼んでください。
+呼び出しは1回にまとめ、変える引数だけを書きます。
+書かなかった引数はそのまま残ります。
+値は、直近の tool response に入っている「いまの目標」を基準に決めます。
+「もっと速く」「少し小さく」のような相対的な依頼は、その値を増減させてください。
+「逆に」は角速度の符号を反転します（軸の指定がなければ Y）。
+「止めて」は角速度を 3 軸とも 0 にします。
+速さの目安は、ゆっくり 10、ふつう 30、速い 120、とても速い 300（度/秒）です。
+大きさの目安は、小さい 0.5、ふつう 1、大きい 2 です。
+極端な値は避けてください。
+関数を呼んだあとは、何をどう変えたかを日本語で一言だけ伝えてください。
+キューブの操作と関係のない話には、関数を呼ばずに短く答えてください。
 ```
 
 1. **`systemInstruction`**  
@@ -204,7 +210,9 @@ Project ウィンドウで `Assets/3C.SpeechToFunction/SpeechToFunction.unity` �
         "name": "set_cube_motion",
         "response": {
           "result": "ok",
+          "angularVelocityX": 0,
           "angularVelocityY": 40,
+          "angularVelocityZ": 0,
           "sizeX": 1.4,
           "sizeY": 1.4,
           "sizeZ": 1.4
@@ -219,10 +227,10 @@ Project ウィンドウで `Assets/3C.SpeechToFunction/SpeechToFunction.unity` �
    関数を実行したあとに、同じセッションへ返す結果です。
 
 2. **`id`**  
-   識別子です。元となるtoolCallのidと同一にすることで対応関係を名確認します。
+   識別子です。元となる toolCall の `id` と同じ値にすることで、どの呼び出しへの結果かを明確にします。
 
 3. **`response`**  
-   実行結果です。`result` に加えて、現在の各変数の状態を返します。
+   実行結果です。`result` に加えて、**変更していない軸も含めた6つの目標値をすべて**返します。次の「もっと速く」「少し小さく」のような相対的な指示を、モデルがこの値を基準に決められるようにするためです。
 
    
 

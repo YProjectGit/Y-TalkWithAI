@@ -1,6 +1,6 @@
 # 3A. SpeechToSpeech
 
-<img src="../Docs/Image/speech-to-speech.png" alt="speech-to-speech" style="zoom: 50%;" />
+![speech-to-speech](../Docs/Image/speech-to-speech.png)
 
 <br/>
 
@@ -54,21 +54,22 @@ Project ウィンドウで `Assets/3A.SpeechToSpeech/SpeechToSpeech.unity` を�
 
 ### 1. Spaceを押して話す
 
-- 左ペインのMessage欄の下にあるボリュームゲージが、自分の声に合わせて動くことを確認してください。
-- **Spaceキーを押したまま**短い文を話し、話し終えたらキーを**離して**ください。
-- 左ペインに吹き出しが出たあと、Geminiの返答が声で再生されることを確認してください。
+1. 左ペインのMessage欄の下にあるボリュームゲージが、自分の声に合わせて動くことを確認してください。
+2. **Spaceキーを押したまま**短い文を話し、話し終えたらキーを**離して**ください。
+3. 左ペインに吹き出しが出たあと、Geminiの返答が声で再生されることを確認してください。
 
 ### 2. 3回の通信を順番に追う
 
-- **1. Request** で音声をSTTに送り、**2. Response** で文字起こしが返っていることを確認してください。
-- **3. Request** で、文字起こしされたテキストがチャットとして送られていることを確認してください。
-- **5. Request** を見て、`responseModalities` に `AUDIO` が入っていること、先頭に `ttsModel` / `voice` が出ていることを確認してください。
-- **6. Response** には MIME とバイト数の要約だけが出ます。音声本体は再生に回すため、ここに載せていません。
+1. **1. Request** で音声を送り、**2. Response** で文字起こしが返っていることを確認してください。
+2. **3. Request** で、文字起こしされたテキストがチャットのメッセージとして送られていることを確認してください。
+3. **4. Response** で、チャットの返答テキストが返っていることを確認してください。
+4. **5. Request** を見て、`responseModalities` に `AUDIO` が入っていること、先頭に `ttsModel` / `voice` が出ていることを確認してください。
+5. **6. Response** には MIME とバイト数の要約だけが出ます。音声本体は再生に回すため、ここに載せていません。
 
 ### 3. 声を変えてみる
 
-- Hierarchyでデモ本体（`SpeechToSpeech`）を選び、Inspectorの **Tts Voice Name**（`ttsVoiceName`）を変更してください（初期値は `Kore`）。
-- 使える声の名前は [Gemini API: Voice options](https://ai.google.dev/gemini-api/docs/speech-generation#voices) を参照してください。
+1. Hierarchyでデモ本体（`SpeechToSpeech`）を選び、Inspectorの **Tts Voice Name**（`ttsVoiceName`）を変更してください（初期値は `Kore`）。
+2. 使える声の名前は [Gemini API: Voice options](https://ai.google.dev/gemini-api/docs/speech-generation#voices) を参照してください。
 
 <br/>
 
@@ -80,9 +81,9 @@ Project ウィンドウで `Assets/3A.SpeechToSpeech/SpeechToSpeech.unity` を�
 
 ### マイク入力と音声データ
 
--　入口側（1→2）の変換は [2A.SpeechToText](../2A.SpeechToText/README.md) と同じです。マイクの音をAudioClipへ書き込み、WAVにしてBase64で送ります。
+- 入口側（1→2）の変換は [2A.SpeechToText](../2A.SpeechToText/README.md) と同じです。マイクの音をAudioClipへ書き込み、WAVにしてBase64で送ります。
 
--　出口側（5→6）では逆向きの変換が起きます。APIから来たPCM（またはWAV）をAudioClipにし、`AudioSource` で再生します。
+- 出口側（5→6）では逆向きの変換が起きます。APIから来たPCM（またはWAV）をAudioClipにし、`AudioSource` で再生します。
 
 ```text
 マイク入力 → AudioClip → WAV → Base64 
@@ -104,13 +105,13 @@ Project ウィンドウで `Assets/3A.SpeechToSpeech/SpeechToSpeech.unity` を�
 
 <br/>
 
--　**TTS (Text To Speech)** とは、テキストを音声データへ変換することです。「音声合成」と呼ばれます。
+- **TTS (Text To Speech)** とは、テキストを音声データへ変換することです。「音声合成」と呼ばれます。
 
--　2Aまでは「声 → 文字 → 文字の返答」で終わりました。このデモでは、チャットで得た返答文を**別のTTS向けモデル**へ渡し、「文字 → 声」にしてスピーカーで再生します。
+- 2Aまでは「声 → 文字 → 文字の返答」で終わりました。このデモでは、チャットで得た返答文を**別のTTS向けモデル**へ渡し、「文字 → 声」にしてスピーカーで再生します。
 
--　STTとChatはこれまでと同じ `generateContent` です。(TTSだけ、モデル名が `gemini-3.1-flash-tts-preview` に変わります)
+- STTとChatはこれまでと同じ `generateContent` です。（TTSだけ、モデル名が `gemini-3.1-flash-tts-preview` に変わります）
 
--　1回の発話につき通信は3回です。画面の番号1〜6が、その順番に対応しています。
+- 1回の発話につき通信は3回です。画面の番号1〜6が、その順番に対応しています。
 
 | 番号 | 内容 |
 |---|---|
@@ -154,7 +155,7 @@ Project ウィンドウで `Assets/3A.SpeechToSpeech/SpeechToSpeech.unity` を�
     }
   ],
   "generationConfig": {
-    "responseModalities": ["AUDIO"], //　←ResponseModalitiesの設定
+    "responseModalities": ["AUDIO"],
     "speechConfig": {
       "voiceConfig": {
         "prebuiltVoiceConfig": {
@@ -193,17 +194,17 @@ Project ウィンドウで `Assets/3A.SpeechToSpeech/SpeechToSpeech.unity` を�
 
 ### 文章でトーンと速度を指定する
 
--　トーン（口調）と速度は、`speechConfig` の数値項目としてはありません。読み上げさせる**文章**で指示します。
+- トーン（口調）と速度は、`speechConfig` の数値項目としてはありません。読み上げさせる**文章**で指示します。
 
--　JSONのキーのような決まった書式はありません。本文の前に、**どんな声で・どの速さで読んでほしいかを自然な言葉で書きます**。
+- JSONのキーのような決まった書式はありません。本文の前に、**どんな声で・どの速さで読んでほしいかを自然な言葉で書きます**。
 
--　公式の短い例は、指示と本文を `:` でつなぐ書き方です。`:` は必須の記号ではなく、「ここからが読む文」をはっきりさせるための区切りです。区切りが曖昧だと、指示文まで読み上げてしまうことがあります。
+- 公式の短い例は、指示と本文を `:` でつなぐ書き方です。`:` は必須の記号ではなく、「ここからが読む文」をはっきりさせるための区切りです。区切りが曖昧だと、指示文まで読み上げてしまうことがあります。
 
 ```text
 Say cheerfully: Have a wonderful day!
 ```
 
--　改行で分けても同じです。このデモはではなく、指示のあとに空行を置いて本文を続けています。
+- 改行で分けても同じです。このデモでは `:` を使わず、指示のあとに空行を置いて本文を続けています。
 
 ```text
 元気よく、少し早めに読んでください。
@@ -221,21 +222,21 @@ Say cheerfully: Have a wonderful day!
 
 ### オーディオタグで一部分だけ変える
 
--　`[whispers]` や `[very fast]` のように、角括弧のタグを本文に挟むと、その直後の読み方だけを変えられます。公式では、日本語の本文でもタグは英語にするのが推奨です。
+- `[whispers]` や `[very fast]` のように、角括弧のタグを本文に挟むと、その直後の読み方だけを変えられます。公式では、日本語の本文でもタグは英語にするのが推奨です。
 
 ```text
 [excitedly] こんにちは！ [very slow] 大事な話があります。 [whispers] これは秘密です。
 ```
 
-よく使われるタグの例は、`[excitedly]`（元気に）、`[whispers]`（ささやき）、`[very fast]` / `[very slow]`（速さ）、`[tired]`（疲れた調子）です。決まった一覧はなく、試しながら選ぶ、と公式に書かれています。
+よく使われるタグの例は、`[excitedly]`（元気に）、`[whispers]`（ささやき）、`[very fast]` / `[very slow]`（速さ）、`[tired]`（疲れた調子）です。決まった一覧はなく、試しながら選ぶよう公式に書かれています。
 
 <br/>
 
 参照:
 
-- [Gemini API: Text-to-speech（generateContent）](https://ai.google.dev/gemini-api/docs/generate-content/speech-generation)
-- [Controlling speech style with prompts](https://ai.google.dev/gemini-api/docs/generate-content/speech-generation#controlling-speech-style-with-prompts)
-- [Prompting guide（Audio tags）](https://ai.google.dev/gemini-api/docs/generate-content/speech-generation#prompting-guide)
+- [Gemini API: Text-to-speech](https://ai.google.dev/gemini-api/docs/speech-generation)
+- [Controlling speech style with prompts](https://ai.google.dev/gemini-api/docs/speech-generation#controlling-speech-style-with-prompts)
+- [Prompting guide（Audio tags）](https://ai.google.dev/gemini-api/docs/speech-generation#prompting-guide)
 - [Voice options](https://ai.google.dev/gemini-api/docs/speech-generation#voices)
 
 <br/>

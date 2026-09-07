@@ -4,7 +4,7 @@
 
 <br/>
 
-声で受け取った指示を、文章ではなく**プログラム内で解釈できるJSON形式データ**として受け取るアプリケーションです。
+声で受け取った指示を、文章ではなく**プログラムがそのまま読めるJSON**として受け取るアプリケーションです。
 
 マイクで話した内容が文字起こしされたあと、**1B.TextToDataのデモ**と同じく3Dキューブと背景の色が変わります。
 
@@ -16,7 +16,7 @@
 
 <br/>
 
-このデモは、これまでの **[TextToData](../1B.TextToData/README.md)**と、**[SpeechToText](../2A.SpeechToText/README.md)**の組み合わせです。
+このデモは、これまでの **[TextToData](../1B.TextToData/README.md)** と、**[SpeechToText](../2A.SpeechToText/README.md)** の組み合わせです。
 
 下記の要素それぞれについては、上記のリンクから参照してください。
 
